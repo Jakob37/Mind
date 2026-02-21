@@ -1,0 +1,27 @@
+# Flutter and Dart tool output
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.metadata
+.packages
+.pub/
+
+# Build output
+build/
+coverage/
+
+# IDE files
+*.iml
+.idea/
+.vscode/
+
+# Generated platform files
+android/.gradle/
+android/local.properties
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/ephemeral/
+macos/Pods/
+macos/Flutter/ephemeral/
+linux/flutter/ephemeral/
+windows/flutter/ephemeral/
