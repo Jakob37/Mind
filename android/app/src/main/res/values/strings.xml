@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_add_entry">Add start entry</string>
+    <string name="widget_add_entry_description">Quickly add a new start-page entry</string>
+</resources>

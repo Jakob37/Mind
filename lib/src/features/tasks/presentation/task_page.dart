@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 class TaskItem {
   TaskItem({required this.title});
@@ -30,6 +31,10 @@ class TaskPage extends StatefulWidget {
 
 class _TaskPageState extends State<TaskPage>
     with SingleTickerProviderStateMixin {
+  static const MethodChannel _widgetChannel = MethodChannel(
+    'mind/widget_actions',
+  );
+
   final List<TaskItem> _incomingTasks = <TaskItem>[
     TaskItem(title: 'Sit for 10 minutes in silence'),
     TaskItem(title: 'Do a 3-minute breathing check-in'),
@@ -46,6 +51,7 @@ class _TaskPageState extends State<TaskPage>
   ];
   late final TabController _tabController;
   int _selectedTabIndex = 0;
+  bool _isAddTaskSheetOpen = false;
 
   @override
   void initState() {
@@ -59,20 +65,64 @@ class _TaskPageState extends State<TaskPage>
         _selectedTabIndex = _tabController.index;
       });
     });
+    _setupWidgetActionHandling();
   }
 
   @override
   void dispose() {
+    _widgetChannel.setMethodCallHandler(null);
     _tabController.dispose();
     super.dispose();
   }
 
+  Future<void> _setupWidgetActionHandling() async {
+    _widgetChannel.setMethodCallHandler((MethodCall call) async {
+      if (call.method == 'openAddEntry') {
+        _openAddEntryFromWidget();
+      }
+    });
+
+    try {
+      final bool shouldOpen =
+          await _widgetChannel.invokeMethod<bool>('consumePendingAddEntry') ??
+              false;
+      if (shouldOpen) {
+        _openAddEntryFromWidget();
+      }
+    } on MissingPluginException {
+      // iOS/Linux/Web tests and platforms without channel implementation.
+    }
+  }
+
+  void _openAddEntryFromWidget() {
+    if (!mounted) {
+      return;
+    }
+
+    if (_tabController.index != 0) {
+      _tabController.animateTo(0);
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _openAddTaskWidget();
+    });
+  }
+
   Future<void> _openAddTaskWidget() async {
+    if (_isAddTaskSheetOpen) {
+      return;
+    }
+
+    _isAddTaskSheetOpen = true;
     final TaskItem? newTask = await showModalBottomSheet<TaskItem>(
       context: context,
       isScrollControlled: true,
       builder: (context) => const _AddTaskWidget(),
     );
+    _isAddTaskSheetOpen = false;
 
     if (newTask == null) {
       return;
@@ -138,11 +188,25 @@ class _TaskPageState extends State<TaskPage>
     });
   }
 
+  void _openProjectDetail(int projectIndex) {
+    Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _ProjectDetailPage(
+          projectIndex: projectIndex,
+          projects: _projects,
+          onProjectsUpdated: () {
+            setState(() {});
+          },
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Task Manager'),
+        toolbarHeight: 0,
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -171,7 +235,10 @@ class _TaskPageState extends State<TaskPage>
             onPrimaryAction: _moveFavoriteToIncoming,
             onDelete: _deleteFavoriteTask,
           ),
-          _ProjectListView(projects: _projects),
+          _ProjectListView(
+            projects: _projects,
+            onProjectTap: _openProjectDetail,
+          ),
         ],
       ),
       floatingActionButton: _selectedTabIndex == 0
@@ -215,36 +282,44 @@ class _TaskListView extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       itemCount: tasks.length,
       itemBuilder: (context, index) {
         final TaskItem task = tasks[index];
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
-          child: Card(
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
-              ),
-              title: Text(
-                task.title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(primaryIcon),
-                    onPressed: () async => onPrimaryAction(index),
-                    tooltip: primaryTooltip,
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => onDelete(index),
-                    tooltip: 'Delete',
-                  ),
-                ],
+        return Dismissible(
+          key: ValueKey<String>('task-${task.title}-$index'),
+          direction: DismissDirection.endToStart,
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+          ),
+          onDismissed: (_) => onDelete(index),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Card(
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                title: Text(
+                  task.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                trailing: IconButton(
+                  icon: Icon(primaryIcon),
+                  onPressed: () async => onPrimaryAction(index),
+                  tooltip: primaryTooltip,
+                ),
               ),
             ),
           ),
@@ -283,10 +358,10 @@ class _AddTaskWidgetState extends State<_AddTaskWidget> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        16 + MediaQuery.of(context).viewInsets.bottom,
+        12,
+        12,
+        12,
+        12 + MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -306,7 +381,7 @@ class _AddTaskWidgetState extends State<_AddTaskWidget> {
               hintText: 'Buy groceries',
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: _saveTask,
             child: const Text('Save Task'),
@@ -318,9 +393,13 @@ class _AddTaskWidgetState extends State<_AddTaskWidget> {
 }
 
 class _ProjectListView extends StatelessWidget {
-  const _ProjectListView({required this.projects});
+  const _ProjectListView({
+    required this.projects,
+    required this.onProjectTap,
+  });
 
   final List<ProjectItem> projects;
+  final ValueChanged<int> onProjectTap;
 
   @override
   Widget build(BuildContext context) {
@@ -329,17 +408,17 @@ class _ProjectListView extends StatelessWidget {
     }
 
     return ListView.builder(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(12),
       itemCount: projects.length,
       itemBuilder: (context, index) {
         final ProjectItem project = projects[index];
         return Padding(
-          padding: const EdgeInsets.only(bottom: 12),
+          padding: const EdgeInsets.only(bottom: 4),
           child: Card(
             child: ListTile(
               contentPadding: const EdgeInsets.symmetric(
-                horizontal: 16,
-                vertical: 8,
+                horizontal: 12,
+                vertical: 6,
               ),
               leading: const Icon(Icons.folder_outlined),
               title: Text(
@@ -352,6 +431,7 @@ class _ProjectListView extends StatelessWidget {
                   '${project.tasks.length} task${project.tasks.length == 1 ? '' : 's'}',
                 ),
               ),
+              onTap: () => onProjectTap(index),
             ),
           ),
         );
@@ -427,10 +507,10 @@ class _AddProjectWidgetState extends State<_AddProjectWidget> {
   Widget build(BuildContext context) {
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        16,
-        16,
-        16,
-        16 + MediaQuery.of(context).viewInsets.bottom,
+        12,
+        12,
+        12,
+        12 + MediaQuery.of(context).viewInsets.bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -450,13 +530,168 @@ class _AddProjectWidgetState extends State<_AddProjectWidget> {
               hintText: 'Deep Focus',
             ),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 12),
           FilledButton(
             onPressed: _createProject,
             child: const Text('Create Project'),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MoveProjectTaskWidget extends StatelessWidget {
+  const _MoveProjectTaskWidget({
+    required this.projects,
+    required this.currentProjectIndex,
+  });
+
+  final List<ProjectItem> projects;
+  final int currentProjectIndex;
+
+  @override
+  Widget build(BuildContext context) {
+    final List<int> targetIndexes = <int>[
+      for (int i = 0; i < projects.length; i++)
+        if (i != currentProjectIndex) i,
+    ];
+
+    if (targetIndexes.isEmpty) {
+      return const SafeArea(
+        child: Padding(
+          padding: EdgeInsets.all(16),
+          child: Text('No other projects available.'),
+        ),
+      );
+    }
+
+    return SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          const ListTile(
+            title: Text(
+              'Move task to project',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          const Divider(height: 1),
+          for (final int targetIndex in targetIndexes)
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: Text(projects[targetIndex].name),
+              subtitle: Text(
+                '${projects[targetIndex].tasks.length} task${projects[targetIndex].tasks.length == 1 ? '' : 's'}',
+              ),
+              onTap: () => Navigator.of(context).pop(targetIndex),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectDetailPage extends StatefulWidget {
+  const _ProjectDetailPage({
+    required this.projectIndex,
+    required this.projects,
+    required this.onProjectsUpdated,
+  });
+
+  final int projectIndex;
+  final List<ProjectItem> projects;
+  final VoidCallback onProjectsUpdated;
+
+  @override
+  State<_ProjectDetailPage> createState() => _ProjectDetailPageState();
+}
+
+class _ProjectDetailPageState extends State<_ProjectDetailPage> {
+  ProjectItem get _project => widget.projects[widget.projectIndex];
+
+  void _deleteTask(int taskIndex) {
+    setState(() {
+      _project.tasks.removeAt(taskIndex);
+    });
+    widget.onProjectsUpdated();
+  }
+
+  Future<void> _moveTaskToAnotherProject(int taskIndex) async {
+    final int? targetProjectIndex = await showModalBottomSheet<int>(
+      context: context,
+      builder: (_) => _MoveProjectTaskWidget(
+        projects: widget.projects,
+        currentProjectIndex: widget.projectIndex,
+      ),
+    );
+
+    if (targetProjectIndex == null) {
+      return;
+    }
+
+    setState(() {
+      final TaskItem task = _project.tasks.removeAt(taskIndex);
+      widget.projects[targetProjectIndex].tasks.insert(0, task);
+    });
+    widget.onProjectsUpdated();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text(_project.name)),
+      body: _project.tasks.isEmpty
+          ? const Center(
+              child: Text('No tasks in this project yet.'),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: _project.tasks.length,
+              itemBuilder: (context, index) {
+                final TaskItem task = _project.tasks[index];
+                return Dismissible(
+                  key: ValueKey<String>(
+                    'project-task-${task.title}-${_project.name}-$index',
+                  ),
+                  direction: DismissDirection.endToStart,
+                  background: Container(
+                    margin: const EdgeInsets.only(bottom: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  onDismissed: (_) => _deleteTask(index),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 4),
+                    child: Card(
+                      child: ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        title: Text(
+                          task.title,
+                          style: Theme.of(context).textTheme.titleMedium,
+                        ),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.drive_file_move_outlined),
+                          onPressed: () => _moveTaskToAnotherProject(index),
+                          tooltip: 'Move to another project',
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
     );
   }
 }

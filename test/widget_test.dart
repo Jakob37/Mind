@@ -25,13 +25,13 @@ void main() {
 
     expect(find.text('Sit for 10 minutes in silence'), findsNothing);
 
-    await tester.drag(find.byType(TabBarView), const Offset(-500, 0));
+    await tester.tap(find.text('Favorites'));
     await tester.pumpAndSettle();
 
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(find.text('Sit for 10 minutes in silence'), findsOneWidget);
 
-    await tester.drag(find.byType(TabBarView), const Offset(-500, 0));
+    await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
 
     expect(find.byType(FloatingActionButton), findsOneWidget);
@@ -44,10 +44,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Breathwork'), findsOneWidget);
 
-    await tester.drag(find.byType(TabBarView), const Offset(500, 0));
-    await tester.pumpAndSettle();
-
-    await tester.drag(find.byType(TabBarView), const Offset(500, 0));
+    await tester.tap(find.text('Incoming'));
     await tester.pumpAndSettle();
 
     expect(find.byType(FloatingActionButton), findsOneWidget);
@@ -59,12 +56,39 @@ void main() {
 
     expect(find.text('Do a 3-minute breathing check-in'), findsNothing);
 
-    await tester.drag(find.byType(TabBarView), const Offset(-500, 0));
-    await tester.pumpAndSettle();
-    await tester.drag(find.byType(TabBarView), const Offset(-500, 0));
+    await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
 
     expect(find.text('Breathwork'), findsOneWidget);
     expect(find.text('1 task'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Breathwork'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Breathwork'), findsOneWidget);
+    expect(find.text('Do a 3-minute breathing check-in'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Move to another project'));
+    await tester.pumpAndSettle();
+    expect(find.text('Move task to project'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+    expect(find.text('Do a 3-minute breathing check-in'), findsNothing);
+    expect(find.text('No tasks in this project yet.'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+    expect(find.text('Do a 3-minute breathing check-in'), findsOneWidget);
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'),
+      const Offset(-600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Do a 3-minute breathing check-in'), findsNothing);
+    expect(find.text('No tasks in this project yet.'), findsOneWidget);
   });
 }
