@@ -6,6 +6,21 @@ class TaskItem {
   final String title;
 }
 
+class ProjectItem {
+  ProjectItem({required this.name, List<TaskItem>? tasks})
+      : tasks = tasks ?? <TaskItem>[];
+
+  final String name;
+  final List<TaskItem> tasks;
+}
+
+class _MoveTarget {
+  const _MoveTarget.favorites() : projectIndex = null;
+  const _MoveTarget.project(this.projectIndex);
+
+  final int? projectIndex;
+}
+
 class TaskPage extends StatefulWidget {
   const TaskPage({super.key});
 
@@ -23,14 +38,19 @@ class _TaskPageState extends State<TaskPage>
     TaskItem(title: 'Write down 3 emotions you notice'),
     TaskItem(title: 'Single-task one activity with full attention'),
   ];
-  final List<TaskItem> _savedTasks = <TaskItem>[];
+  final List<TaskItem> _favoriteTasks = <TaskItem>[];
+  final List<ProjectItem> _projects = <ProjectItem>[
+    ProjectItem(name: 'Morning Routine'),
+    ProjectItem(name: 'Stress Reset'),
+    ProjectItem(name: 'Sleep Wind-Down'),
+  ];
   late final TabController _tabController;
   int _selectedTabIndex = 0;
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _tabController.addListener(() {
       if (_selectedTabIndex == _tabController.index) {
         return;
@@ -63,16 +83,45 @@ class _TaskPageState extends State<TaskPage>
     });
   }
 
-  void _saveIncomingTask(int index) {
+  Future<void> _openAddProjectWidget() async {
+    final String? newProjectName = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => const _AddProjectWidget(),
+    );
+
+    if (newProjectName == null) {
+      return;
+    }
+
     setState(() {
-      final TaskItem task = _incomingTasks.removeAt(index);
-      _savedTasks.insert(0, task);
+      _projects.insert(0, ProjectItem(name: newProjectName));
     });
   }
 
-  void _moveToIncoming(int index) {
+  Future<void> _moveIncomingTask(int index) async {
+    final _MoveTarget? target = await showModalBottomSheet<_MoveTarget>(
+      context: context,
+      builder: (context) => _MoveTaskWidget(projects: _projects),
+    );
+
+    if (target == null) {
+      return;
+    }
+
     setState(() {
-      final TaskItem task = _savedTasks.removeAt(index);
+      final TaskItem task = _incomingTasks.removeAt(index);
+      if (target.projectIndex == null) {
+        _favoriteTasks.insert(0, task);
+      } else {
+        _projects[target.projectIndex!].tasks.insert(0, task);
+      }
+    });
+  }
+
+  Future<void> _moveFavoriteToIncoming(int index) async {
+    setState(() {
+      final TaskItem task = _favoriteTasks.removeAt(index);
       _incomingTasks.insert(0, task);
     });
   }
@@ -83,9 +132,9 @@ class _TaskPageState extends State<TaskPage>
     });
   }
 
-  void _deleteSavedTask(int index) {
+  void _deleteFavoriteTask(int index) {
     setState(() {
-      _savedTasks.removeAt(index);
+      _favoriteTasks.removeAt(index);
     });
   }
 
@@ -98,7 +147,8 @@ class _TaskPageState extends State<TaskPage>
           controller: _tabController,
           tabs: const [
             Tab(text: 'Incoming'),
-            Tab(text: 'Saved'),
+            Tab(text: 'Favorites'),
+            Tab(text: 'Projects'),
           ],
         ),
       ),
@@ -108,19 +158,20 @@ class _TaskPageState extends State<TaskPage>
           _TaskListView(
             tasks: _incomingTasks,
             emptyLabel: 'No incoming tasks yet.',
-            primaryIcon: Icons.bookmark_add_outlined,
-            primaryTooltip: 'Save task',
-            onPrimaryAction: _saveIncomingTask,
+            primaryIcon: Icons.drive_file_move_outlined,
+            primaryTooltip: 'Move task',
+            onPrimaryAction: _moveIncomingTask,
             onDelete: _deleteIncomingTask,
           ),
           _TaskListView(
-            tasks: _savedTasks,
-            emptyLabel: 'No saved tasks yet.',
+            tasks: _favoriteTasks,
+            emptyLabel: 'No favorite tasks yet.',
             primaryIcon: Icons.undo_outlined,
             primaryTooltip: 'Move to incoming',
-            onPrimaryAction: _moveToIncoming,
-            onDelete: _deleteSavedTask,
+            onPrimaryAction: _moveFavoriteToIncoming,
+            onDelete: _deleteFavoriteTask,
           ),
+          _ProjectListView(projects: _projects),
         ],
       ),
       floatingActionButton: _selectedTabIndex == 0
@@ -129,7 +180,13 @@ class _TaskPageState extends State<TaskPage>
               tooltip: 'Add task',
               child: const Icon(Icons.add),
             )
-          : null,
+          : _selectedTabIndex == 2
+              ? FloatingActionButton(
+                  onPressed: _openAddProjectWidget,
+                  tooltip: 'Add project',
+                  child: const Icon(Icons.add),
+                )
+              : null,
     );
   }
 }
@@ -148,7 +205,7 @@ class _TaskListView extends StatelessWidget {
   final String emptyLabel;
   final IconData primaryIcon;
   final String primaryTooltip;
-  final ValueChanged<int> onPrimaryAction;
+  final Future<void> Function(int) onPrimaryAction;
   final ValueChanged<int> onDelete;
 
   @override
@@ -179,7 +236,7 @@ class _TaskListView extends StatelessWidget {
                 children: [
                   IconButton(
                     icon: Icon(primaryIcon),
-                    onPressed: () => onPrimaryAction(index),
+                    onPressed: () async => onPrimaryAction(index),
                     tooltip: primaryTooltip,
                   ),
                   IconButton(
@@ -253,6 +310,150 @@ class _AddTaskWidgetState extends State<_AddTaskWidget> {
           FilledButton(
             onPressed: _saveTask,
             child: const Text('Save Task'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ProjectListView extends StatelessWidget {
+  const _ProjectListView({required this.projects});
+
+  final List<ProjectItem> projects;
+
+  @override
+  Widget build(BuildContext context) {
+    if (projects.isEmpty) {
+      return const Center(child: Text('No projects yet.'));
+    }
+
+    return ListView.builder(
+      padding: const EdgeInsets.all(16),
+      itemCount: projects.length,
+      itemBuilder: (context, index) {
+        final ProjectItem project = projects[index];
+        return Padding(
+          padding: const EdgeInsets.only(bottom: 12),
+          child: Card(
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 16,
+                vertical: 8,
+              ),
+              leading: const Icon(Icons.folder_outlined),
+              title: Text(
+                project.name,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(
+                  '${project.tasks.length} task${project.tasks.length == 1 ? '' : 's'}',
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _MoveTaskWidget extends StatelessWidget {
+  const _MoveTaskWidget({required this.projects});
+
+  final List<ProjectItem> projects;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: ListView(
+        shrinkWrap: true,
+        children: [
+          const ListTile(
+            title: Text(
+              'Move task to',
+              style: TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ListTile(
+            leading: const Icon(Icons.star_outline),
+            title: const Text('Favorites'),
+            onTap: () =>
+                Navigator.of(context).pop(const _MoveTarget.favorites()),
+          ),
+          const Divider(height: 1),
+          for (int i = 0; i < projects.length; i++)
+            ListTile(
+              leading: const Icon(Icons.folder_outlined),
+              title: Text(projects[i].name),
+              subtitle: Text(
+                '${projects[i].tasks.length} task${projects[i].tasks.length == 1 ? '' : 's'}',
+              ),
+              onTap: () => Navigator.of(context).pop(_MoveTarget.project(i)),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _AddProjectWidget extends StatefulWidget {
+  const _AddProjectWidget();
+
+  @override
+  State<_AddProjectWidget> createState() => _AddProjectWidgetState();
+}
+
+class _AddProjectWidgetState extends State<_AddProjectWidget> {
+  final TextEditingController _projectNameController = TextEditingController();
+
+  @override
+  void dispose() {
+    _projectNameController.dispose();
+    super.dispose();
+  }
+
+  void _createProject() {
+    final String name = _projectNameController.text.trim();
+    if (name.isEmpty) {
+      return;
+    }
+    Navigator.of(context).pop(name);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        16,
+        16,
+        16,
+        16 + MediaQuery.of(context).viewInsets.bottom,
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'New Project',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 12),
+          TextField(
+            controller: _projectNameController,
+            textInputAction: TextInputAction.done,
+            onSubmitted: (_) => _createProject(),
+            decoration: const InputDecoration(
+              labelText: 'Project name',
+              hintText: 'Deep Focus',
+            ),
+          ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: _createProject,
+            child: const Text('Create Project'),
           ),
         ],
       ),
