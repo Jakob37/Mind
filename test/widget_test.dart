@@ -4,27 +4,25 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sorted_out/src/app.dart';
 
 void main() {
-  testWidgets('add and delete a task from the FAB modal',
+  testWidgets('shows default tasks and adds/deletes a title-only task',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
 
-    expect(find.text('No tasks yet. Tap + to add one.'), findsOneWidget);
+    expect(find.text('Sit for 10 minutes in silence'), findsOneWidget);
+    expect(find.text('Do a 3-minute breathing check-in'), findsOneWidget);
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
-    await tester.enterText(find.byType(TextField).at(0), 'Buy milk');
-    await tester.enterText(find.byType(TextField).at(1), '2 liters');
+    await tester.enterText(find.byType(TextField), 'Notice 5 mindful breaths');
     await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Buy milk'), findsOneWidget);
-    expect(find.text('2 liters'), findsOneWidget);
+    expect(find.text('Notice 5 mindful breaths'), findsOneWidget);
 
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byIcon(Icons.delete_outline).first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Buy milk'), findsNothing);
-    expect(find.text('No tasks yet. Tap + to add one.'), findsOneWidget);
+    expect(find.text('Notice 5 mindful breaths'), findsNothing);
   });
 }
