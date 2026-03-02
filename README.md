@@ -1,4 +1,4 @@
-# sorted_out
+# Mind
 
 Minimal Flutter task-management boilerplate with:
 

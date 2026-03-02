@@ -5,7 +5,7 @@ import 'package:sorted_out/src/app.dart';
 
 void main() {
   testWidgets('add, complete, and delete a task', (WidgetTester tester) async {
-    await tester.pumpWidget(const SortedOutApp());
+    await tester.pumpWidget(const MindApp());
 
     expect(find.text('No tasks yet. Add your first task.'), findsOneWidget);
 

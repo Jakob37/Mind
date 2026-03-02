@@ -3,5 +3,5 @@ import 'package:flutter/material.dart';
 import 'src/app.dart';
 
 void main() {
-  runApp(const SortedOutApp());
+  runApp(const MindApp());
 }
