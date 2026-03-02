@@ -4,27 +4,27 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sorted_out/src/app.dart';
 
 void main() {
-  testWidgets('add, complete, and delete a task', (WidgetTester tester) async {
+  testWidgets('add and delete a task from the FAB modal',
+      (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
 
-    expect(find.text('No tasks yet. Add your first task.'), findsOneWidget);
+    expect(find.text('No tasks yet. Tap + to add one.'), findsOneWidget);
 
-    await tester.enterText(find.byType(TextField), 'Buy milk');
-    await tester.tap(find.widgetWithText(FilledButton, 'Add'));
-    await tester.pump();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).at(0), 'Buy milk');
+    await tester.enterText(find.byType(TextField).at(1), '2 liters');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
+    await tester.pumpAndSettle();
 
     expect(find.text('Buy milk'), findsOneWidget);
-
-    await tester.tap(find.byType(Checkbox));
-    await tester.pump();
-
-    final Text taskText = tester.widget<Text>(find.text('Buy milk'));
-    expect(taskText.style?.decoration, TextDecoration.lineThrough);
+    expect(find.text('2 liters'), findsOneWidget);
 
     await tester.tap(find.byIcon(Icons.delete_outline));
-    await tester.pump();
+    await tester.pumpAndSettle();
 
     expect(find.text('Buy milk'), findsNothing);
-    expect(find.text('No tasks yet. Add your first task.'), findsOneWidget);
+    expect(find.text('No tasks yet. Tap + to add one.'), findsOneWidget);
   });
 }
