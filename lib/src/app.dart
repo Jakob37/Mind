@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-import 'features/counter/presentation/counter_page.dart';
+import 'features/tasks/presentation/task_page.dart';
 
 class SortedOutApp extends StatelessWidget {
   const SortedOutApp({super.key});
@@ -10,10 +10,10 @@ class SortedOutApp extends StatelessWidget {
     return MaterialApp(
       title: 'Sorted Out',
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.teal),
         useMaterial3: true,
       ),
-      home: const CounterPage(),
+      home: const TaskPage(),
     );
   }
 }
