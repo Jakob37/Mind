@@ -1,10 +1,23 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class TaskItem {
   TaskItem({required this.title});
 
   final String title;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{'title': title};
+  }
+
+  factory TaskItem.fromJson(Map<String, dynamic> json) {
+    final String title = json['title'] as String;
+    return TaskItem(title: title);
+  }
 }
 
 class ProjectItem {
@@ -13,6 +26,28 @@ class ProjectItem {
 
   final String name;
   final List<TaskItem> tasks;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'name': name,
+      'tasks': tasks.map((TaskItem task) => task.toJson()).toList(),
+    };
+  }
+
+  factory ProjectItem.fromJson(Map<String, dynamic> json) {
+    final String name = json['name'] as String;
+    final List<dynamic> taskJson =
+        (json['tasks'] as List<dynamic>?) ?? <dynamic>[];
+
+    return ProjectItem(
+      name: name,
+      tasks: taskJson
+          .map((dynamic item) => TaskItem.fromJson(
+                Map<String, dynamic>.from(item as Map<dynamic, dynamic>),
+              ))
+          .toList(),
+    );
+  }
 }
 
 class _MoveTarget {
@@ -20,6 +55,257 @@ class _MoveTarget {
   const _MoveTarget.project(this.projectIndex);
 
   final int? projectIndex;
+}
+
+class TaskBoardState {
+  const TaskBoardState({
+    required this.incomingTasks,
+    required this.favoriteTasks,
+    required this.projects,
+  });
+
+  final List<TaskItem> incomingTasks;
+  final List<TaskItem> favoriteTasks;
+  final List<ProjectItem> projects;
+
+  factory TaskBoardState.defaults() {
+    return TaskBoardState(
+      incomingTasks: <TaskItem>[
+        TaskItem(title: 'Sit for 10 minutes in silence'),
+        TaskItem(title: 'Do a 3-minute breathing check-in'),
+        TaskItem(title: 'Body scan before sleep'),
+        TaskItem(title: 'Mindful walk without headphones'),
+        TaskItem(title: 'Write down 3 emotions you notice'),
+        TaskItem(title: 'Single-task one activity with full attention'),
+      ],
+      favoriteTasks: <TaskItem>[],
+      projects: <ProjectItem>[
+        ProjectItem(name: 'Morning Routine'),
+        ProjectItem(name: 'Stress Reset'),
+        ProjectItem(name: 'Sleep Wind-Down'),
+      ],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'incomingTasks':
+          incomingTasks.map((TaskItem task) => task.toJson()).toList(),
+      'favoriteTasks':
+          favoriteTasks.map((TaskItem task) => task.toJson()).toList(),
+      'projects':
+          projects.map((ProjectItem project) => project.toJson()).toList(),
+    };
+  }
+
+  factory TaskBoardState.fromJson(Map<String, dynamic> json) {
+    final List<dynamic> incomingJson =
+        (json['incomingTasks'] as List<dynamic>?) ?? <dynamic>[];
+    final List<dynamic> favoriteJson =
+        (json['favoriteTasks'] as List<dynamic>?) ?? <dynamic>[];
+    final List<dynamic> projectJson =
+        (json['projects'] as List<dynamic>?) ?? <dynamic>[];
+
+    return TaskBoardState(
+      incomingTasks: incomingJson
+          .map((dynamic item) => TaskItem.fromJson(
+                Map<String, dynamic>.from(item as Map<dynamic, dynamic>),
+              ))
+          .toList(),
+      favoriteTasks: favoriteJson
+          .map((dynamic item) => TaskItem.fromJson(
+                Map<String, dynamic>.from(item as Map<dynamic, dynamic>),
+              ))
+          .toList(),
+      projects: projectJson
+          .map((dynamic item) => ProjectItem.fromJson(
+                Map<String, dynamic>.from(item as Map<dynamic, dynamic>),
+              ))
+          .toList(),
+    );
+  }
+}
+
+class TaskStorage {
+  const TaskStorage();
+
+  static const String _stateKey = 'task_board_state';
+  static const String _legacyStateKey = 'task_board_state_v1';
+  static const int _currentSchemaVersion = 2;
+  static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
+      _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
+    1: _migrateV1ToV2,
+  };
+
+  Future<TaskBoardState?> load() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? rawJson =
+        prefs.getString(_stateKey) ?? prefs.getString(_legacyStateKey);
+
+    if (rawJson == null) {
+      return null;
+    }
+
+    try {
+      final Object? decoded = jsonDecode(rawJson);
+      if (decoded is! Map<dynamic, dynamic>) {
+        return null;
+      }
+
+      final Map<String, dynamic> decodedMap =
+          Map<String, dynamic>.from(decoded);
+      final int storedVersion = _readStoredVersion(decodedMap);
+      final Object? payload = _readStoredPayload(decodedMap);
+      if (payload is! Map<dynamic, dynamic>) {
+        return null;
+      }
+
+      final Map<String, dynamic> migratedPayload = _migrateToCurrentVersion(
+        version: storedVersion,
+        payload: Map<String, dynamic>.from(payload),
+      );
+
+      return TaskBoardState.fromJson(migratedPayload);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> save(TaskBoardState state) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String versionedPayload = jsonEncode(
+      <String, dynamic>{
+        'version': _currentSchemaVersion,
+        'data': state.toJson(),
+      },
+    );
+
+    await prefs.setString(_stateKey, versionedPayload);
+    await prefs.remove(_legacyStateKey);
+  }
+
+  static int _readStoredVersion(Map<String, dynamic> rawState) {
+    final Object? version = rawState['version'];
+    if (version is int) {
+      return version;
+    }
+    return 1;
+  }
+
+  static Object? _readStoredPayload(Map<String, dynamic> rawState) {
+    final Object? version = rawState['version'];
+    if (version is int) {
+      return rawState['data'];
+    }
+    return rawState;
+  }
+
+  static Map<String, dynamic> _migrateToCurrentVersion({
+    required int version,
+    required Map<String, dynamic> payload,
+  }) {
+    if (version > _currentSchemaVersion) {
+      throw StateError(
+        'State version $version is newer than supported '
+        '$_currentSchemaVersion.',
+      );
+    }
+
+    int currentVersion = version;
+    Map<String, dynamic> workingPayload = Map<String, dynamic>.from(payload);
+
+    while (currentVersion < _currentSchemaVersion) {
+      final Map<String, dynamic> Function(Map<String, dynamic>)? migrateStep =
+          _migrations[currentVersion];
+      if (migrateStep == null) {
+        throw StateError('Missing migration for version $currentVersion.');
+      }
+      workingPayload = migrateStep(workingPayload);
+      currentVersion += 1;
+    }
+
+    return workingPayload;
+  }
+
+  static Map<String, dynamic> _migrateV1ToV2(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _normalizeTaskList(payload['incomingTasks']),
+      'favoriteTasks': _normalizeTaskList(payload['favoriteTasks']),
+      'projects': _normalizeProjectList(payload['projects']),
+    };
+  }
+
+  static List<Map<String, dynamic>> _normalizeTaskList(Object? rawTasks) {
+    if (rawTasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> tasks = <Map<String, dynamic>>[];
+
+    for (final dynamic rawTask in rawTasks) {
+      if (rawTask is String) {
+        final String title = rawTask.trim();
+        if (title.isNotEmpty) {
+          tasks.add(<String, dynamic>{'title': title});
+        }
+        continue;
+      }
+
+      if (rawTask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+
+      final String? title = (rawTask['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) {
+        continue;
+      }
+
+      tasks.add(<String, dynamic>{'title': title});
+    }
+
+    return tasks;
+  }
+
+  static List<Map<String, dynamic>> _normalizeProjectList(Object? rawProjects) {
+    if (rawProjects is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projects = <Map<String, dynamic>>[];
+
+    for (final dynamic rawProject in rawProjects) {
+      if (rawProject is String) {
+        final String name = rawProject.trim();
+        if (name.isNotEmpty) {
+          projects.add(
+            <String, dynamic>{
+              'name': name,
+              'tasks': <Map<String, dynamic>>[],
+            },
+          );
+        }
+        continue;
+      }
+
+      if (rawProject is! Map<dynamic, dynamic>) {
+        continue;
+      }
+
+      final String? name = (rawProject['name'] as String?)?.trim();
+      if (name == null || name.isEmpty) {
+        continue;
+      }
+
+      projects.add(
+        <String, dynamic>{
+          'name': name,
+          'tasks': _normalizeTaskList(rawProject['tasks']),
+        },
+      );
+    }
+
+    return projects;
+  }
 }
 
 class TaskPage extends StatefulWidget {
@@ -34,21 +320,14 @@ class _TaskPageState extends State<TaskPage>
   static const MethodChannel _widgetChannel = MethodChannel(
     'mind/widget_actions',
   );
+  final TaskStorage _taskStorage = const TaskStorage();
 
-  final List<TaskItem> _incomingTasks = <TaskItem>[
-    TaskItem(title: 'Sit for 10 minutes in silence'),
-    TaskItem(title: 'Do a 3-minute breathing check-in'),
-    TaskItem(title: 'Body scan before sleep'),
-    TaskItem(title: 'Mindful walk without headphones'),
-    TaskItem(title: 'Write down 3 emotions you notice'),
-    TaskItem(title: 'Single-task one activity with full attention'),
-  ];
-  final List<TaskItem> _favoriteTasks = <TaskItem>[];
-  final List<ProjectItem> _projects = <ProjectItem>[
-    ProjectItem(name: 'Morning Routine'),
-    ProjectItem(name: 'Stress Reset'),
-    ProjectItem(name: 'Sleep Wind-Down'),
-  ];
+  final List<TaskItem> _incomingTasks =
+      List<TaskItem>.from(TaskBoardState.defaults().incomingTasks);
+  final List<TaskItem> _favoriteTasks =
+      List<TaskItem>.from(TaskBoardState.defaults().favoriteTasks);
+  final List<ProjectItem> _projects =
+      List<ProjectItem>.from(TaskBoardState.defaults().projects);
   late final TabController _tabController;
   int _selectedTabIndex = 0;
   bool _isAddTaskSheetOpen = false;
@@ -66,6 +345,7 @@ class _TaskPageState extends State<TaskPage>
       });
     });
     _setupWidgetActionHandling();
+    _loadPersistedState();
   }
 
   @override
@@ -131,6 +411,7 @@ class _TaskPageState extends State<TaskPage>
     setState(() {
       _incomingTasks.insert(0, newTask);
     });
+    _persistState();
   }
 
   Future<void> _openAddProjectWidget() async {
@@ -147,6 +428,7 @@ class _TaskPageState extends State<TaskPage>
     setState(() {
       _projects.insert(0, ProjectItem(name: newProjectName));
     });
+    _persistState();
   }
 
   Future<void> _moveIncomingTask(int index) async {
@@ -167,6 +449,7 @@ class _TaskPageState extends State<TaskPage>
         _projects[target.projectIndex!].tasks.insert(0, task);
       }
     });
+    _persistState();
   }
 
   Future<void> _moveFavoriteToIncoming(int index) async {
@@ -174,18 +457,21 @@ class _TaskPageState extends State<TaskPage>
       final TaskItem task = _favoriteTasks.removeAt(index);
       _incomingTasks.insert(0, task);
     });
+    _persistState();
   }
 
   void _deleteIncomingTask(int index) {
     setState(() {
       _incomingTasks.removeAt(index);
     });
+    _persistState();
   }
 
   void _deleteFavoriteTask(int index) {
     setState(() {
       _favoriteTasks.removeAt(index);
     });
+    _persistState();
   }
 
   void _openProjectDetail(int projectIndex) {
@@ -196,10 +482,46 @@ class _TaskPageState extends State<TaskPage>
           projects: _projects,
           onProjectsUpdated: () {
             setState(() {});
+            _persistState();
           },
         ),
       ),
     );
+  }
+
+  Future<void> _loadPersistedState() async {
+    final TaskBoardState? persistedState = await _taskStorage.load();
+    if (!mounted || persistedState == null) {
+      return;
+    }
+
+    setState(() {
+      _incomingTasks
+        ..clear()
+        ..addAll(persistedState.incomingTasks);
+      _favoriteTasks
+        ..clear()
+        ..addAll(persistedState.favoriteTasks);
+      _projects
+        ..clear()
+        ..addAll(persistedState.projects);
+    });
+  }
+
+  void _persistState() {
+    final TaskBoardState snapshot = TaskBoardState(
+      incomingTasks: List<TaskItem>.from(_incomingTasks),
+      favoriteTasks: List<TaskItem>.from(_favoriteTasks),
+      projects: _projects
+          .map(
+            (ProjectItem project) => ProjectItem(
+              name: project.name,
+              tasks: List<TaskItem>.from(project.tasks),
+            ),
+          )
+          .toList(),
+    );
+    unawaited(_taskStorage.save(snapshot));
   }
 
   @override
