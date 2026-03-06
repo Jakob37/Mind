@@ -13,38 +13,66 @@ class ModelIds {
 }
 
 class TaskItem {
-  TaskItem({String? id, required this.title}) : id = id ?? ModelIds.newTaskId();
+  TaskItem({
+    String? id,
+    required this.title,
+    String? body,
+    this.colorValue,
+  })  : id = id ?? ModelIds.newTaskId(),
+        body = body ?? '';
 
   final String id;
   final String title;
+  final String body;
+  final int? colorValue;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
       'title': title,
+      'body': body,
+      'color': colorValue,
     };
   }
 
   factory TaskItem.fromJson(Map<String, dynamic> json) {
     final String title = json['title'] as String;
     final String? id = (json['id'] as String?)?.trim();
-    return TaskItem(id: id == null || id.isEmpty ? null : id, title: title);
+    final String? body = (json['body'] as String?)?.trim();
+    final Object? rawColor = json['color'];
+    final int? colorValue = rawColor is int ? rawColor : null;
+    return TaskItem(
+      id: id == null || id.isEmpty ? null : id,
+      title: title,
+      body: body ?? '',
+      colorValue: colorValue,
+    );
   }
 }
 
 class ProjectItem {
-  ProjectItem({String? id, required this.name, List<TaskItem>? tasks})
-      : id = id ?? ModelIds.newProjectId(),
+  ProjectItem({
+    String? id,
+    required this.name,
+    String? body,
+    this.colorValue,
+    List<TaskItem>? tasks,
+  })  : id = id ?? ModelIds.newProjectId(),
+        body = body ?? '',
         tasks = tasks ?? <TaskItem>[];
 
   final String id;
   final String name;
+  final String body;
+  final int? colorValue;
   final List<TaskItem> tasks;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
       'name': name,
+      'body': body,
+      'color': colorValue,
       'tasks': tasks.map((TaskItem task) => task.toJson()).toList(),
     };
   }
@@ -52,12 +80,17 @@ class ProjectItem {
   factory ProjectItem.fromJson(Map<String, dynamic> json) {
     final String name = json['name'] as String;
     final String? id = (json['id'] as String?)?.trim();
+    final String? body = (json['body'] as String?)?.trim();
+    final Object? rawColor = json['color'];
+    final int? colorValue = rawColor is int ? rawColor : null;
     final List<dynamic> taskJson =
         (json['tasks'] as List<dynamic>?) ?? <dynamic>[];
 
     return ProjectItem(
       id: id == null || id.isEmpty ? null : id,
       name: name,
+      body: body ?? '',
+      colorValue: colorValue,
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(

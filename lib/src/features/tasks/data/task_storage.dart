@@ -4,17 +4,58 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../domain/task_models.dart';
 
+class TaskLoadResult {
+  const TaskLoadResult._({
+    required this.hadPersistedData,
+    this.state,
+    this.error,
+    this.stackTrace,
+  });
+
+  const TaskLoadResult.empty()
+      : this._(
+          hadPersistedData: false,
+        );
+
+  const TaskLoadResult.success(TaskBoardState loadedState)
+      : this._(
+          hadPersistedData: true,
+          state: loadedState,
+        );
+
+  const TaskLoadResult.failure({
+    required Object loadError,
+    required StackTrace loadStackTrace,
+  }) : this._(
+          hadPersistedData: true,
+          error: loadError,
+          stackTrace: loadStackTrace,
+        );
+
+  final bool hadPersistedData;
+  final TaskBoardState? state;
+  final Object? error;
+  final StackTrace? stackTrace;
+
+  bool get isSuccess => state != null;
+
+  bool get isFailure => hadPersistedData && error != null;
+}
+
 class TaskStorage {
   const TaskStorage();
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 3;
+  static const int _currentSchemaVersion = 5;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
     2: _migrateV2ToV3,
+    3: _migrateV3ToV4,
+    4: _migrateV4ToV5,
   };
+  static Future<void> _saveQueue = Future<void>.value();
 
   String export(TaskBoardState state) {
     return const JsonEncoder.withIndent('  ').convert(
@@ -25,19 +66,23 @@ class TaskStorage {
     );
   }
 
-  Future<TaskBoardState?> load() async {
+  Future<TaskLoadResult> load() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? rawJson =
         prefs.getString(_stateKey) ?? prefs.getString(_legacyStateKey);
 
     if (rawJson == null) {
-      return null;
+      return const TaskLoadResult.empty();
     }
 
     try {
       final Object? decoded = jsonDecode(rawJson);
       if (decoded is! Map<dynamic, dynamic>) {
-        return null;
+        return TaskLoadResult.failure(
+          loadError:
+              const FormatException('Persisted state is not a JSON map.'),
+          loadStackTrace: StackTrace.current,
+        );
       }
 
       final Map<String, dynamic> decodedMap =
@@ -45,7 +90,12 @@ class TaskStorage {
       final int storedVersion = _readStoredVersion(decodedMap);
       final Object? payload = _readStoredPayload(decodedMap);
       if (payload is! Map<dynamic, dynamic>) {
-        return null;
+        return TaskLoadResult.failure(
+          loadError: const FormatException(
+            'Persisted state payload is not a JSON map.',
+          ),
+          loadStackTrace: StackTrace.current,
+        );
       }
 
       final Map<String, dynamic> migratedPayload = _migrateToCurrentVersion(
@@ -53,14 +103,16 @@ class TaskStorage {
         payload: Map<String, dynamic>.from(payload),
       );
 
-      return TaskBoardState.fromJson(migratedPayload);
-    } catch (_) {
-      return null;
+      return TaskLoadResult.success(TaskBoardState.fromJson(migratedPayload));
+    } catch (error, stackTrace) {
+      return TaskLoadResult.failure(
+        loadError: error,
+        loadStackTrace: stackTrace,
+      );
     }
   }
 
-  Future<void> save(TaskBoardState state) async {
-    final SharedPreferences prefs = await SharedPreferences.getInstance();
+  Future<void> save(TaskBoardState state) {
     final String versionedPayload = jsonEncode(
       <String, dynamic>{
         'version': _currentSchemaVersion,
@@ -68,8 +120,14 @@ class TaskStorage {
       },
     );
 
-    await prefs.setString(_stateKey, versionedPayload);
-    await prefs.remove(_legacyStateKey);
+    _saveQueue =
+        _saveQueue.catchError((Object _, StackTrace __) {}).then((_) async {
+      final SharedPreferences prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_stateKey, versionedPayload);
+      await prefs.remove(_legacyStateKey);
+    });
+
+    return _saveQueue;
   }
 
   static int _readStoredVersion(Map<String, dynamic> rawState) {
@@ -128,6 +186,22 @@ class TaskStorage {
       'incomingTasks': _addTaskIds(payload['incomingTasks']),
       'favoriteTasks': _addTaskIds(payload['favoriteTasks']),
       'projects': _addProjectAndTaskIds(payload['projects']),
+    };
+  }
+
+  static Map<String, dynamic> _migrateV3ToV4(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _addTaskBodies(payload['incomingTasks']),
+      'favoriteTasks': _addTaskBodies(payload['favoriteTasks']),
+      'projects': _addProjectBodies(payload['projects']),
+    };
+  }
+
+  static Map<String, dynamic> _migrateV4ToV5(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _addTaskColors(payload['incomingTasks']),
+      'favoriteTasks': _addTaskColors(payload['favoriteTasks']),
+      'projects': _addProjectColors(payload['projects']),
     };
   }
 
@@ -240,6 +314,82 @@ class TaskStorage {
         project['id'] = ModelIds.newProjectId();
       }
       project['tasks'] = _addTaskIds(project['tasks']);
+      projects.add(project);
+    }
+    return projects;
+  }
+
+  static List<Map<String, dynamic>> _addTaskBodies(Object? rawTasks) {
+    if (rawTasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> tasks = <Map<String, dynamic>>[];
+    for (final dynamic rawTask in rawTasks) {
+      if (rawTask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> task = Map<String, dynamic>.from(rawTask);
+      final Object? rawBody = task['body'];
+      task['body'] = rawBody is String ? rawBody.trim() : '';
+      tasks.add(task);
+    }
+    return tasks;
+  }
+
+  static List<Map<String, dynamic>> _addProjectBodies(Object? rawProjects) {
+    if (rawProjects is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projects = <Map<String, dynamic>>[];
+    for (final dynamic rawProject in rawProjects) {
+      if (rawProject is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> project =
+          Map<String, dynamic>.from(rawProject);
+      final Object? rawBody = project['body'];
+      project['body'] = rawBody is String ? rawBody.trim() : '';
+      project['tasks'] = _addTaskBodies(project['tasks']);
+      projects.add(project);
+    }
+    return projects;
+  }
+
+  static List<Map<String, dynamic>> _addTaskColors(Object? rawTasks) {
+    if (rawTasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> tasks = <Map<String, dynamic>>[];
+    for (final dynamic rawTask in rawTasks) {
+      if (rawTask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> task = Map<String, dynamic>.from(rawTask);
+      final Object? rawColor = task['color'];
+      task['color'] = rawColor is int ? rawColor : null;
+      tasks.add(task);
+    }
+    return tasks;
+  }
+
+  static List<Map<String, dynamic>> _addProjectColors(Object? rawProjects) {
+    if (rawProjects is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projects = <Map<String, dynamic>>[];
+    for (final dynamic rawProject in rawProjects) {
+      if (rawProject is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> project =
+          Map<String, dynamic>.from(rawProject);
+      final Object? rawColor = project['color'];
+      project['color'] = rawColor is int ? rawColor : null;
+      project['tasks'] = _addTaskColors(project['tasks']);
       projects.add(project);
     }
     return projects;
