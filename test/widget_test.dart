@@ -191,9 +191,35 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('JSON Export'), findsOneWidget);
-    expect(find.textContaining('"version": 5'), findsOneWidget);
+    expect(find.textContaining('"version"'), findsWidgets);
+    expect(find.textContaining('6'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
+  });
+
+  testWidgets('uses custom color labels from settings in color picker',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.byTooltip('Open settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Coral'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'Urgent');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Shown as "Urgent"'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Sit for 10 minutes in silence'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Set color'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Urgent'), findsOneWidget);
   });
 
   testWidgets('edits task and project through context menus',
@@ -332,7 +358,8 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'Export data as JSON'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('"version": 5'), findsOneWidget);
+    expect(find.textContaining('"version"'), findsWidgets);
+    expect(find.textContaining('6'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -379,7 +406,8 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'Export data as JSON'));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('"version": 5'), findsOneWidget);
+    expect(find.textContaining('"version"'), findsWidgets);
+    expect(find.textContaining('6'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

@@ -16,23 +16,42 @@ class ProjectDetailPage extends StatefulWidget {
   const ProjectDetailPage({
     super.key,
     required this.projectId,
-    required this.projects,
-    required this.onProjectsUpdated,
+    required this.initialProjects,
+    required this.colorLabels,
+    required this.onProjectsChanged,
   });
 
   final String projectId;
-  final List<ProjectItem> projects;
-  final VoidCallback onProjectsUpdated;
+  final List<ProjectItem> initialProjects;
+  final Map<int, String> colorLabels;
+  final ValueChanged<List<ProjectItem>> onProjectsChanged;
 
   @override
   State<ProjectDetailPage> createState() => _ProjectDetailPageState();
 }
 
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
+  late final List<ProjectItem> _projects;
   bool _isReorderMode = false;
 
+  @override
+  void initState() {
+    super.initState();
+    _projects = _cloneProjects(widget.initialProjects);
+  }
+
+  List<ProjectItem> _cloneProjects(List<ProjectItem> projects) {
+    return projects
+        .map((ProjectItem project) => project.clone())
+        .toList(growable: false);
+  }
+
+  void _notifyProjectsChanged() {
+    widget.onProjectsChanged(_cloneProjects(_projects));
+  }
+
   ProjectItem? _findProject() {
-    for (final ProjectItem project in widget.projects) {
+    for (final ProjectItem project in _projects) {
       if (project.id == widget.projectId) {
         return project;
       }
@@ -86,7 +105,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       final TaskItem movedTask = project.tasks.removeAt(oldIndex);
       project.tasks.insert(newIndex, movedTask);
     });
-    widget.onProjectsUpdated();
+    _notifyProjectsChanged();
   }
 
   Future<_ProjectTaskMenuAction?> _showTaskMenu(TaskItem task) {
@@ -120,9 +139,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ListTile(
                 leading: const Icon(Icons.drive_file_move_outlined),
                 title: const Text('Move to project'),
-                onTap: () => Navigator.of(
-                  context,
-                ).pop(_ProjectTaskMenuAction.moveToProject),
+                onTap: () => Navigator.of(context)
+                    .pop(_ProjectTaskMenuAction.moveToProject),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
@@ -200,7 +218,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         colorValue: task.colorValue,
       );
     });
-    widget.onProjectsUpdated();
+    _notifyProjectsChanged();
   }
 
   Future<void> _setTaskColor(String taskId) async {
@@ -218,7 +236,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
       context: context,
-      builder: (_) => ItemColorPickerSheet(currentColorValue: task.colorValue),
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: task.colorValue,
+        customLabels: widget.colorLabels,
+      ),
     );
 
     if (selection == null) {
@@ -233,7 +254,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         colorValue: selection.colorValue,
       );
     });
-    widget.onProjectsUpdated();
+    _notifyProjectsChanged();
   }
 
   void _deleteTask(String taskId) {
@@ -250,7 +271,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     setState(() {
       project.tasks.removeAt(taskIndex);
     });
-    widget.onProjectsUpdated();
+    _notifyProjectsChanged();
   }
 
   Future<void> _moveTaskToAnotherProject(String taskId) async {
@@ -262,7 +283,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final String? targetProjectId = await showModalBottomSheet<String>(
       context: context,
       builder: (_) => MoveProjectTaskSheet(
-        projects: widget.projects,
+        projects: _projects,
         currentProjectId: widget.projectId,
       ),
     );
@@ -271,7 +292,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final int targetProjectIndex = widget.projects.indexWhere(
+    final int targetProjectIndex = _projects.indexWhere(
       (ProjectItem project) => project.id == targetProjectId,
     );
     if (targetProjectIndex < 0) {
@@ -285,9 +306,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     setState(() {
       final TaskItem task = sourceProject.tasks.removeAt(sourceTaskIndex);
-      widget.projects[targetProjectIndex].tasks.insert(0, task);
+      _projects[targetProjectIndex].tasks.insert(0, task);
     });
-    widget.onProjectsUpdated();
+    _notifyProjectsChanged();
   }
 
   @override

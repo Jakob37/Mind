@@ -49,6 +49,7 @@ class _TaskPageState extends State<TaskPage>
 
   late final List<TaskItem> _incomingTasks;
   late final List<ProjectItem> _projects;
+  final Map<int, String> _colorLabels = <int, String>{};
 
   late final TabController _tabController;
   int _selectedTabIndex = 0;
@@ -91,6 +92,12 @@ class _TaskPageState extends State<TaskPage>
   int _indexOfProjectById(String projectId) {
     return _projects
         .indexWhere((ProjectItem project) => project.id == projectId);
+  }
+
+  List<ProjectItem> _cloneProjects(List<ProjectItem> projects) {
+    return projects
+        .map((ProjectItem project) => project.clone())
+        .toList(growable: false);
   }
 
   void _enterReorderMode() {
@@ -274,7 +281,10 @@ class _TaskPageState extends State<TaskPage>
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
       context: context,
-      builder: (_) => ItemColorPickerSheet(currentColorValue: task.colorValue),
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: task.colorValue,
+        customLabels: _colorLabels,
+      ),
     );
 
     if (selection == null) {
@@ -450,8 +460,10 @@ class _TaskPageState extends State<TaskPage>
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
       context: context,
-      builder: (_) =>
-          ItemColorPickerSheet(currentColorValue: project.colorValue),
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: project.colorValue,
+        customLabels: _colorLabels,
+      ),
     );
 
     if (selection == null) {
@@ -585,13 +597,21 @@ class _TaskPageState extends State<TaskPage>
   }
 
   void _openProjectDetail(String projectId) {
+    final List<ProjectItem> projectsSnapshot = _cloneProjects(_projects);
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ProjectDetailPage(
           projectId: projectId,
-          projects: _projects,
-          onProjectsUpdated: () {
-            setState(() {});
+          initialProjects: projectsSnapshot,
+          colorLabels: _colorLabels,
+          onProjectsChanged: (List<ProjectItem> updatedProjects) {
+            final List<ProjectItem> projectsCopy =
+                _cloneProjects(updatedProjects);
+            setState(() {
+              _projects
+                ..clear()
+                ..addAll(projectsCopy);
+            });
             _persistState();
           },
         ),
@@ -615,6 +635,9 @@ class _TaskPageState extends State<TaskPage>
         _projects
           ..clear()
           ..addAll(persistedState.projects);
+        _colorLabels
+          ..clear()
+          ..addAll(persistedState.colorLabels);
       });
       return;
     }
@@ -710,7 +733,17 @@ class _TaskPageState extends State<TaskPage>
             ),
           )
           .toList(),
+      colorLabels: Map<int, String>.from(_colorLabels),
     );
+  }
+
+  void _updateColorLabels(Map<int, String> colorLabels) {
+    setState(() {
+      _colorLabels
+        ..clear()
+        ..addAll(colorLabels);
+    });
+    _persistState();
   }
 
   Future<void> _openSettingsPage() async {
@@ -718,6 +751,8 @@ class _TaskPageState extends State<TaskPage>
       MaterialPageRoute<void>(
         builder: (_) => SettingsPage(
           exportData: () => _taskStorage.export(_createSnapshot()),
+          colorLabels: _colorLabels,
+          onColorLabelsChanged: _updateColorLabels,
         ),
       ),
     );

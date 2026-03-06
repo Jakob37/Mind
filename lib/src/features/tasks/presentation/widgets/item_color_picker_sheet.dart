@@ -6,33 +6,43 @@ class ColorSelection {
   final int? colorValue;
 }
 
-class _ColorChoice {
-  const _ColorChoice({
-    required this.label,
+class ItemColorChoice {
+  const ItemColorChoice({
+    required this.defaultLabel,
     required this.colorValue,
   });
 
-  final String label;
+  final String defaultLabel;
   final int colorValue;
 }
 
-const List<_ColorChoice> _colorChoices = <_ColorChoice>[
-  _ColorChoice(label: 'Coral', colorValue: 0xFFFFCDD2),
-  _ColorChoice(label: 'Orange', colorValue: 0xFFFFE0B2),
-  _ColorChoice(label: 'Yellow', colorValue: 0xFFFFF9C4),
-  _ColorChoice(label: 'Mint', colorValue: 0xFFC8E6C9),
-  _ColorChoice(label: 'Sky', colorValue: 0xFFB3E5FC),
-  _ColorChoice(label: 'Lavender', colorValue: 0xFFE1BEE7),
-  _ColorChoice(label: 'Stone', colorValue: 0xFFCFD8DC),
+const List<ItemColorChoice> kItemColorChoices = <ItemColorChoice>[
+  ItemColorChoice(defaultLabel: 'Coral', colorValue: 0xFFFFCDD2),
+  ItemColorChoice(defaultLabel: 'Orange', colorValue: 0xFFFFE0B2),
+  ItemColorChoice(defaultLabel: 'Yellow', colorValue: 0xFFFFF9C4),
+  ItemColorChoice(defaultLabel: 'Mint', colorValue: 0xFFC8E6C9),
+  ItemColorChoice(defaultLabel: 'Sky', colorValue: 0xFFB3E5FC),
+  ItemColorChoice(defaultLabel: 'Lavender', colorValue: 0xFFE1BEE7),
+  ItemColorChoice(defaultLabel: 'Stone', colorValue: 0xFFCFD8DC),
 ];
 
 class ItemColorPickerSheet extends StatelessWidget {
   const ItemColorPickerSheet({
     super.key,
     required this.currentColorValue,
+    this.customLabels = const <int, String>{},
   });
 
   final int? currentColorValue;
+  final Map<int, String> customLabels;
+
+  String _displayLabel(ItemColorChoice choice) {
+    final String? customLabel = customLabels[choice.colorValue]?.trim();
+    if (customLabel == null || customLabel.isEmpty) {
+      return choice.defaultLabel;
+    }
+    return customLabel;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -57,12 +67,12 @@ class ItemColorPickerSheet extends StatelessWidget {
             onTap: () => Navigator.of(context).pop(const ColorSelection(null)),
           ),
           const Divider(height: 1),
-          for (final _ColorChoice choice in _colorChoices)
+          for (final ItemColorChoice choice in kItemColorChoices)
             ListTile(
               leading: CircleAvatar(
                 backgroundColor: Color(choice.colorValue),
               ),
-              title: Text(choice.label),
+              title: Text(_displayLabel(choice)),
               trailing: currentColorValue == choice.colorValue
                   ? const Icon(Icons.check)
                   : null,

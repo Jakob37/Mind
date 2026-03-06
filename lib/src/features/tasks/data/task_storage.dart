@@ -47,13 +47,14 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 5;
+  static const int _currentSchemaVersion = 6;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
     2: _migrateV2ToV3,
     3: _migrateV3ToV4,
     4: _migrateV4ToV5,
+    5: _migrateV5ToV6,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
@@ -131,19 +132,23 @@ class TaskStorage {
   }
 
   static int _readStoredVersion(Map<String, dynamic> rawState) {
-    final Object? version = rawState['version'];
-    if (version is int) {
-      return version;
+    if (!rawState.containsKey('version')) {
+      return 1;
     }
-    return 1;
+
+    final Object? version = rawState['version'];
+    if (version is! int) {
+      throw const FormatException('Expected "version" to be an int.');
+    }
+    return version;
   }
 
   static Object? _readStoredPayload(Map<String, dynamic> rawState) {
-    final Object? version = rawState['version'];
-    if (version is int) {
-      return rawState['data'];
+    if (!rawState.containsKey('version')) {
+      return rawState;
     }
-    return rawState;
+
+    return rawState['data'];
   }
 
   static Map<String, dynamic> _migrateToCurrentVersion({
@@ -202,6 +207,15 @@ class TaskStorage {
       'incomingTasks': _addTaskColors(payload['incomingTasks']),
       'favoriteTasks': _addTaskColors(payload['favoriteTasks']),
       'projects': _addProjectColors(payload['projects']),
+    };
+  }
+
+  static Map<String, dynamic> _migrateV5ToV6(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _addTaskColors(payload['incomingTasks']),
+      'favoriteTasks': _addTaskColors(payload['favoriteTasks']),
+      'projects': _addProjectColors(payload['projects']),
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
     };
   }
 
@@ -393,5 +407,31 @@ class TaskStorage {
       projects.add(project);
     }
     return projects;
+  }
+
+  static Map<String, String> _normalizeColorLabels(Object? rawColorLabels) {
+    if (rawColorLabels is! Map<dynamic, dynamic>) {
+      return <String, String>{};
+    }
+
+    final Map<String, String> labels = <String, String>{};
+    for (final MapEntry<dynamic, dynamic> entry in rawColorLabels.entries) {
+      final int? colorValue = switch (entry.key) {
+        int numericKey => numericKey,
+        String stringKey => int.tryParse(stringKey),
+        _ => int.tryParse(entry.key.toString()),
+      };
+      if (colorValue == null || entry.value is! String) {
+        continue;
+      }
+
+      final String label = (entry.value as String).trim();
+      if (label.isEmpty) {
+        continue;
+      }
+      labels[colorValue.toString()] = label;
+    }
+
+    return labels;
   }
 }
