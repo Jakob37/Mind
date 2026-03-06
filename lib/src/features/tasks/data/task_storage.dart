@@ -1,0 +1,196 @@
+import 'dart:convert';
+
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../domain/task_models.dart';
+
+class TaskStorage {
+  const TaskStorage();
+
+  static const String _stateKey = 'task_board_state';
+  static const String _legacyStateKey = 'task_board_state_v1';
+  static const int _currentSchemaVersion = 2;
+  static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
+      _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
+    1: _migrateV1ToV2,
+  };
+
+  String export(TaskBoardState state) {
+    return const JsonEncoder.withIndent('  ').convert(
+      <String, dynamic>{
+        'version': _currentSchemaVersion,
+        'data': state.toJson(),
+      },
+    );
+  }
+
+  Future<TaskBoardState?> load() async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String? rawJson =
+        prefs.getString(_stateKey) ?? prefs.getString(_legacyStateKey);
+
+    if (rawJson == null) {
+      return null;
+    }
+
+    try {
+      final Object? decoded = jsonDecode(rawJson);
+      if (decoded is! Map<dynamic, dynamic>) {
+        return null;
+      }
+
+      final Map<String, dynamic> decodedMap =
+          Map<String, dynamic>.from(decoded);
+      final int storedVersion = _readStoredVersion(decodedMap);
+      final Object? payload = _readStoredPayload(decodedMap);
+      if (payload is! Map<dynamic, dynamic>) {
+        return null;
+      }
+
+      final Map<String, dynamic> migratedPayload = _migrateToCurrentVersion(
+        version: storedVersion,
+        payload: Map<String, dynamic>.from(payload),
+      );
+
+      return TaskBoardState.fromJson(migratedPayload);
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> save(TaskBoardState state) async {
+    final SharedPreferences prefs = await SharedPreferences.getInstance();
+    final String versionedPayload = jsonEncode(
+      <String, dynamic>{
+        'version': _currentSchemaVersion,
+        'data': state.toJson(),
+      },
+    );
+
+    await prefs.setString(_stateKey, versionedPayload);
+    await prefs.remove(_legacyStateKey);
+  }
+
+  static int _readStoredVersion(Map<String, dynamic> rawState) {
+    final Object? version = rawState['version'];
+    if (version is int) {
+      return version;
+    }
+    return 1;
+  }
+
+  static Object? _readStoredPayload(Map<String, dynamic> rawState) {
+    final Object? version = rawState['version'];
+    if (version is int) {
+      return rawState['data'];
+    }
+    return rawState;
+  }
+
+  static Map<String, dynamic> _migrateToCurrentVersion({
+    required int version,
+    required Map<String, dynamic> payload,
+  }) {
+    if (version > _currentSchemaVersion) {
+      throw StateError(
+        'State version $version is newer than supported '
+        '$_currentSchemaVersion.',
+      );
+    }
+
+    int currentVersion = version;
+    Map<String, dynamic> workingPayload = Map<String, dynamic>.from(payload);
+
+    while (currentVersion < _currentSchemaVersion) {
+      final Map<String, dynamic> Function(Map<String, dynamic>)? migrateStep =
+          _migrations[currentVersion];
+      if (migrateStep == null) {
+        throw StateError('Missing migration for version $currentVersion.');
+      }
+      workingPayload = migrateStep(workingPayload);
+      currentVersion += 1;
+    }
+
+    return workingPayload;
+  }
+
+  static Map<String, dynamic> _migrateV1ToV2(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _normalizeTaskList(payload['incomingTasks']),
+      'favoriteTasks': _normalizeTaskList(payload['favoriteTasks']),
+      'projects': _normalizeProjectList(payload['projects']),
+    };
+  }
+
+  static List<Map<String, dynamic>> _normalizeTaskList(Object? rawTasks) {
+    if (rawTasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> tasks = <Map<String, dynamic>>[];
+
+    for (final dynamic rawTask in rawTasks) {
+      if (rawTask is String) {
+        final String title = rawTask.trim();
+        if (title.isNotEmpty) {
+          tasks.add(<String, dynamic>{'title': title});
+        }
+        continue;
+      }
+
+      if (rawTask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+
+      final String? title = (rawTask['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) {
+        continue;
+      }
+
+      tasks.add(<String, dynamic>{'title': title});
+    }
+
+    return tasks;
+  }
+
+  static List<Map<String, dynamic>> _normalizeProjectList(Object? rawProjects) {
+    if (rawProjects is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projects = <Map<String, dynamic>>[];
+
+    for (final dynamic rawProject in rawProjects) {
+      if (rawProject is String) {
+        final String name = rawProject.trim();
+        if (name.isNotEmpty) {
+          projects.add(
+            <String, dynamic>{
+              'name': name,
+              'tasks': <Map<String, dynamic>>[],
+            },
+          );
+        }
+        continue;
+      }
+
+      if (rawProject is! Map<dynamic, dynamic>) {
+        continue;
+      }
+
+      final String? name = (rawProject['name'] as String?)?.trim();
+      if (name == null || name.isEmpty) {
+        continue;
+      }
+
+      projects.add(
+        <String, dynamic>{
+          'name': name,
+          'tasks': _normalizeTaskList(rawProject['tasks']),
+        },
+      );
+    }
+
+    return projects;
+  }
+}
