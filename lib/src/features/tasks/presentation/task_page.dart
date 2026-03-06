@@ -137,6 +137,15 @@ class TaskStorage {
     1: _migrateV1ToV2,
   };
 
+  String export(TaskBoardState state) {
+    return const JsonEncoder.withIndent('  ').convert(
+      <String, dynamic>{
+        'version': _currentSchemaVersion,
+        'data': state.toJson(),
+      },
+    );
+  }
+
   Future<TaskBoardState?> load() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
     final String? rawJson =
@@ -509,7 +518,11 @@ class _TaskPageState extends State<TaskPage>
   }
 
   void _persistState() {
-    final TaskBoardState snapshot = TaskBoardState(
+    unawaited(_taskStorage.save(_createSnapshot()));
+  }
+
+  TaskBoardState _createSnapshot() {
+    return TaskBoardState(
       incomingTasks: List<TaskItem>.from(_incomingTasks),
       favoriteTasks: List<TaskItem>.from(_favoriteTasks),
       projects: _projects
@@ -521,14 +534,30 @@ class _TaskPageState extends State<TaskPage>
           )
           .toList(),
     );
-    unawaited(_taskStorage.save(snapshot));
+  }
+
+  Future<void> _openSettingsPage() async {
+    await Navigator.of(context).push(
+      MaterialPageRoute<void>(
+        builder: (_) => _SettingsPage(
+          exportData: () => _taskStorage.export(_createSnapshot()),
+        ),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        toolbarHeight: 0,
+        title: const Text('Mind'),
+        actions: [
+          IconButton(
+            onPressed: _openSettingsPage,
+            tooltip: 'Open settings',
+            icon: const Icon(Icons.settings_outlined),
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
@@ -1014,6 +1043,89 @@ class _ProjectDetailPageState extends State<_ProjectDetailPage> {
                 );
               },
             ),
+    );
+  }
+}
+
+class _SettingsPage extends StatelessWidget {
+  const _SettingsPage({required this.exportData});
+
+  final String Function() exportData;
+
+  Future<void> _showJsonExport(
+    BuildContext context,
+    String exportJson,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              16 + MediaQuery.of(bottomSheetContext).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'JSON Export',
+                  style: Theme.of(bottomSheetContext).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        MediaQuery.of(bottomSheetContext).size.height * 0.6,
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(exportJson),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: exportJson));
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Export JSON copied to clipboard.'),
+                      ),
+                    );
+                    Navigator.of(bottomSheetContext).pop();
+                  },
+                  icon: const Icon(Icons.copy_outlined),
+                  label: const Text('Copy JSON'),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: const Text('Settings')),
+      body: ListView(
+        children: [
+          ListTile(
+            leading: const Icon(Icons.file_upload_outlined),
+            title: const Text('Export data as JSON'),
+            subtitle:
+                const Text('Copy a JSON export of current tasks/projects'),
+            onTap: () => _showJsonExport(context, exportData()),
+          ),
+        ],
+      ),
     );
   }
 }

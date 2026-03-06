@@ -176,4 +176,22 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('String project task'), findsOneWidget);
   });
+
+  testWidgets('opens settings and shows JSON export',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.byTooltip('Open settings'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Settings'), findsOneWidget);
+    expect(find.text('Export data as JSON'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Export data as JSON'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('JSON Export'), findsOneWidget);
+    expect(find.textContaining('"version": 2'), findsOneWidget);
+    expect(find.textContaining('"incomingTasks"'), findsOneWidget);
+  });
 }
