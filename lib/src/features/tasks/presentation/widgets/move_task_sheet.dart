@@ -3,11 +3,11 @@ import 'package:flutter/material.dart';
 import '../../domain/task_models.dart';
 
 class MoveTarget {
-  const MoveTarget.favorites() : projectIndex = null;
+  const MoveTarget.favorites() : projectId = null;
 
-  const MoveTarget.project(this.projectIndex);
+  const MoveTarget.project(this.projectId);
 
-  final int? projectIndex;
+  final String? projectId;
 }
 
 class MoveTaskSheet extends StatelessWidget {
@@ -44,7 +44,8 @@ class MoveTaskSheet extends StatelessWidget {
               subtitle: Text(
                 '${projects[i].tasks.length} task${projects[i].tasks.length == 1 ? '' : 's'}',
               ),
-              onTap: () => Navigator.of(context).pop(MoveTarget.project(i)),
+              onTap: () =>
+                  Navigator.of(context).pop(MoveTarget.project(projects[i].id)),
             ),
         ],
       ),

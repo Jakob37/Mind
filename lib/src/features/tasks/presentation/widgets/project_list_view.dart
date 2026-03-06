@@ -10,7 +10,7 @@ class ProjectListView extends StatelessWidget {
   });
 
   final List<ProjectItem> projects;
-  final ValueChanged<int> onProjectTap;
+  final ValueChanged<String> onProjectTap;
 
   @override
   Widget build(BuildContext context) {
@@ -42,7 +42,7 @@ class ProjectListView extends StatelessWidget {
                   '${project.tasks.length} task${project.tasks.length == 1 ? '' : 's'}',
                 ),
               ),
-              onTap: () => onProjectTap(index),
+              onTap: () => onProjectTap(project.id),
             ),
           ),
         );

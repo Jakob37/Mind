@@ -6,20 +6,20 @@ class MoveProjectTaskSheet extends StatelessWidget {
   const MoveProjectTaskSheet({
     super.key,
     required this.projects,
-    required this.currentProjectIndex,
+    required this.currentProjectId,
   });
 
   final List<ProjectItem> projects;
-  final int currentProjectIndex;
+  final String currentProjectId;
 
   @override
   Widget build(BuildContext context) {
-    final List<int> targetIndexes = <int>[
-      for (int i = 0; i < projects.length; i++)
-        if (i != currentProjectIndex) i,
+    final List<ProjectItem> targetProjects = <ProjectItem>[
+      for (final ProjectItem project in projects)
+        if (project.id != currentProjectId) project,
     ];
 
-    if (targetIndexes.isEmpty) {
+    if (targetProjects.isEmpty) {
       return const SafeArea(
         child: Padding(
           padding: EdgeInsets.all(16),
@@ -39,14 +39,14 @@ class MoveProjectTaskSheet extends StatelessWidget {
             ),
           ),
           const Divider(height: 1),
-          for (final int targetIndex in targetIndexes)
+          for (final ProjectItem targetProject in targetProjects)
             ListTile(
               leading: const Icon(Icons.folder_outlined),
-              title: Text(projects[targetIndex].name),
+              title: Text(targetProject.name),
               subtitle: Text(
-                '${projects[targetIndex].tasks.length} task${projects[targetIndex].tasks.length == 1 ? '' : 's'}',
+                '${targetProject.tasks.length} task${targetProject.tasks.length == 1 ? '' : 's'}',
               ),
-              onTap: () => Navigator.of(context).pop(targetIndex),
+              onTap: () => Navigator.of(context).pop(targetProject.id),
             ),
         ],
       ),

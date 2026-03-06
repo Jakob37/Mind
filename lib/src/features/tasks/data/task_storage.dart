@@ -9,10 +9,11 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 2;
+  static const int _currentSchemaVersion = 3;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
+    2: _migrateV2ToV3,
   };
 
   String export(TaskBoardState state) {
@@ -122,6 +123,14 @@ class TaskStorage {
     };
   }
 
+  static Map<String, dynamic> _migrateV2ToV3(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _addTaskIds(payload['incomingTasks']),
+      'favoriteTasks': _addTaskIds(payload['favoriteTasks']),
+      'projects': _addProjectAndTaskIds(payload['projects']),
+    };
+  }
+
   static List<Map<String, dynamic>> _normalizeTaskList(Object? rawTasks) {
     if (rawTasks is! List<dynamic>) {
       return <Map<String, dynamic>>[];
@@ -191,6 +200,48 @@ class TaskStorage {
       );
     }
 
+    return projects;
+  }
+
+  static List<Map<String, dynamic>> _addTaskIds(Object? rawTasks) {
+    if (rawTasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> tasks = <Map<String, dynamic>>[];
+    for (final dynamic rawTask in rawTasks) {
+      if (rawTask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> task = Map<String, dynamic>.from(rawTask);
+      final String? id = (task['id'] as String?)?.trim();
+      if (id == null || id.isEmpty) {
+        task['id'] = ModelIds.newTaskId();
+      }
+      tasks.add(task);
+    }
+    return tasks;
+  }
+
+  static List<Map<String, dynamic>> _addProjectAndTaskIds(Object? rawProjects) {
+    if (rawProjects is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projects = <Map<String, dynamic>>[];
+    for (final dynamic rawProject in rawProjects) {
+      if (rawProject is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> project =
+          Map<String, dynamic>.from(rawProject);
+      final String? id = (project['id'] as String?)?.trim();
+      if (id == null || id.isEmpty) {
+        project['id'] = ModelIds.newProjectId();
+      }
+      project['tasks'] = _addTaskIds(project['tasks']);
+      projects.add(project);
+    }
     return projects;
   }
 }

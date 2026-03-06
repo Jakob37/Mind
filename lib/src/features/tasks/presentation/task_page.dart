@@ -64,6 +64,15 @@ class _TaskPageState extends State<TaskPage>
     super.dispose();
   }
 
+  int _indexOfTaskById(List<TaskItem> tasks, String taskId) {
+    return tasks.indexWhere((TaskItem task) => task.id == taskId);
+  }
+
+  int _indexOfProjectById(String projectId) {
+    return _projects
+        .indexWhere((ProjectItem project) => project.id == projectId);
+  }
+
   Future<void> _setupWidgetActionHandling() async {
     _widgetChannel.setMethodCallHandler((MethodCall call) async {
       if (call.method == 'openAddEntry') {
@@ -140,7 +149,7 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
-  Future<void> _moveIncomingTask(int index) async {
+  Future<void> _moveIncomingTask(String taskId) async {
     final MoveTarget? target = await showModalBottomSheet<MoveTarget>(
       context: context,
       builder: (_) => MoveTaskSheet(projects: _projects),
@@ -150,44 +159,70 @@ class _TaskPageState extends State<TaskPage>
       return;
     }
 
+    final int sourceTaskIndex = _indexOfTaskById(_incomingTasks, taskId);
+    if (sourceTaskIndex < 0) {
+      return;
+    }
+    final int? targetProjectIndex = target.projectId == null
+        ? null
+        : _indexOfProjectById(target.projectId!);
+    if (target.projectId != null && targetProjectIndex == -1) {
+      return;
+    }
+
     setState(() {
-      final TaskItem task = _incomingTasks.removeAt(index);
-      if (target.projectIndex == null) {
+      final TaskItem task = _incomingTasks.removeAt(sourceTaskIndex);
+      if (target.projectId == null) {
         _favoriteTasks.insert(0, task);
       } else {
-        _projects[target.projectIndex!].tasks.insert(0, task);
+        _projects[targetProjectIndex!].tasks.insert(0, task);
       }
     });
     _persistState();
   }
 
-  Future<void> _moveFavoriteToIncoming(int index) async {
+  Future<void> _moveFavoriteToIncoming(String taskId) async {
+    final int sourceTaskIndex = _indexOfTaskById(_favoriteTasks, taskId);
+    if (sourceTaskIndex < 0) {
+      return;
+    }
+
     setState(() {
-      final TaskItem task = _favoriteTasks.removeAt(index);
+      final TaskItem task = _favoriteTasks.removeAt(sourceTaskIndex);
       _incomingTasks.insert(0, task);
     });
     _persistState();
   }
 
-  void _deleteIncomingTask(int index) {
+  void _deleteIncomingTask(String taskId) {
+    final int sourceTaskIndex = _indexOfTaskById(_incomingTasks, taskId);
+    if (sourceTaskIndex < 0) {
+      return;
+    }
+
     setState(() {
-      _incomingTasks.removeAt(index);
+      _incomingTasks.removeAt(sourceTaskIndex);
     });
     _persistState();
   }
 
-  void _deleteFavoriteTask(int index) {
+  void _deleteFavoriteTask(String taskId) {
+    final int sourceTaskIndex = _indexOfTaskById(_favoriteTasks, taskId);
+    if (sourceTaskIndex < 0) {
+      return;
+    }
+
     setState(() {
-      _favoriteTasks.removeAt(index);
+      _favoriteTasks.removeAt(sourceTaskIndex);
     });
     _persistState();
   }
 
-  void _openProjectDetail(int projectIndex) {
+  void _openProjectDetail(String projectId) {
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => ProjectDetailPage(
-          projectIndex: projectIndex,
+          projectId: projectId,
           projects: _projects,
           onProjectsUpdated: () {
             setState(() {});
@@ -223,13 +258,22 @@ class _TaskPageState extends State<TaskPage>
 
   TaskBoardState _createSnapshot() {
     return TaskBoardState(
-      incomingTasks: List<TaskItem>.from(_incomingTasks),
-      favoriteTasks: List<TaskItem>.from(_favoriteTasks),
+      incomingTasks: _incomingTasks
+          .map((TaskItem task) => TaskItem(id: task.id, title: task.title))
+          .toList(),
+      favoriteTasks: _favoriteTasks
+          .map((TaskItem task) => TaskItem(id: task.id, title: task.title))
+          .toList(),
       projects: _projects
           .map(
             (ProjectItem project) => ProjectItem(
+              id: project.id,
               name: project.name,
-              tasks: List<TaskItem>.from(project.tasks),
+              tasks: project.tasks
+                  .map(
+                    (TaskItem task) => TaskItem(id: task.id, title: task.title),
+                  )
+                  .toList(),
             ),
           )
           .toList(),

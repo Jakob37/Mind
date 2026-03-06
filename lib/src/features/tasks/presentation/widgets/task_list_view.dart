@@ -17,8 +17,8 @@ class TaskListView extends StatelessWidget {
   final String emptyLabel;
   final IconData primaryIcon;
   final String primaryTooltip;
-  final Future<void> Function(int) onPrimaryAction;
-  final ValueChanged<int> onDelete;
+  final Future<void> Function(String) onPrimaryAction;
+  final ValueChanged<String> onDelete;
 
   @override
   Widget build(BuildContext context) {
@@ -32,7 +32,7 @@ class TaskListView extends StatelessWidget {
       itemBuilder: (BuildContext context, int index) {
         final TaskItem task = tasks[index];
         return Dismissible(
-          key: ValueKey<String>('task-${task.title}-$index'),
+          key: ValueKey<String>(task.id),
           direction: DismissDirection.endToStart,
           background: Container(
             margin: const EdgeInsets.only(bottom: 4),
@@ -47,7 +47,7 @@ class TaskListView extends StatelessWidget {
               color: Theme.of(context).colorScheme.onErrorContainer,
             ),
           ),
-          onDismissed: (_) => onDelete(index),
+          onDismissed: (_) => onDelete(task.id),
           child: Padding(
             padding: const EdgeInsets.only(bottom: 4),
             child: Card(
@@ -62,7 +62,7 @@ class TaskListView extends StatelessWidget {
                 ),
                 trailing: IconButton(
                   icon: Icon(primaryIcon),
-                  onPressed: () async => onPrimaryAction(index),
+                  onPressed: () async => onPrimaryAction(task.id),
                   tooltip: primaryTooltip,
                 ),
               ),

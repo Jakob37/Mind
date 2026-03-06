@@ -191,7 +191,46 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('JSON Export'), findsOneWidget);
-    expect(find.textContaining('"version": 2'), findsOneWidget);
+    expect(find.textContaining('"version": 3'), findsOneWidget);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
+    expect(find.text('Export JSON File (Android)'), findsOneWidget);
+  });
+
+  testWidgets('migrates versioned v2 payload and adds stable IDs',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 2,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[
+            <String, dynamic>{'title': 'Legacy v2 incoming'},
+          ],
+          'favoriteTasks': <Map<String, dynamic>>[
+            <String, dynamic>{'title': 'Legacy v2 favorite'},
+          ],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'name': 'Legacy v2 project',
+              'tasks': <Map<String, dynamic>>[
+                <String, dynamic>{'title': 'Legacy v2 project task'},
+              ],
+            },
+          ],
+        },
+      }),
+    });
+
+    await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Legacy v2 incoming'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Open settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Export data as JSON'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('"version": 3'), findsOneWidget);
+    expect(find.textContaining('"id"'), findsWidgets);
   });
 }

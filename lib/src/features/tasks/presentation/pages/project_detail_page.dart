@@ -6,12 +6,12 @@ import '../widgets/move_project_task_sheet.dart';
 class ProjectDetailPage extends StatefulWidget {
   const ProjectDetailPage({
     super.key,
-    required this.projectIndex,
+    required this.projectId,
     required this.projects,
     required this.onProjectsUpdated,
   });
 
-  final int projectIndex;
+  final String projectId;
   final List<ProjectItem> projects;
   final VoidCallback onProjectsUpdated;
 
@@ -20,30 +20,68 @@ class ProjectDetailPage extends StatefulWidget {
 }
 
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
-  ProjectItem get _project => widget.projects[widget.projectIndex];
-
-  void _deleteTask(int taskIndex) {
-    setState(() {
-      _project.tasks.removeAt(taskIndex);
-    });
-    widget.onProjectsUpdated();
+  ProjectItem? _findProject() {
+    for (final ProjectItem project in widget.projects) {
+      if (project.id == widget.projectId) {
+        return project;
+      }
+    }
+    return null;
   }
 
-  Future<void> _moveTaskToAnotherProject(int taskIndex) async {
-    final int? targetProjectIndex = await showModalBottomSheet<int>(
-      context: context,
-      builder: (_) => MoveProjectTaskSheet(
-        projects: widget.projects,
-        currentProjectIndex: widget.projectIndex,
-      ),
-    );
+  void _deleteTask(String taskId) {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
 
-    if (targetProjectIndex == null) {
+    final int taskIndex = project.tasks.indexWhere(
+      (TaskItem task) => task.id == taskId,
+    );
+    if (taskIndex < 0) {
       return;
     }
 
     setState(() {
-      final TaskItem task = _project.tasks.removeAt(taskIndex);
+      project.tasks.removeAt(taskIndex);
+    });
+    widget.onProjectsUpdated();
+  }
+
+  Future<void> _moveTaskToAnotherProject(String taskId) async {
+    final ProjectItem? sourceProject = _findProject();
+    if (sourceProject == null) {
+      return;
+    }
+
+    final String? targetProjectId = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => MoveProjectTaskSheet(
+        projects: widget.projects,
+        currentProjectId: widget.projectId,
+      ),
+    );
+
+    if (targetProjectId == null) {
+      return;
+    }
+
+    final int targetProjectIndex = widget.projects.indexWhere(
+      (ProjectItem project) => project.id == targetProjectId,
+    );
+    if (targetProjectIndex < 0) {
+      return;
+    }
+
+    final int sourceTaskIndex = sourceProject.tasks.indexWhere(
+      (TaskItem task) => task.id == taskId,
+    );
+    if (sourceTaskIndex < 0) {
+      return;
+    }
+
+    setState(() {
+      final TaskItem task = sourceProject.tasks.removeAt(sourceTaskIndex);
       widget.projects[targetProjectIndex].tasks.insert(0, task);
     });
     widget.onProjectsUpdated();
@@ -51,21 +89,27 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   @override
   Widget build(BuildContext context) {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Project')),
+        body: const Center(child: Text('Project not found.')),
+      );
+    }
+
     return Scaffold(
-      appBar: AppBar(title: Text(_project.name)),
-      body: _project.tasks.isEmpty
+      appBar: AppBar(title: Text(project.name)),
+      body: project.tasks.isEmpty
           ? const Center(
               child: Text('No tasks in this project yet.'),
             )
           : ListView.builder(
               padding: const EdgeInsets.all(12),
-              itemCount: _project.tasks.length,
+              itemCount: project.tasks.length,
               itemBuilder: (BuildContext context, int index) {
-                final TaskItem task = _project.tasks[index];
+                final TaskItem task = project.tasks[index];
                 return Dismissible(
-                  key: ValueKey<String>(
-                    'project-task-${task.title}-${_project.name}-$index',
-                  ),
+                  key: ValueKey<String>(task.id),
                   direction: DismissDirection.endToStart,
                   background: Container(
                     margin: const EdgeInsets.only(bottom: 4),
@@ -80,7 +124,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
                   ),
-                  onDismissed: (_) => _deleteTask(index),
+                  onDismissed: (_) => _deleteTask(task.id),
                   child: Padding(
                     padding: const EdgeInsets.only(bottom: 4),
                     child: Card(
@@ -95,7 +139,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                         ),
                         trailing: IconButton(
                           icon: const Icon(Icons.drive_file_move_outlined),
-                          onPressed: () => _moveTaskToAnotherProject(index),
+                          onPressed: () => _moveTaskToAnotherProject(task.id),
                           tooltip: 'Move to another project',
                         ),
                       ),
