@@ -1,17 +1,57 @@
 # Mind
 
-Minimal Flutter task-management boilerplate with:
+A Flutter task board app focused on quickly moving ideas into projects.
 
-- Material 3 app setup
-- Feature-oriented folder structure (`lib/src/features/...`)
-- Task screen (add, complete, delete)
-- Basic widget test for core task flow
-- Linux desktop window configured to phone-like portrait size for quick Android-style layout preview
+## Current capabilities
+
+- Two-tab board:
+  - `Incoming` for unassigned tasks
+  - `Projects` for named project containers
+- Task and project creation via bottom sheets.
+- Context menus for task/project actions:
+  - edit title/body
+  - set card color
+  - move tasks to a project
+  - open/remove projects
+- Project detail view with two task lanes:
+  - `Thinking (ideas)`
+  - `Planning (action items)`
+  - tasks can be switched between lanes
+- Reorder mode (long press + drag handles) for incoming tasks, projects, and project tasks.
+- Swipe-left delete for tasks/projects with confirmation dialog.
+- Settings screen:
+  - export board data as JSON
+  - copy JSON to clipboard
+  - Android-only file export/share
+  - custom labels for predefined card colors
+- Android home-screen widget action for quickly opening the add-task flow.
+
+## Persistence and data schema
+
+- Local persistence uses `shared_preferences`.
+- Current schema version is `7`.
+- Migration pipeline supports legacy payloads:
+  - unversioned legacy key: `task_board_state_v1`
+  - versioned payloads: v1 -> v7
+- If persisted data is corrupted, autosave is paused to avoid overwriting potentially recoverable data.
+
+## Project structure
+
+- App entry: `lib/main.dart`
+- App shell/theme: `lib/src/app.dart`
+- Feature code: `lib/src/features/tasks`
+  - Domain models: `domain/task_models.dart`
+  - Persistence/migrations: `data/task_storage.dart`
+  - Screens: `presentation/task_page.dart`, `presentation/pages/*`
+  - Reusable UI sheets/lists: `presentation/widgets/*`
+- Tests:
+  - End-to-end style widget flow tests: `test/widget_test.dart`
+  - Targeted persistence/migration tests: `test/features/tasks/data/task_storage_test.dart`
 
 ## Getting started
 
-1. Install Flutter SDK and Android Studio (for Android emulator/device).
-2. From this project root, install dependencies:
+1. Install Flutter SDK and Android Studio.
+2. Install dependencies:
    ```bash
    flutter pub get
    ```
@@ -23,8 +63,19 @@ Minimal Flutter task-management boilerplate with:
    ```bash
    flutter run -d linux
    ```
-   The Linux window opens at `412x915` and is non-resizable to mimic an Android phone layout.
-5. Run tests:
-   ```bash
-   flutter test
-   ```
+   The Linux window opens at `412x915` and is non-resizable for phone-like layout testing.
+
+## Quality checks
+
+Run these from project root:
+
+```bash
+flutter analyze
+flutter test
+```
+
+To run only persistence/migration tests:
+
+```bash
+flutter test test/features/tasks/data/task_storage_test.dart
+```

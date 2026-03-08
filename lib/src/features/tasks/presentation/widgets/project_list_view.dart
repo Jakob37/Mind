@@ -11,6 +11,7 @@ class ProjectListView extends StatelessWidget {
     required this.onReorder,
     required this.onProjectTap,
     required this.onProjectRemove,
+    required this.onProjectOptionsTap,
   });
 
   final List<ProjectItem> projects;
@@ -19,6 +20,7 @@ class ProjectListView extends StatelessWidget {
   final void Function(int oldIndex, int newIndex) onReorder;
   final Future<void> Function(String) onProjectTap;
   final void Function(String) onProjectRemove;
+  final Future<void> Function(String) onProjectOptionsTap;
 
   Future<bool> _confirmProjectRemoval(BuildContext context) async {
     final bool? shouldRemove = await showDialog<bool>(
@@ -143,6 +145,11 @@ class ProjectListView extends StatelessWidget {
                       : Text('${project.body}\n$taskCountLabel'),
                 ),
                 isThreeLine: project.body.isNotEmpty,
+                trailing: IconButton(
+                  onPressed: () async => onProjectOptionsTap(project.id),
+                  tooltip: 'Project options',
+                  icon: const Icon(Icons.settings_outlined),
+                ),
                 onTap: () async => onProjectTap(project.id),
                 onLongPress: onEnterReorderMode,
               ),

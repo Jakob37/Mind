@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import '../widgets/add_task_sheet.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/move_project_task_sheet.dart';
+import 'task_detail_page.dart';
 
-enum _ProjectTaskMenuAction {
-  edit,
-  setColor,
-  moveToThinking,
-  moveToPlanning,
-  moveToProject,
-  remove,
+class _TaskSectionDragPayload {
+  const _TaskSectionDragPayload({
+    required this.taskId,
+  });
+
+  final String taskId;
 }
 
 class ProjectDetailPage extends StatefulWidget {
@@ -71,6 +72,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return project.tasks.indexWhere((TaskItem task) => task.id == taskId);
   }
 
+  void _replaceProjectTasksBySections({
+    required ProjectItem project,
+    required List<TaskItem> thinkingTasks,
+    required List<TaskItem> planningTasks,
+  }) {
+    project.tasks
+      ..clear()
+      ..addAll(thinkingTasks)
+      ..addAll(planningTasks);
+  }
+
   void _enterReorderMode() {
     if (_isReorderMode) {
       return;
@@ -80,7 +92,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     });
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Drag mode enabled. Use drag handles to reorder tasks.'),
+        content: Text(
+          'Drag mode enabled. Drag tasks between sections.',
+        ),
         duration: Duration(seconds: 2),
       ),
     );
@@ -95,91 +109,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     });
   }
 
-  void _reorderTasks(ProjectItem project, int oldIndex, int newIndex) {
-    if (oldIndex < 0 || oldIndex >= project.tasks.length) {
-      return;
-    }
-    if (newIndex < 0 || newIndex > project.tasks.length) {
-      return;
-    }
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-    if (newIndex == oldIndex) {
-      return;
-    }
-
-    setState(() {
-      final TaskItem movedTask = project.tasks.removeAt(oldIndex);
-      project.tasks.insert(newIndex, movedTask);
-    });
-    _notifyProjectsChanged();
-  }
-
-  Future<_ProjectTaskMenuAction?> _showTaskMenu(TaskItem task) {
-    final bool isThinking = task.type == TaskItemType.thinking;
-    return showModalBottomSheet<_ProjectTaskMenuAction>(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: <Widget>[
-              ListTile(
-                title: Text(
-                  task.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text('Task options'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit task'),
-                onTap: () =>
-                    Navigator.of(context).pop(_ProjectTaskMenuAction.edit),
-              ),
-              ListTile(
-                leading: const Icon(Icons.palette_outlined),
-                title: const Text('Set color'),
-                onTap: () =>
-                    Navigator.of(context).pop(_ProjectTaskMenuAction.setColor),
-              ),
-              ListTile(
-                leading: Icon(
-                  isThinking
-                      ? Icons.checklist_rtl_outlined
-                      : Icons.lightbulb_outline,
-                ),
-                title: Text(
-                  isThinking ? 'Move to planning' : 'Move to thinking',
-                ),
-                onTap: () => Navigator.of(context).pop(
-                  isThinking
-                      ? _ProjectTaskMenuAction.moveToPlanning
-                      : _ProjectTaskMenuAction.moveToThinking,
-                ),
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_file_move_outlined),
-                title: const Text('Move to project'),
-                onTap: () => Navigator.of(context)
-                    .pop(_ProjectTaskMenuAction.moveToProject),
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Remove task'),
-                onTap: () =>
-                    Navigator.of(context).pop(_ProjectTaskMenuAction.remove),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _openTaskMenu(String taskId) async {
+  Future<void> _openTaskView(String taskId) async {
     final ProjectItem? project = _findProject();
     if (project == null) {
       return;
@@ -191,28 +121,73 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     final TaskItem task = project.tasks[taskIndex];
-    final _ProjectTaskMenuAction? action = await _showTaskMenu(task);
-    if (action == _ProjectTaskMenuAction.edit) {
+    final TaskDetailAction? action = await Navigator.of(
+      context,
+    ).push<TaskDetailAction>(
+      MaterialPageRoute<TaskDetailAction>(
+        builder: (_) => TaskDetailPage(
+          task: task,
+          menuItems: <TaskDetailMenuItem>[
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.edit,
+              icon: Icons.edit_outlined,
+              label: 'Edit task',
+            ),
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.setColor,
+              icon: Icons.palette_outlined,
+              label: 'Set color',
+            ),
+            TaskDetailMenuItem(
+              action: task.type == TaskItemType.thinking
+                  ? TaskDetailAction.moveToPlanning
+                  : TaskDetailAction.moveToThinking,
+              icon: task.type == TaskItemType.thinking
+                  ? Icons.checklist_rtl_outlined
+                  : Icons.lightbulb_outline,
+              label: task.type == TaskItemType.thinking
+                  ? 'Move to planning'
+                  : 'Move to thinking',
+            ),
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.moveToProject,
+              icon: Icons.drive_file_move_outlined,
+              label: 'Move to project',
+            ),
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.remove,
+              icon: Icons.delete_outline,
+              label: 'Remove task',
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+
+    if (action == TaskDetailAction.edit) {
       await _editTask(taskId);
       return;
     }
-    if (action == _ProjectTaskMenuAction.setColor) {
+    if (action == TaskDetailAction.setColor) {
       await _setTaskColor(taskId);
       return;
     }
-    if (action == _ProjectTaskMenuAction.moveToThinking) {
+    if (action == TaskDetailAction.moveToThinking) {
       _setTaskType(taskId, TaskItemType.thinking);
       return;
     }
-    if (action == _ProjectTaskMenuAction.moveToPlanning) {
+    if (action == TaskDetailAction.moveToPlanning) {
       _setTaskType(taskId, TaskItemType.planning);
       return;
     }
-    if (action == _ProjectTaskMenuAction.moveToProject) {
+    if (action == TaskDetailAction.moveToProject) {
       await _moveTaskToAnotherProject(taskId);
       return;
     }
-    if (action == _ProjectTaskMenuAction.remove) {
+    if (action == TaskDetailAction.remove) {
       _deleteTask(taskId);
     }
   }
@@ -319,6 +294,76 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _notifyProjectsChanged();
   }
 
+  void _moveTaskToPosition({
+    required String taskId,
+    required TaskItemType targetType,
+    required int targetIndex,
+  }) {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final List<TaskItem> thinkingTasks = _tasksByType(
+      project,
+      TaskItemType.thinking,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _tasksByType(
+      project,
+      TaskItemType.planning,
+    ).toList(growable: true);
+
+    TaskItem? sourceTask;
+    TaskItemType? sourceType;
+    int sourceIndex =
+        thinkingTasks.indexWhere((TaskItem task) => task.id == taskId);
+    if (sourceIndex >= 0) {
+      sourceTask = thinkingTasks.removeAt(sourceIndex);
+      sourceType = TaskItemType.thinking;
+    } else {
+      sourceIndex =
+          planningTasks.indexWhere((TaskItem task) => task.id == taskId);
+      if (sourceIndex >= 0) {
+        sourceTask = planningTasks.removeAt(sourceIndex);
+        sourceType = TaskItemType.planning;
+      }
+    }
+
+    if (sourceTask == null || sourceType == null) {
+      return;
+    }
+
+    final List<TaskItem> destinationTasks =
+        targetType == TaskItemType.thinking ? thinkingTasks : planningTasks;
+
+    int insertionIndex = targetIndex;
+    if (sourceType == targetType && sourceIndex < insertionIndex) {
+      insertionIndex -= 1;
+    }
+    insertionIndex = insertionIndex.clamp(0, destinationTasks.length);
+
+    final TaskItem movedTask = sourceTask.type == targetType
+        ? sourceTask
+        : TaskItem(
+            id: sourceTask.id,
+            title: sourceTask.title,
+            body: sourceTask.body,
+            colorValue: sourceTask.colorValue,
+            type: targetType,
+          );
+
+    destinationTasks.insert(insertionIndex, movedTask);
+
+    setState(() {
+      _replaceProjectTasksBySections(
+        project: project,
+        thinkingTasks: thinkingTasks,
+        planningTasks: planningTasks,
+      );
+    });
+    _notifyProjectsChanged();
+  }
+
   void _deleteTask(String taskId) {
     final ProjectItem? project = _findProject();
     if (project == null) {
@@ -394,6 +439,98 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       },
     );
     return shouldRemove ?? false;
+  }
+
+  Future<TaskItemType?> _chooseTaskTypeForCreate() {
+    return showModalBottomSheet<TaskItemType>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              const ListTile(
+                title: Text(
+                  'Create task in',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.lightbulb_outline),
+                title: const Text('Thinking (ideas)'),
+                onTap: () => Navigator.of(context).pop(TaskItemType.thinking),
+              ),
+              ListTile(
+                leading: const Icon(Icons.checklist_rtl_outlined),
+                title: const Text('Planning (action items)'),
+                onTap: () => Navigator.of(context).pop(TaskItemType.planning),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _addTaskToProject() async {
+    final TaskItemType? selectedType = await _chooseTaskTypeForCreate();
+    if (selectedType == null) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final TaskItem? createdTask = await showModalBottomSheet<TaskItem>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AddTaskSheet(),
+    );
+
+    if (createdTask == null) {
+      return;
+    }
+    if (!mounted) {
+      return;
+    }
+
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final List<TaskItem> thinkingTasks = _tasksByType(
+      project,
+      TaskItemType.thinking,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _tasksByType(
+      project,
+      TaskItemType.planning,
+    ).toList(growable: true);
+
+    final TaskItem insertedTask = TaskItem(
+      id: createdTask.id,
+      title: createdTask.title,
+      body: createdTask.body,
+      colorValue: createdTask.colorValue,
+      type: selectedType,
+    );
+
+    if (selectedType == TaskItemType.thinking) {
+      thinkingTasks.insert(0, insertedTask);
+    } else {
+      planningTasks.insert(0, insertedTask);
+    }
+
+    setState(() {
+      _replaceProjectTasksBySections(
+        project: project,
+        thinkingTasks: thinkingTasks,
+        planningTasks: planningTasks,
+      );
+    });
+    _notifyProjectsChanged();
   }
 
   Widget _buildTaskCard({
@@ -491,11 +628,165 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             ),
             child: _buildTaskCard(
               task: task,
-              onTap: () => _openTaskMenu(task.id),
+              onTap: () => _openTaskView(task.id),
               onLongPress: _enterReorderMode,
             ),
           ),
       ],
+    );
+  }
+
+  Widget _buildDropSlot({
+    required TaskItemType sectionType,
+    required int targetIndex,
+  }) {
+    return DragTarget<_TaskSectionDragPayload>(
+      onWillAcceptWithDetails: (
+        DragTargetDetails<_TaskSectionDragPayload> details,
+      ) {
+        return true;
+      },
+      onAcceptWithDetails: (
+        DragTargetDetails<_TaskSectionDragPayload> details,
+      ) {
+        _moveTaskToPosition(
+          taskId: details.data.taskId,
+          targetType: sectionType,
+          targetIndex: targetIndex,
+        );
+      },
+      builder: (
+        BuildContext context,
+        List<_TaskSectionDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isActiveDropTarget = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          margin: const EdgeInsets.only(bottom: 4),
+          height: isActiveDropTarget ? 28 : 18,
+          decoration: BoxDecoration(
+            color: isActiveDropTarget
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildDraggableTaskCard(TaskItem task) {
+    return Draggable<_TaskSectionDragPayload>(
+      data: _TaskSectionDragPayload(taskId: task.id),
+      feedback: Material(
+        color: Colors.transparent,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Card(
+            color: task.colorValue == null ? null : Color(task.colorValue!),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 10,
+              ),
+              child: Text(
+                task.title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ),
+          ),
+        ),
+      ),
+      childWhenDragging: Opacity(
+        opacity: 0.45,
+        child: _buildTaskCard(
+          task: task,
+          onTap: null,
+          onLongPress: null,
+          trailing: const Icon(Icons.drag_indicator_outlined),
+        ),
+      ),
+      child: _buildTaskCard(
+        task: task,
+        onTap: null,
+        onLongPress: null,
+        trailing: const Tooltip(
+          message: 'Drag',
+          child: Icon(Icons.drag_indicator_outlined),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReorderTaskSection({
+    required String title,
+    required String emptyLabel,
+    required List<TaskItem> tasks,
+    required TaskItemType sectionType,
+  }) {
+    return DragTarget<_TaskSectionDragPayload>(
+      onWillAcceptWithDetails: (
+        DragTargetDetails<_TaskSectionDragPayload> details,
+      ) {
+        return true;
+      },
+      onAcceptWithDetails: (
+        DragTargetDetails<_TaskSectionDragPayload> details,
+      ) {
+        _moveTaskToPosition(
+          taskId: details.data.taskId,
+          targetType: sectionType,
+          targetIndex: tasks.length,
+        );
+      },
+      builder: (
+        BuildContext context,
+        List<_TaskSectionDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isActiveDropTarget = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          padding: const EdgeInsets.all(6),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: isActiveDropTarget
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.transparent,
+            ),
+            color: isActiveDropTarget
+                ? Theme.of(context).colorScheme.secondaryContainer.withValues(
+                      alpha: 0.25,
+                    )
+                : Colors.transparent,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Text(
+                title,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 8),
+              if (tasks.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Text(
+                    emptyLabel,
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                ),
+              _buildDropSlot(sectionType: sectionType, targetIndex: 0),
+              for (int i = 0; i < tasks.length; i++) ...<Widget>[
+                _buildDraggableTaskCard(tasks[i]),
+                _buildDropSlot(sectionType: sectionType, targetIndex: i + 1),
+              ],
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -530,49 +821,45 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             ),
         ],
       ),
-      body: project.tasks.isEmpty
-          ? const Center(
-              child: Text('No tasks in this project yet.'),
+      body: ListView(
+        padding: const EdgeInsets.all(12),
+        children: <Widget>[
+          if (_isReorderMode)
+            _buildReorderTaskSection(
+              title: 'Thinking (ideas)',
+              emptyLabel: 'Drop ideas here.',
+              tasks: thinkingTasks,
+              sectionType: TaskItemType.thinking,
             )
-          : _isReorderMode
-              ? ReorderableListView.builder(
-                  padding: const EdgeInsets.all(12),
-                  itemCount: project.tasks.length,
-                  onReorder: (int oldIndex, int newIndex) =>
-                      _reorderTasks(project, oldIndex, newIndex),
-                  buildDefaultDragHandles: false,
-                  itemBuilder: (BuildContext context, int index) {
-                    final TaskItem task = project.tasks[index];
-                    return Container(
-                      key: ValueKey<String>(task.id),
-                      child: _buildTaskCard(
-                        task: task,
-                        onTap: null,
-                        onLongPress: null,
-                        trailing: ReorderableDragStartListener(
-                          index: index,
-                          child: const Icon(Icons.drag_indicator_outlined),
-                        ),
-                      ),
-                    );
-                  },
-                )
-              : ListView(
-                  padding: const EdgeInsets.all(12),
-                  children: <Widget>[
-                    _buildTaskSection(
-                      title: 'Thinking (ideas)',
-                      emptyLabel: 'No ideas in this project yet.',
-                      tasks: thinkingTasks,
-                    ),
-                    const SizedBox(height: 8),
-                    _buildTaskSection(
-                      title: 'Planning (action items)',
-                      emptyLabel: 'No action items in this project yet.',
-                      tasks: planningTasks,
-                    ),
-                  ],
-                ),
+          else
+            _buildTaskSection(
+              title: 'Thinking (ideas)',
+              emptyLabel: 'No ideas in this project yet.',
+              tasks: thinkingTasks,
+            ),
+          const SizedBox(height: 8),
+          if (_isReorderMode)
+            _buildReorderTaskSection(
+              title: 'Planning (action items)',
+              emptyLabel: 'Drop action items here.',
+              tasks: planningTasks,
+              sectionType: TaskItemType.planning,
+            )
+          else
+            _buildTaskSection(
+              title: 'Planning (action items)',
+              emptyLabel: 'No action items in this project yet.',
+              tasks: planningTasks,
+            ),
+        ],
+      ),
+      floatingActionButton: _isReorderMode
+          ? null
+          : FloatingActionButton(
+              onPressed: _addTaskToProject,
+              tooltip: 'Add project task',
+              child: const Icon(Icons.add),
+            ),
     );
   }
 }

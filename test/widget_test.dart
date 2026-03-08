@@ -23,6 +23,8 @@ void main() {
     await tester
         .tap(find.widgetWithText(ListTile, 'Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Move to project'));
     await tester.pumpAndSettle();
     expect(find.text('Move task to project'), findsOneWidget);
@@ -53,6 +55,8 @@ void main() {
     await tester
         .tap(find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Move to project'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Breathwork'));
@@ -68,8 +72,6 @@ void main() {
 
     await tester.tap(find.widgetWithText(ListTile, 'Breathwork'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open project'));
-    await tester.pumpAndSettle();
 
     expect(find.text('Breathwork'), findsOneWidget);
     expect(find.text('Do a 3-minute breathing check-in'), findsOneWidget);
@@ -77,26 +79,28 @@ void main() {
     await tester
         .tap(find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Move to project'));
     await tester.pumpAndSettle();
     expect(find.text('Move task to project'), findsOneWidget);
     await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
     expect(find.text('Do a 3-minute breathing check-in'), findsNothing);
-    expect(find.text('No tasks in this project yet.'), findsOneWidget);
+    expect(find.text('No ideas in this project yet.'), findsOneWidget);
 
     await tester.pageBack();
     await tester.pumpAndSettle();
 
     await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open project'));
-    await tester.pumpAndSettle();
     expect(find.text('Do a 3-minute breathing check-in'), findsOneWidget);
 
     await tester.tap(
       find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'),
     );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove task'));
     await tester.pumpAndSettle();
@@ -172,8 +176,6 @@ void main() {
 
     await tester.tap(find.widgetWithText(ListTile, 'Migrated Project'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open project'));
-    await tester.pumpAndSettle();
     expect(find.text('String project task'), findsOneWidget);
   });
 
@@ -216,6 +218,8 @@ void main() {
 
     await tester.tap(find.text('Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Set color'));
     await tester.pumpAndSettle();
 
@@ -228,7 +232,9 @@ void main() {
 
     await tester.tap(find.text('Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
-    expect(find.text('Task options'), findsOneWidget);
+    expect(find.byTooltip('Task options'), findsOneWidget);
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Edit task'));
     await tester.pumpAndSettle();
 
@@ -243,7 +249,18 @@ void main() {
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    final Finder morningRoutineCard = find
+        .ancestor(
+          of: find.text('Morning Routine'),
+          matching: find.byType(Card),
+        )
+        .first;
+    await tester.tap(
+      find.descendant(
+        of: morningRoutineCard,
+        matching: find.byTooltip('Project options'),
+      ),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Project options'), findsOneWidget);
     await tester.tap(find.text('Edit project'));
@@ -309,13 +326,35 @@ void main() {
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    final Finder morningRoutineCard = find
+        .ancestor(
+          of: find.text('Morning Routine'),
+          matching: find.byType(Card),
+        )
+        .first;
+    await tester.tap(
+      find.descendant(
+        of: morningRoutineCard,
+        matching: find.byTooltip('Project options'),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove project'));
     await tester.pumpAndSettle();
     expect(find.text('Morning Routine'), findsNothing);
 
-    await tester.tap(find.widgetWithText(ListTile, 'Stress Reset'));
+    final Finder stressResetCard = find
+        .ancestor(
+          of: find.text('Stress Reset'),
+          matching: find.byType(Card),
+        )
+        .first;
+    await tester.tap(
+      find.descendant(
+        of: stressResetCard,
+        matching: find.byTooltip('Project options'),
+      ),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Set color'));
     await tester.pumpAndSettle();
@@ -336,6 +375,8 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sit for 10 minutes in silence'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Set color'));
     await tester.pumpAndSettle();
@@ -475,14 +516,14 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ListTile, 'Dual Mode Project'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Open project'));
-    await tester.pumpAndSettle();
 
     expect(find.text('Thinking (ideas)'), findsOneWidget);
     expect(find.text('Planning (action items)'), findsOneWidget);
     expect(find.text('Legacy task'), findsOneWidget);
 
     await tester.tap(find.text('Legacy task'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Move to thinking'));
     await tester.pumpAndSettle();
@@ -491,7 +532,66 @@ void main() {
 
     await tester.tap(find.text('Legacy task'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
     expect(find.text('Move to planning'), findsOneWidget);
+  });
+
+  testWidgets(
+      'adds project tasks by type and drags between thinking and planning',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Add project task'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Thinking (ideas)'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Drag idea');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
+    await tester.pumpAndSettle();
+    expect(find.text('Drag idea'), findsOneWidget);
+
+    await tester.longPress(find.text('Drag idea'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Done reordering'), findsOneWidget);
+
+    final Offset dragStart = tester.getCenter(find.text('Drag idea'));
+    final Offset planningHeader = tester.getCenter(
+      find.text('Planning (action items)'),
+    );
+    final TestGesture drag = await tester.startGesture(dragStart);
+    await tester.pump(const Duration(milliseconds: 700));
+    await drag.moveTo(planningHeader.translate(0, 42));
+    await tester.pump();
+    await drag.up();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Done reordering'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Drag idea'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
+    expect(find.text('Move to thinking'), findsOneWidget);
+    await tester.tapAt(const Offset(12, 12));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Add project task'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Planning (action items)'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'New action');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
+    await tester.pumpAndSettle();
+    expect(find.text('New action'), findsOneWidget);
   });
 
   testWidgets(

@@ -7,6 +7,7 @@ import '../data/task_storage.dart';
 import '../domain/task_models.dart';
 import 'pages/project_detail_page.dart';
 import 'pages/settings_page.dart';
+import 'pages/task_detail_page.dart';
 import 'widgets/add_project_sheet.dart';
 import 'widgets/add_task_sheet.dart';
 import 'widgets/edit_project_sheet.dart';
@@ -15,13 +16,6 @@ import 'widgets/item_color_picker_sheet.dart';
 import 'widgets/move_project_task_sheet.dart';
 import 'widgets/project_list_view.dart';
 import 'widgets/task_list_view.dart';
-
-enum _TaskMenuAction {
-  edit,
-  setColor,
-  moveToProject,
-  remove,
-}
 
 enum _ProjectMenuAction {
   open,
@@ -165,72 +159,60 @@ class _TaskPageState extends State<TaskPage>
     return tasks[index];
   }
 
-  Future<_TaskMenuAction?> _showTaskMenu(TaskItem task) {
-    return showModalBottomSheet<_TaskMenuAction>(
-      context: context,
-      builder: (BuildContext context) {
-        return SafeArea(
-          child: ListView(
-            shrinkWrap: true,
-            children: <Widget>[
-              ListTile(
-                title: Text(
-                  task.title,
-                  style: const TextStyle(fontWeight: FontWeight.w600),
-                ),
-                subtitle: const Text('Task options'),
-              ),
-              const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit task'),
-                onTap: () => Navigator.of(context).pop(_TaskMenuAction.edit),
-              ),
-              ListTile(
-                leading: const Icon(Icons.palette_outlined),
-                title: const Text('Set color'),
-                onTap: () =>
-                    Navigator.of(context).pop(_TaskMenuAction.setColor),
-              ),
-              ListTile(
-                leading: const Icon(Icons.drive_file_move_outlined),
-                title: const Text('Move to project'),
-                onTap: () => Navigator.of(
-                  context,
-                ).pop(_TaskMenuAction.moveToProject),
-              ),
-              ListTile(
-                leading: const Icon(Icons.delete_outline),
-                title: const Text('Remove task'),
-                onTap: () => Navigator.of(context).pop(_TaskMenuAction.remove),
-              ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-
-  Future<void> _openIncomingTaskMenu(String taskId) async {
+  Future<void> _openIncomingTaskView(String taskId) async {
     final TaskItem? task = _taskById(_incomingTasks, taskId);
     if (task == null) {
       return;
     }
 
-    final _TaskMenuAction? action = await _showTaskMenu(task);
-    if (action == _TaskMenuAction.edit) {
+    final TaskDetailAction? action = await Navigator.of(
+      context,
+    ).push<TaskDetailAction>(
+      MaterialPageRoute<TaskDetailAction>(
+        builder: (_) => TaskDetailPage(
+          task: task,
+          menuItems: const <TaskDetailMenuItem>[
+            TaskDetailMenuItem(
+              action: TaskDetailAction.edit,
+              icon: Icons.edit_outlined,
+              label: 'Edit task',
+            ),
+            TaskDetailMenuItem(
+              action: TaskDetailAction.setColor,
+              icon: Icons.palette_outlined,
+              label: 'Set color',
+            ),
+            TaskDetailMenuItem(
+              action: TaskDetailAction.moveToProject,
+              icon: Icons.drive_file_move_outlined,
+              label: 'Move to project',
+            ),
+            TaskDetailMenuItem(
+              action: TaskDetailAction.remove,
+              icon: Icons.delete_outline,
+              label: 'Remove task',
+            ),
+          ],
+        ),
+      ),
+    );
+    if (!mounted || action == null) {
+      return;
+    }
+
+    if (action == TaskDetailAction.edit) {
       await _editTaskInList(_incomingTasks, taskId);
       return;
     }
-    if (action == _TaskMenuAction.setColor) {
+    if (action == TaskDetailAction.setColor) {
       await _setTaskColorInList(_incomingTasks, taskId);
       return;
     }
-    if (action == _TaskMenuAction.moveToProject) {
+    if (action == TaskDetailAction.moveToProject) {
       await _moveTaskFromListToProject(_incomingTasks, taskId);
       return;
     }
-    if (action == _TaskMenuAction.remove) {
+    if (action == TaskDetailAction.remove) {
       _deleteTaskInList(_incomingTasks, taskId);
     }
   }
@@ -770,7 +752,7 @@ class _TaskPageState extends State<TaskPage>
             isReorderMode: _isReorderMode,
             onEnterReorderMode: _enterReorderMode,
             onReorder: _reorderIncomingTasks,
-            onTaskTap: _openIncomingTaskMenu,
+            onTaskTap: _openIncomingTaskView,
             onRemoveTask: (String taskId) =>
                 _deleteTaskInList(_incomingTasks, taskId),
           ),
@@ -779,8 +761,10 @@ class _TaskPageState extends State<TaskPage>
             isReorderMode: _isReorderMode,
             onEnterReorderMode: _enterReorderMode,
             onReorder: _reorderProjects,
-            onProjectTap: _openProjectMenu,
+            onProjectTap: (String projectId) async =>
+                _openProjectDetail(projectId),
             onProjectRemove: _deleteProject,
+            onProjectOptionsTap: _openProjectMenu,
           ),
         ],
       ),
