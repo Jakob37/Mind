@@ -156,7 +156,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 7);
+    expect(decoded['version'], 8);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -164,13 +164,20 @@ void main() {
     expect(prefs.getString('task_board_state_v1'), isNull);
   });
 
-  test('export includes schema version and serializes task type', () {
+  test('export includes schema version and serializes task type/subtasks', () {
     final TaskBoardState state = TaskBoardState(
       incomingTasks: <TaskItem>[
         TaskItem(
           id: 'task-1',
           title: 'Planned',
           type: TaskItemType.planning,
+          subtasks: <SubTaskItem>[
+            SubTaskItem(
+              id: 'subtask-1',
+              title: 'Child card',
+              body: 'Details',
+            ),
+          ],
         ),
       ],
       favoriteTasks: const <TaskItem>[],
@@ -186,8 +193,13 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 7,'), isTrue);
-    expect(decoded['version'], 7);
+    expect(exported.contains('\n  "version": 8,'), isTrue);
+    expect(decoded['version'], 8);
     expect(firstIncoming['type'], 'planning');
+    final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
+    expect(subtasks, hasLength(1));
+    final Map<String, dynamic> firstSubtask =
+        subtasks.first as Map<String, dynamic>;
+    expect(firstSubtask['title'], 'Child card');
   });
 }

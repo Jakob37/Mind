@@ -194,7 +194,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('7'), findsWidgets);
+    expect(find.textContaining('8'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
   });
@@ -319,6 +319,27 @@ void main() {
     expect(find.text('Morning Routine'), findsNothing);
   });
 
+  testWidgets('swipe right quickly moves incoming task to project',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Sit for 10 minutes in silence'),
+      const Offset(600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Move task to project'), findsOneWidget);
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sit for 10 minutes in silence'), findsNothing);
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sit for 10 minutes in silence'), findsOneWidget);
+  });
+
   testWidgets('deletes projects and sets colors from context menu',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
@@ -429,7 +450,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('7'), findsWidgets);
+    expect(find.textContaining('8'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -477,7 +498,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('7'), findsWidgets);
+    expect(find.textContaining('8'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

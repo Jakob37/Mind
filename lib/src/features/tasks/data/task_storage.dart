@@ -47,7 +47,7 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 7;
+  static const int _currentSchemaVersion = 8;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
@@ -56,6 +56,7 @@ class TaskStorage {
     4: _migrateV4ToV5,
     5: _migrateV5ToV6,
     6: _migrateV6ToV7,
+    7: _migrateV7ToV8,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
@@ -225,6 +226,15 @@ class TaskStorage {
       'incomingTasks': _addTaskTypes(payload['incomingTasks']),
       'favoriteTasks': _addTaskTypes(payload['favoriteTasks']),
       'projects': _addProjectTaskTypes(payload['projects']),
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+    };
+  }
+
+  static Map<String, dynamic> _migrateV7ToV8(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _addTaskSubtasks(payload['incomingTasks']),
+      'favoriteTasks': _addTaskSubtasks(payload['favoriteTasks']),
+      'projects': _addProjectTaskSubtasks(payload['projects']),
       'colorLabels': _normalizeColorLabels(payload['colorLabels']),
     };
   }
@@ -481,5 +491,82 @@ class TaskStorage {
       projects.add(project);
     }
     return projects;
+  }
+
+  static List<Map<String, dynamic>> _addTaskSubtasks(Object? rawTasks) {
+    if (rawTasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> tasks = <Map<String, dynamic>>[];
+    for (final dynamic rawTask in rawTasks) {
+      if (rawTask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> task = Map<String, dynamic>.from(rawTask);
+      task['subtasks'] = _normalizeSubtaskList(task['subtasks']);
+      tasks.add(task);
+    }
+    return tasks;
+  }
+
+  static List<Map<String, dynamic>> _addProjectTaskSubtasks(
+    Object? rawProjects,
+  ) {
+    if (rawProjects is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projects = <Map<String, dynamic>>[];
+    for (final dynamic rawProject in rawProjects) {
+      if (rawProject is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> project =
+          Map<String, dynamic>.from(rawProject);
+      project['tasks'] = _addTaskSubtasks(project['tasks']);
+      projects.add(project);
+    }
+    return projects;
+  }
+
+  static List<Map<String, dynamic>> _normalizeSubtaskList(Object? rawSubtasks) {
+    if (rawSubtasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> subtasks = <Map<String, dynamic>>[];
+    for (final dynamic rawSubtask in rawSubtasks) {
+      if (rawSubtask is String) {
+        final String title = rawSubtask.trim();
+        if (title.isNotEmpty) {
+          subtasks.add(<String, dynamic>{'title': title, 'body': ''});
+        }
+        continue;
+      }
+
+      if (rawSubtask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+
+      final String? title = (rawSubtask['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) {
+        continue;
+      }
+
+      final Map<String, dynamic> subtask = <String, dynamic>{
+        'title': title,
+        'body': (rawSubtask['body'] as String?)?.trim() ?? '',
+      };
+
+      final String? id = (rawSubtask['id'] as String?)?.trim();
+      if (id != null && id.isNotEmpty) {
+        subtask['id'] = id;
+      }
+      subtask['color'] =
+          rawSubtask['color'] is int ? rawSubtask['color'] : null;
+      subtasks.add(subtask);
+    }
+    return subtasks;
   }
 }

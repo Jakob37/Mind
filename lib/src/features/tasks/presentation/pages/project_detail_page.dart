@@ -127,6 +127,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
+          onTaskChanged: (TaskItem updatedTask) {
+            final ProjectItem? activeProject = _findProject();
+            if (activeProject == null) {
+              return;
+            }
+            final int sourceTaskIndex = _findTaskIndex(activeProject, taskId);
+            if (sourceTaskIndex < 0) {
+              return;
+            }
+            setState(() {
+              activeProject.tasks[sourceTaskIndex] = updatedTask.clone();
+            });
+            _notifyProjectsChanged();
+          },
           menuItems: <TaskDetailMenuItem>[
             const TaskDetailMenuItem(
               action: TaskDetailAction.edit,
@@ -224,6 +238,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         body: result.body,
         colorValue: task.colorValue,
         type: task.type,
+        subtasks: task.subtasks
+            .map((SubTaskItem subtask) => subtask.clone())
+            .toList(),
       );
     });
     _notifyProjectsChanged();
@@ -261,6 +278,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         body: task.body,
         colorValue: selection.colorValue,
         type: task.type,
+        subtasks: task.subtasks
+            .map((SubTaskItem subtask) => subtask.clone())
+            .toList(),
       );
     });
     _notifyProjectsChanged();
@@ -289,6 +309,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         body: task.body,
         colorValue: task.colorValue,
         type: type,
+        subtasks: task.subtasks
+            .map((SubTaskItem subtask) => subtask.clone())
+            .toList(),
       );
     });
     _notifyProjectsChanged();
@@ -350,6 +373,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             body: sourceTask.body,
             colorValue: sourceTask.colorValue,
             type: targetType,
+            subtasks: sourceTask.subtasks
+                .map((SubTaskItem subtask) => subtask.clone())
+                .toList(),
           );
 
     destinationTasks.insert(insertionIndex, movedTask);
@@ -515,6 +541,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       body: createdTask.body,
       colorValue: createdTask.colorValue,
       type: selectedType,
+      subtasks: createdTask.subtasks
+          .map((SubTaskItem subtask) => subtask.clone())
+          .toList(),
     );
 
     if (selectedType == TaskItemType.thinking) {
@@ -538,6 +567,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     required VoidCallback? onTap,
     required VoidCallback? onLongPress,
     Widget? trailing,
+    double bottomPadding = 4,
   }) {
     final Widget? effectiveTrailing =
         switch ((task.body.isNotEmpty, trailing)) {
@@ -565,7 +595,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     };
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
+      padding: EdgeInsets.only(bottom: bottomPadding),
       child: Card(
         color: task.colorValue == null ? null : Color(task.colorValue!),
         child: ListTile(
@@ -639,6 +669,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Widget _buildDropSlot({
     required TaskItemType sectionType,
     required int targetIndex,
+    required double inactiveHeight,
   }) {
     return DragTarget<_TaskSectionDragPayload>(
       onWillAcceptWithDetails: (
@@ -663,8 +694,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         final bool isActiveDropTarget = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          margin: const EdgeInsets.only(bottom: 4),
-          height: isActiveDropTarget ? 28 : 18,
+          height: isActiveDropTarget ? 24 : inactiveHeight,
           decoration: BoxDecoration(
             color: isActiveDropTarget
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
@@ -705,6 +735,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           onTap: null,
           onLongPress: null,
           trailing: const Icon(Icons.drag_indicator_outlined),
+          bottomPadding: 0,
         ),
       ),
       child: _buildTaskCard(
@@ -715,6 +746,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           message: 'Drag',
           child: Icon(Icons.drag_indicator_outlined),
         ),
+        bottomPadding: 0,
       ),
     );
   }
@@ -745,46 +777,36 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         List<_TaskSectionDragPayload?> candidateData,
         List<dynamic> rejectedData,
       ) {
-        final bool isActiveDropTarget = candidateData.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          padding: const EdgeInsets.all(6),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: isActiveDropTarget
-                  ? Theme.of(context).colorScheme.primary
-                  : Colors.transparent,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(
+              title,
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            color: isActiveDropTarget
-                ? Theme.of(context).colorScheme.secondaryContainer.withValues(
-                      alpha: 0.25,
-                    )
-                : Colors.transparent,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Text(
-                title,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              if (tasks.isEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    emptyLabel,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
+            const SizedBox(height: 8),
+            if (tasks.isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 12),
+                child: Text(
+                  emptyLabel,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
-              _buildDropSlot(sectionType: sectionType, targetIndex: 0),
-              for (int i = 0; i < tasks.length; i++) ...<Widget>[
-                _buildDraggableTaskCard(tasks[i]),
-                _buildDropSlot(sectionType: sectionType, targetIndex: i + 1),
-              ],
+              ),
+            _buildDropSlot(
+              sectionType: sectionType,
+              targetIndex: 0,
+              inactiveHeight: tasks.isEmpty ? 4 : 0,
+            ),
+            for (int i = 0; i < tasks.length; i++) ...<Widget>[
+              _buildDraggableTaskCard(tasks[i]),
+              _buildDropSlot(
+                sectionType: sectionType,
+                targetIndex: i + 1,
+                inactiveHeight: 4,
+              ),
             ],
-          ),
+          ],
         );
       },
     );

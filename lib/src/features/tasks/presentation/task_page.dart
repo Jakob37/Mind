@@ -171,6 +171,17 @@ class _TaskPageState extends State<TaskPage>
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
+          onTaskChanged: (TaskItem updatedTask) {
+            final int sourceTaskIndex =
+                _indexOfTaskById(_incomingTasks, taskId);
+            if (sourceTaskIndex < 0) {
+              return;
+            }
+            setState(() {
+              _incomingTasks[sourceTaskIndex] = updatedTask.clone();
+            });
+            _persistState();
+          },
           menuItems: const <TaskDetailMenuItem>[
             TaskDetailMenuItem(
               action: TaskDetailAction.edit,
@@ -245,6 +256,9 @@ class _TaskPageState extends State<TaskPage>
         body: result.body,
         colorValue: existingTask.colorValue,
         type: existingTask.type,
+        subtasks: existingTask.subtasks
+            .map((SubTaskItem subtask) => subtask.clone())
+            .toList(),
       );
     });
     _persistState();
@@ -280,6 +294,9 @@ class _TaskPageState extends State<TaskPage>
         body: task.body,
         colorValue: selection.colorValue,
         type: task.type,
+        subtasks: task.subtasks
+            .map((SubTaskItem subtask) => subtask.clone())
+            .toList(),
       );
     });
     _persistState();
@@ -667,6 +684,9 @@ class _TaskPageState extends State<TaskPage>
               body: task.body,
               colorValue: task.colorValue,
               type: task.type,
+              subtasks: task.subtasks
+                  .map((SubTaskItem subtask) => subtask.clone())
+                  .toList(),
             ),
           )
           .toList(),
@@ -686,6 +706,9 @@ class _TaskPageState extends State<TaskPage>
                       body: task.body,
                       colorValue: task.colorValue,
                       type: task.type,
+                      subtasks: task.subtasks
+                          .map((SubTaskItem subtask) => subtask.clone())
+                          .toList(),
                     ),
                   )
                   .toList(),
@@ -753,6 +776,8 @@ class _TaskPageState extends State<TaskPage>
             onEnterReorderMode: _enterReorderMode,
             onReorder: _reorderIncomingTasks,
             onTaskTap: _openIncomingTaskView,
+            onMoveTaskToProject: (String taskId) =>
+                _moveTaskFromListToProject(_incomingTasks, taskId),
             onRemoveTask: (String taskId) =>
                 _deleteTaskInList(_incomingTasks, taskId),
           ),

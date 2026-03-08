@@ -11,6 +11,7 @@ class TaskListView extends StatelessWidget {
     required this.onEnterReorderMode,
     required this.onReorder,
     required this.onTaskTap,
+    required this.onMoveTaskToProject,
     required this.onRemoveTask,
   });
 
@@ -20,6 +21,7 @@ class TaskListView extends StatelessWidget {
   final VoidCallback onEnterReorderMode;
   final void Function(int oldIndex, int newIndex) onReorder;
   final Future<void> Function(String) onTaskTap;
+  final Future<void> Function(String) onMoveTaskToProject;
   final void Function(String) onRemoveTask;
 
   Widget _buildContentIndicator() {
@@ -107,10 +109,28 @@ class TaskListView extends StatelessWidget {
         final TaskItem task = tasks[index];
         return Dismissible(
           key: ValueKey<String>('task-swipe-${task.id}'),
-          direction: DismissDirection.endToStart,
-          confirmDismiss: (_) => _confirmTaskRemoval(context),
+          direction: DismissDirection.horizontal,
+          confirmDismiss: (DismissDirection direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              await onMoveTaskToProject(task.id);
+              return false;
+            }
+            return _confirmTaskRemoval(context);
+          },
           onDismissed: (_) => onRemoveTask(task.id),
-          background: Container(),
+          background: Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(
+              Icons.drive_file_move_outlined,
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+            ),
+          ),
           secondaryBackground: Container(
             margin: const EdgeInsets.only(bottom: 4),
             decoration: BoxDecoration(

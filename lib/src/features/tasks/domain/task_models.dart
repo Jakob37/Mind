@@ -3,6 +3,8 @@ class ModelIds {
 
   static String newTaskId() => _newId('task');
 
+  static String newSubTaskId() => _newId('subtask');
+
   static String newProjectId() => _newId('project');
 
   static String _newId(String prefix) {
@@ -28,6 +30,53 @@ enum TaskItemType {
   }
 }
 
+class SubTaskItem {
+  SubTaskItem({
+    String? id,
+    required this.title,
+    String? body,
+    this.colorValue,
+  })  : id = id ?? ModelIds.newSubTaskId(),
+        body = body ?? '';
+
+  final String id;
+  final String title;
+  final String body;
+  final int? colorValue;
+
+  SubTaskItem clone() {
+    return SubTaskItem(
+      id: id,
+      title: title,
+      body: body,
+      colorValue: colorValue,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'title': title,
+      'body': body,
+      'color': colorValue,
+    };
+  }
+
+  factory SubTaskItem.fromJson(Map<String, dynamic> json) {
+    final String title = _readRequiredString(json, 'title');
+    final String? id = _readOptionalTrimmedString(json, 'id');
+    final String? body = _readOptionalTrimmedString(json, 'body');
+    final int? colorValue = _readOptionalInt(json, 'color');
+
+    return SubTaskItem(
+      id: id == null || id.isEmpty ? null : id,
+      title: title,
+      body: body ?? '',
+      colorValue: colorValue,
+    );
+  }
+}
+
 class TaskItem {
   TaskItem({
     String? id,
@@ -35,15 +84,18 @@ class TaskItem {
     String? body,
     this.colorValue,
     TaskItemType? type,
+    List<SubTaskItem>? subtasks,
   })  : id = id ?? ModelIds.newTaskId(),
         body = body ?? '',
-        type = type ?? TaskItemType.planning;
+        type = type ?? TaskItemType.planning,
+        subtasks = subtasks ?? <SubTaskItem>[];
 
   final String id;
   final String title;
   final String body;
   final int? colorValue;
   final TaskItemType type;
+  final List<SubTaskItem> subtasks;
 
   TaskItem clone() {
     return TaskItem(
@@ -52,6 +104,7 @@ class TaskItem {
       body: body,
       colorValue: colorValue,
       type: type,
+      subtasks: subtasks.map((SubTaskItem subTask) => subTask.clone()).toList(),
     );
   }
 
@@ -62,6 +115,8 @@ class TaskItem {
       'body': body,
       'color': colorValue,
       'type': type.name,
+      'subtasks':
+          subtasks.map((SubTaskItem subTask) => subTask.toJson()).toList(),
     };
   }
 
@@ -71,6 +126,7 @@ class TaskItem {
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
     final TaskItemType type = TaskItemType.fromJsonValue(json['type']);
+    final List<dynamic> subtaskJson = _readOptionalList(json, 'subtasks');
 
     return TaskItem(
       id: id == null || id.isEmpty ? null : id,
@@ -78,6 +134,16 @@ class TaskItem {
       body: body ?? '',
       colorValue: colorValue,
       type: type,
+      subtasks: subtaskJson
+          .map(
+            (dynamic item) => SubTaskItem.fromJson(
+              _mapFromDynamic(
+                item: item,
+                fieldPath: 'tasks.subtasks[]',
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
