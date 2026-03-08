@@ -12,19 +12,38 @@ class ModelIds {
   }
 }
 
+enum TaskItemType {
+  thinking,
+  planning;
+
+  static TaskItemType fromJsonValue(Object? rawValue) {
+    if (rawValue is! String) {
+      return TaskItemType.planning;
+    }
+
+    return switch (rawValue.trim().toLowerCase()) {
+      'thinking' || 'idea' || 'ideas' => TaskItemType.thinking,
+      _ => TaskItemType.planning,
+    };
+  }
+}
+
 class TaskItem {
   TaskItem({
     String? id,
     required this.title,
     String? body,
     this.colorValue,
+    TaskItemType? type,
   })  : id = id ?? ModelIds.newTaskId(),
-        body = body ?? '';
+        body = body ?? '',
+        type = type ?? TaskItemType.planning;
 
   final String id;
   final String title;
   final String body;
   final int? colorValue;
+  final TaskItemType type;
 
   TaskItem clone() {
     return TaskItem(
@@ -32,6 +51,7 @@ class TaskItem {
       title: title,
       body: body,
       colorValue: colorValue,
+      type: type,
     );
   }
 
@@ -41,6 +61,7 @@ class TaskItem {
       'title': title,
       'body': body,
       'color': colorValue,
+      'type': type.name,
     };
   }
 
@@ -49,12 +70,14 @@ class TaskItem {
     final String? id = _readOptionalTrimmedString(json, 'id');
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
+    final TaskItemType type = TaskItemType.fromJsonValue(json['type']);
 
     return TaskItem(
       id: id == null || id.isEmpty ? null : id,
       title: title,
       body: body ?? '',
       colorValue: colorValue,
+      type: type,
     );
   }
 }

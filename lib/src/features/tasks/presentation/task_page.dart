@@ -13,7 +13,6 @@ import 'widgets/edit_project_sheet.dart';
 import 'widgets/edit_task_sheet.dart';
 import 'widgets/item_color_picker_sheet.dart';
 import 'widgets/move_project_task_sheet.dart';
-import 'widgets/move_task_sheet.dart';
 import 'widgets/project_list_view.dart';
 import 'widgets/task_list_view.dart';
 
@@ -263,6 +262,7 @@ class _TaskPageState extends State<TaskPage>
         title: result.title,
         body: result.body,
         colorValue: existingTask.colorValue,
+        type: existingTask.type,
       );
     });
     _persistState();
@@ -297,6 +297,7 @@ class _TaskPageState extends State<TaskPage>
         title: task.title,
         body: task.body,
         colorValue: selection.colorValue,
+        type: task.type,
       );
     });
     _persistState();
@@ -570,32 +571,6 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
-  Future<void> _moveIncomingTask(String taskId) async {
-    final String? targetProjectId = await showModalBottomSheet<String>(
-      context: context,
-      builder: (_) => MoveTaskSheet(projects: _projects),
-    );
-
-    if (targetProjectId == null) {
-      return;
-    }
-
-    final int sourceTaskIndex = _indexOfTaskById(_incomingTasks, taskId);
-    if (sourceTaskIndex < 0) {
-      return;
-    }
-    final int targetProjectIndex = _indexOfProjectById(targetProjectId);
-    if (targetProjectIndex < 0) {
-      return;
-    }
-
-    setState(() {
-      final TaskItem task = _incomingTasks.removeAt(sourceTaskIndex);
-      _projects[targetProjectIndex].tasks.insert(0, task);
-    });
-    _persistState();
-  }
-
   void _openProjectDetail(String projectId) {
     final List<ProjectItem> projectsSnapshot = _cloneProjects(_projects);
     Navigator.of(context).push(
@@ -709,6 +684,7 @@ class _TaskPageState extends State<TaskPage>
               title: task.title,
               body: task.body,
               colorValue: task.colorValue,
+              type: task.type,
             ),
           )
           .toList(),
@@ -727,6 +703,7 @@ class _TaskPageState extends State<TaskPage>
                       title: task.title,
                       body: task.body,
                       colorValue: task.colorValue,
+                      type: task.type,
                     ),
                   )
                   .toList(),
@@ -790,12 +767,12 @@ class _TaskPageState extends State<TaskPage>
           TaskListView(
             tasks: _incomingTasks,
             emptyLabel: 'No incoming tasks yet.',
-            primaryIcon: Icons.drive_file_move_outlined,
             isReorderMode: _isReorderMode,
             onEnterReorderMode: _enterReorderMode,
             onReorder: _reorderIncomingTasks,
             onTaskTap: _openIncomingTaskMenu,
-            onPrimaryAction: _moveIncomingTask,
+            onRemoveTask: (String taskId) =>
+                _deleteTaskInList(_incomingTasks, taskId),
           ),
           ProjectListView(
             projects: _projects,
@@ -803,6 +780,7 @@ class _TaskPageState extends State<TaskPage>
             onEnterReorderMode: _enterReorderMode,
             onReorder: _reorderProjects,
             onProjectTap: _openProjectMenu,
+            onProjectRemove: _deleteProject,
           ),
         ],
       ),

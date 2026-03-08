@@ -7,22 +7,53 @@ class TaskListView extends StatelessWidget {
     super.key,
     required this.tasks,
     required this.emptyLabel,
-    required this.primaryIcon,
     required this.isReorderMode,
     required this.onEnterReorderMode,
     required this.onReorder,
     required this.onTaskTap,
-    required this.onPrimaryAction,
+    required this.onRemoveTask,
   });
 
   final List<TaskItem> tasks;
   final String emptyLabel;
-  final IconData primaryIcon;
   final bool isReorderMode;
   final VoidCallback onEnterReorderMode;
   final void Function(int oldIndex, int newIndex) onReorder;
   final Future<void> Function(String) onTaskTap;
-  final Future<void> Function(String) onPrimaryAction;
+  final void Function(String) onRemoveTask;
+
+  Widget _buildContentIndicator() {
+    return const Tooltip(
+      message: 'Has text content',
+      child: Icon(
+        Icons.notes_outlined,
+        size: 18,
+      ),
+    );
+  }
+
+  Future<bool> _confirmTaskRemoval(BuildContext context) async {
+    final bool? shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remove task?'),
+          content: const Text('This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldRemove ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -52,15 +83,15 @@ class TaskListView extends StatelessWidget {
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                subtitle: task.body.isEmpty
-                    ? null
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(task.body),
-                      ),
-                trailing: ReorderableDragStartListener(
-                  index: index,
-                  child: const Icon(Icons.drag_indicator_outlined),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    if (task.body.isNotEmpty) _buildContentIndicator(),
+                    ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_indicator_outlined),
+                    ),
+                  ],
                 ),
               ),
             ),
@@ -76,22 +107,21 @@ class TaskListView extends StatelessWidget {
         final TaskItem task = tasks[index];
         return Dismissible(
           key: ValueKey<String>('task-swipe-${task.id}'),
-          direction: DismissDirection.startToEnd,
-          confirmDismiss: (_) async {
-            await onPrimaryAction(task.id);
-            return false;
-          },
-          background: Container(
+          direction: DismissDirection.endToStart,
+          confirmDismiss: (_) => _confirmTaskRemoval(context),
+          onDismissed: (_) => onRemoveTask(task.id),
+          background: Container(),
+          secondaryBackground: Container(
             margin: const EdgeInsets.only(bottom: 4),
             decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.primaryContainer,
+              color: Theme.of(context).colorScheme.errorContainer,
               borderRadius: BorderRadius.circular(12),
             ),
-            alignment: Alignment.centerLeft,
+            alignment: Alignment.centerRight,
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: Icon(
-              primaryIcon,
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.onErrorContainer,
             ),
           ),
           child: Padding(
@@ -107,12 +137,7 @@ class TaskListView extends StatelessWidget {
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                subtitle: task.body.isEmpty
-                    ? null
-                    : Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: Text(task.body),
-                      ),
+                trailing: task.body.isEmpty ? null : _buildContentIndicator(),
                 onTap: () async => onTaskTap(task.id),
                 onLongPress: onEnterReorderMode,
               ),

@@ -11,10 +11,23 @@ class AddTaskSheet extends StatefulWidget {
 
 class _AddTaskSheetState extends State<AddTaskSheet> {
   final TextEditingController _titleController = TextEditingController();
+  final FocusNode _titleFocusNode = FocusNode();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      _titleFocusNode.requestFocus();
+    });
+  }
 
   @override
   void dispose() {
     _titleController.dispose();
+    _titleFocusNode.dispose();
     super.dispose();
   }
 
@@ -47,6 +60,8 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _titleController,
+            focusNode: _titleFocusNode,
+            autofocus: true,
             textInputAction: TextInputAction.done,
             onSubmitted: (_) => _saveTask(),
             decoration: const InputDecoration(

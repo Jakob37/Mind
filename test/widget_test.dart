@@ -20,12 +20,12 @@ void main() {
     expect(find.text('Sit for 10 minutes in silence'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsOneWidget);
 
-    await tester.drag(
-      find.widgetWithText(ListTile, 'Sit for 10 minutes in silence'),
-      const Offset(600, 0),
-    );
+    await tester
+        .tap(find.widgetWithText(ListTile, 'Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
-    expect(find.text('Move task to'), findsOneWidget);
+    await tester.tap(find.text('Move to project'));
+    await tester.pumpAndSettle();
+    expect(find.text('Move task to project'), findsOneWidget);
     expect(find.text('Morning Routine'), findsOneWidget);
     await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
@@ -50,10 +50,10 @@ void main() {
 
     expect(find.byType(FloatingActionButton), findsOneWidget);
 
-    await tester.drag(
-      find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'),
-      const Offset(600, 0),
-    );
+    await tester
+        .tap(find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move to project'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Breathwork'));
     await tester.pumpAndSettle();
@@ -74,10 +74,10 @@ void main() {
     expect(find.text('Breathwork'), findsOneWidget);
     expect(find.text('Do a 3-minute breathing check-in'), findsOneWidget);
 
-    await tester.drag(
-      find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'),
-      const Offset(600, 0),
-    );
+    await tester
+        .tap(find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move to project'));
     await tester.pumpAndSettle();
     expect(find.text('Move task to project'), findsOneWidget);
     await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
@@ -192,7 +192,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('6'), findsWidgets);
+    expect(find.textContaining('7'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
   });
@@ -238,7 +238,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Edited task title'), findsOneWidget);
-    expect(find.text('Task body text'), findsOneWidget);
+    expect(find.text('Task body text'), findsNothing);
+    expect(find.byIcon(Icons.notes_outlined), findsOneWidget);
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -271,6 +272,34 @@ void main() {
     await tester.tap(find.byTooltip('Done reordering'));
     await tester.pumpAndSettle();
     expect(find.byTooltip('Done reordering'), findsNothing);
+  });
+
+  testWidgets('swipe left removes task and project after confirmation',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Sit for 10 minutes in silence'),
+      const Offset(-600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Remove task?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sit for 10 minutes in silence'), findsNothing);
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Morning Routine'),
+      const Offset(-600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Remove project?'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await tester.pumpAndSettle();
+    expect(find.text('Morning Routine'), findsNothing);
   });
 
   testWidgets('deletes projects and sets colors from context menu',
@@ -359,7 +388,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('6'), findsWidgets);
+    expect(find.textContaining('7'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -407,9 +436,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('6'), findsWidgets);
+    expect(find.textContaining('7'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
+  });
+
+  testWidgets('separates project tasks into thinking and planning',
+      (WidgetTester tester) async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 6,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[],
+          'favoriteTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-v6',
+              'name': 'Dual Mode Project',
+              'tasks': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 'task-v6-legacy',
+                  'title': 'Legacy task',
+                  'body': '',
+                  'color': null,
+                },
+              ],
+            },
+          ],
+          'colorLabels': <String, String>{},
+        },
+      }),
+    });
+
+    await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Dual Mode Project'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Open project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Thinking (ideas)'), findsOneWidget);
+    expect(find.text('Planning (action items)'), findsOneWidget);
+    expect(find.text('Legacy task'), findsOneWidget);
+
+    await tester.tap(find.text('Legacy task'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move to thinking'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No action items in this project yet.'), findsOneWidget);
+
+    await tester.tap(find.text('Legacy task'));
+    await tester.pumpAndSettle();
+    expect(find.text('Move to planning'), findsOneWidget);
   });
 
   testWidgets(

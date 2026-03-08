@@ -10,6 +10,7 @@ class ProjectListView extends StatelessWidget {
     required this.onEnterReorderMode,
     required this.onReorder,
     required this.onProjectTap,
+    required this.onProjectRemove,
   });
 
   final List<ProjectItem> projects;
@@ -17,6 +18,30 @@ class ProjectListView extends StatelessWidget {
   final VoidCallback onEnterReorderMode;
   final void Function(int oldIndex, int newIndex) onReorder;
   final Future<void> Function(String) onProjectTap;
+  final void Function(String) onProjectRemove;
+
+  Future<bool> _confirmProjectRemoval(BuildContext context) async {
+    final bool? shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remove project?'),
+          content: const Text('This action cannot be undone.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldRemove ?? false;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -76,30 +101,51 @@ class ProjectListView extends StatelessWidget {
         final ProjectItem project = projects[index];
         final String taskCountLabel =
             '${project.tasks.length} task${project.tasks.length == 1 ? '' : 's'}';
-        return Padding(
-          padding: const EdgeInsets.only(bottom: 4),
-          child: Card(
-            color:
-                project.colorValue == null ? null : Color(project.colorValue!),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
+        return Dismissible(
+          key: ValueKey<String>('project-swipe-${project.id}'),
+          direction: DismissDirection.endToStart,
+          confirmDismiss: (_) => _confirmProjectRemoval(context),
+          onDismissed: (_) => onProjectRemove(project.id),
+          background: Container(),
+          secondaryBackground: Container(
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Card(
+              color: project.colorValue == null
+                  ? null
+                  : Color(project.colorValue!),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                leading: const Icon(Icons.folder_outlined),
+                title: Text(
+                  project.name,
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                subtitle: Padding(
+                  padding: const EdgeInsets.only(top: 4),
+                  child: project.body.isEmpty
+                      ? Text(taskCountLabel)
+                      : Text('${project.body}\n$taskCountLabel'),
+                ),
+                isThreeLine: project.body.isNotEmpty,
+                onTap: () async => onProjectTap(project.id),
+                onLongPress: onEnterReorderMode,
               ),
-              leading: const Icon(Icons.folder_outlined),
-              title: Text(
-                project.name,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              subtitle: Padding(
-                padding: const EdgeInsets.only(top: 4),
-                child: project.body.isEmpty
-                    ? Text(taskCountLabel)
-                    : Text('${project.body}\n$taskCountLabel'),
-              ),
-              isThreeLine: project.body.isNotEmpty,
-              onTap: () async => onProjectTap(project.id),
-              onLongPress: onEnterReorderMode,
             ),
           ),
         );
