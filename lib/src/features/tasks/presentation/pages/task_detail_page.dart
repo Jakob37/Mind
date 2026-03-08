@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import '../widgets/edit_task_sheet.dart';
+import '../widgets/item_color_picker_sheet.dart';
 
 enum TaskDetailAction {
   edit,
@@ -23,17 +25,25 @@ class TaskDetailMenuItem {
   final String label;
 }
 
+enum _SubTaskMenuAction {
+  edit,
+  setColor,
+  remove,
+}
+
 class TaskDetailPage extends StatefulWidget {
   const TaskDetailPage({
     super.key,
     required this.task,
     required this.menuItems,
     required this.onTaskChanged,
+    this.colorLabels = const <int, String>{},
   });
 
   final TaskItem task;
   final List<TaskDetailMenuItem> menuItems;
   final ValueChanged<TaskItem> onTaskChanged;
+  final Map<int, String> colorLabels;
 
   @override
   State<TaskDetailPage> createState() => _TaskDetailPageState();
@@ -41,6 +51,7 @@ class TaskDetailPage extends StatefulWidget {
 
 class _TaskDetailPageState extends State<TaskDetailPage> {
   late TaskItem _task;
+  bool _isSubtaskReorderMode = false;
 
   @override
   void initState() {
@@ -53,6 +64,41 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       _task = updatedTask;
     });
     widget.onTaskChanged(_task.clone());
+  }
+
+  void _enterSubtaskReorderMode() {
+    if (_isSubtaskReorderMode) {
+      return;
+    }
+    setState(() {
+      _isSubtaskReorderMode = true;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Subtask drag mode enabled. Drag using handles.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
+  }
+
+  void _exitSubtaskReorderMode() {
+    if (!_isSubtaskReorderMode) {
+      return;
+    }
+    setState(() {
+      _isSubtaskReorderMode = false;
+    });
+  }
+
+  TaskItem _copyTaskWithSubtasks(List<SubTaskItem> subtasks) {
+    return TaskItem(
+      id: _task.id,
+      title: _task.title,
+      body: _task.body,
+      colorValue: _task.colorValue,
+      type: _task.type,
+      subtasks: subtasks.map((SubTaskItem subtask) => subtask.clone()).toList(),
+    );
   }
 
   Future<void> _openTaskMenu() async {
@@ -102,43 +148,218 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       return;
     }
 
-    final TaskItem updatedTask = TaskItem(
-      id: _task.id,
-      title: _task.title,
-      body: _task.body,
-      colorValue: _task.colorValue,
-      type: _task.type,
-      subtasks: <SubTaskItem>[
-        createdSubTask,
-        ..._task.subtasks.map((SubTaskItem subtask) => subtask.clone()),
-      ],
+    _applyUpdatedTask(
+      _copyTaskWithSubtasks(
+        <SubTaskItem>[
+          createdSubTask,
+          ..._task.subtasks,
+        ],
+      ),
     );
-    _applyUpdatedTask(updatedTask);
   }
 
-  Widget _buildSubTaskCard(SubTaskItem subTask) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 4),
-      child: Card(
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          title: Text(
-            subTask.title,
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
-          trailing: subTask.body.isEmpty
-              ? null
-              : const Tooltip(
-                  message: 'Has text content',
-                  child: Icon(
-                    Icons.notes_outlined,
-                    size: 18,
-                  ),
+  void _removeSubTask(String subTaskId) {
+    final List<SubTaskItem> updatedSubtasks = _task.subtasks
+        .where((SubTaskItem subTask) => subTask.id != subTaskId)
+        .map((SubTaskItem subTask) => subTask.clone())
+        .toList();
+    if (updatedSubtasks.length == _task.subtasks.length) {
+      return;
+    }
+    _applyUpdatedTask(_copyTaskWithSubtasks(updatedSubtasks));
+  }
+
+  int _indexOfSubTaskById(String subTaskId) {
+    return _task.subtasks
+        .indexWhere((SubTaskItem subTask) => subTask.id == subTaskId);
+  }
+
+  Future<_SubTaskMenuAction?> _showSubTaskMenu(SubTaskItem subTask) {
+    return showModalBottomSheet<_SubTaskMenuAction>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              ListTile(
+                title: Text(
+                  subTask.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
+                subtitle: const Text('Subtask options'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit subtask'),
+                onTap: () => Navigator.of(context).pop(_SubTaskMenuAction.edit),
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Set color'),
+                onTap: () =>
+                    Navigator.of(context).pop(_SubTaskMenuAction.setColor),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Remove subtask'),
+                onTap: () =>
+                    Navigator.of(context).pop(_SubTaskMenuAction.remove),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _editSubTask(String subTaskId) async {
+    final int index = _indexOfSubTaskById(subTaskId);
+    if (index < 0) {
+      return;
+    }
+    final SubTaskItem subTask = _task.subtasks[index];
+
+    final TaskEditResult? result = await showModalBottomSheet<TaskEditResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditTaskSheet(
+        initialTitle: subTask.title,
+        initialBody: subTask.body,
+      ),
+    );
+    if (result == null) {
+      return;
+    }
+
+    final List<SubTaskItem> updatedSubtasks =
+        _task.subtasks.map((SubTaskItem item) => item.clone()).toList();
+    updatedSubtasks[index] = SubTaskItem(
+      id: subTask.id,
+      title: result.title,
+      body: result.body,
+      colorValue: subTask.colorValue,
+    );
+    _applyUpdatedTask(_copyTaskWithSubtasks(updatedSubtasks));
+  }
+
+  Future<void> _setSubTaskColor(String subTaskId) async {
+    final int index = _indexOfSubTaskById(subTaskId);
+    if (index < 0) {
+      return;
+    }
+    final SubTaskItem subTask = _task.subtasks[index];
+
+    final ColorSelection? selection =
+        await showModalBottomSheet<ColorSelection>(
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: subTask.colorValue,
+        customLabels: widget.colorLabels,
+      ),
+    );
+    if (selection == null) {
+      return;
+    }
+
+    final List<SubTaskItem> updatedSubtasks =
+        _task.subtasks.map((SubTaskItem item) => item.clone()).toList();
+    updatedSubtasks[index] = SubTaskItem(
+      id: subTask.id,
+      title: subTask.title,
+      body: subTask.body,
+      colorValue: selection.colorValue,
+    );
+    _applyUpdatedTask(_copyTaskWithSubtasks(updatedSubtasks));
+  }
+
+  Future<void> _openSubTaskMenu(SubTaskItem subTask) async {
+    final _SubTaskMenuAction? action = await _showSubTaskMenu(subTask);
+    if (action == null || !mounted) {
+      return;
+    }
+
+    if (action == _SubTaskMenuAction.edit) {
+      await _editSubTask(subTask.id);
+      return;
+    }
+    if (action == _SubTaskMenuAction.setColor) {
+      await _setSubTaskColor(subTask.id);
+      return;
+    }
+    if (action == _SubTaskMenuAction.remove) {
+      _removeSubTask(subTask.id);
+    }
+  }
+
+  void _reorderSubTasks(int oldIndex, int newIndex) {
+    if (oldIndex < 0 || oldIndex >= _task.subtasks.length) {
+      return;
+    }
+    if (newIndex < 0 || newIndex > _task.subtasks.length) {
+      return;
+    }
+
+    int insertionIndex = newIndex;
+    if (insertionIndex > oldIndex) {
+      insertionIndex -= 1;
+    }
+    if (insertionIndex == oldIndex) {
+      return;
+    }
+
+    final List<SubTaskItem> updatedSubtasks =
+        _task.subtasks.map((SubTaskItem subTask) => subTask.clone()).toList();
+    final SubTaskItem moved = updatedSubtasks.removeAt(oldIndex);
+    final int safeInsertionIndex =
+        insertionIndex.clamp(0, updatedSubtasks.length);
+    updatedSubtasks.insert(safeInsertionIndex, moved);
+    _applyUpdatedTask(_copyTaskWithSubtasks(updatedSubtasks));
+  }
+
+  Widget _buildSubTaskCard(
+    SubTaskItem subTask, {
+    Widget? trailing,
+    VoidCallback? onTap,
+    VoidCallback? onLongPress,
+  }) {
+    final List<Widget> trailingWidgets = <Widget>[
+      if (subTask.body.isNotEmpty)
+        const Tooltip(
+          message: 'Has text content',
+          child: Icon(
+            Icons.notes_outlined,
+            size: 18,
+          ),
         ),
+      if (trailing != null) trailing,
+    ];
+
+    return Card(
+      color: subTask.colorValue == null ? null : Color(subTask.colorValue!),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 12,
+          vertical: 6,
+        ),
+        title: Text(
+          subTask.title,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        trailing: trailingWidgets.isEmpty
+            ? null
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  for (int i = 0; i < trailingWidgets.length; i++) ...<Widget>[
+                    if (i > 0) const SizedBox(width: 8),
+                    trailingWidgets[i],
+                  ],
+                ],
+              ),
+        onTap: onTap,
+        onLongPress: onLongPress,
       ),
     );
   }
@@ -150,6 +371,12 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       appBar: AppBar(
         title: const Text('Task'),
         actions: <Widget>[
+          if (_isSubtaskReorderMode)
+            IconButton(
+              onPressed: _exitSubtaskReorderMode,
+              tooltip: 'Done reordering subtasks',
+              icon: const Icon(Icons.check),
+            ),
           IconButton(
             onPressed: _openTaskMenu,
             tooltip: 'Task options',
@@ -177,7 +404,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             ),
           const SizedBox(height: 20),
           Text(
-            'Subtasks',
+            'Subtasks (${_task.subtasks.length})',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
@@ -186,9 +413,64 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               'No subtasks yet.',
               style: Theme.of(context).textTheme.bodyMedium,
             )
+          else if (_isSubtaskReorderMode)
+            ReorderableListView.builder(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              itemCount: _task.subtasks.length,
+              onReorder: _reorderSubTasks,
+              buildDefaultDragHandles: false,
+              itemBuilder: (BuildContext context, int index) {
+                final SubTaskItem subTask = _task.subtasks[index];
+                return Padding(
+                  key: ValueKey<String>('subtask-reorder-${subTask.id}'),
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: _buildSubTaskCard(
+                    subTask,
+                    trailing: ReorderableDragStartListener(
+                      index: index,
+                      child: const Icon(Icons.drag_indicator_outlined),
+                    ),
+                  ),
+                );
+              },
+            )
           else
             for (final SubTaskItem subTask in _task.subtasks)
-              _buildSubTaskCard(subTask),
+              Dismissible(
+                key: ValueKey<String>('subtask-swipe-${subTask.id}'),
+                direction: DismissDirection.endToStart,
+                onDismissed: (_) => _removeSubTask(subTask.id),
+                background: Container(),
+                secondaryBackground: Container(
+                  margin: const EdgeInsets.only(bottom: 4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.errorContainer,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  alignment: Alignment.centerRight,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: Icon(
+                    Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: _buildSubTaskCard(
+                    subTask,
+                    onTap: () => _openSubTaskMenu(subTask),
+                    onLongPress: _enterSubtaskReorderMode,
+                  ),
+                ),
+              ),
+          const SizedBox(height: 4),
+          Text(
+            _isSubtaskReorderMode
+                ? 'Drag subtasks to reorder. Tap check when done.'
+                : 'Tap for options. Swipe left to remove. Long press to reorder.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
         ],
       ),
       floatingActionButton: FloatingActionButton(

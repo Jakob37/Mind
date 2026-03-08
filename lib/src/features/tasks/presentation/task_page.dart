@@ -171,6 +171,7 @@ class _TaskPageState extends State<TaskPage>
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
+          colorLabels: _colorLabels,
           onTaskChanged: (TaskItem updatedTask) {
             final int sourceTaskIndex =
                 _indexOfTaskById(_incomingTasks, taskId);

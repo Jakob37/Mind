@@ -275,6 +275,126 @@ void main() {
     expect(find.textContaining('Project body text'), findsOneWidget);
   });
 
+  testWidgets('shows subtask count and supports subtask swipe/reorder',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Sit for 10 minutes in silence'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Add subtask'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'First subtask');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Subtask'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Add subtask'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Second subtask');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Subtask'));
+    await tester.pumpAndSettle();
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('2 subtasks'), findsOneWidget);
+
+    await tester.tap(find.text('Sit for 10 minutes in silence'));
+    await tester.pumpAndSettle();
+
+    final double initialFirstY =
+        tester.getTopLeft(find.text('First subtask')).dy;
+    final double initialSecondY =
+        tester.getTopLeft(find.text('Second subtask')).dy;
+    final bool isFirstOnTop = initialFirstY < initialSecondY;
+
+    final String topSubtask = isFirstOnTop ? 'First subtask' : 'Second subtask';
+    final String bottomSubtask =
+        isFirstOnTop ? 'Second subtask' : 'First subtask';
+
+    await tester.longPress(find.text(topSubtask));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Done reordering subtasks'), findsOneWidget);
+
+    final Finder topSubtaskTile = find.widgetWithText(ListTile, topSubtask);
+    final Finder topSubtaskDragHandle = find.descendant(
+      of: topSubtaskTile,
+      matching: find.byIcon(Icons.drag_indicator_outlined),
+    );
+    final Offset topSubtaskCenter = tester.getCenter(topSubtaskDragHandle);
+    final Offset bottomSubtaskCenter =
+        tester.getCenter(find.widgetWithText(ListTile, bottomSubtask));
+    final TestGesture reorderGesture =
+        await tester.startGesture(topSubtaskCenter);
+    await reorderGesture.moveTo(bottomSubtaskCenter.translate(0, 28));
+    await tester.pump();
+    await reorderGesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text(topSubtask), findsOneWidget);
+    expect(find.text(bottomSubtask), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Done reordering subtasks'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Second subtask'),
+      const Offset(-600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Second subtask'), findsNothing);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('1 subtask'), findsOneWidget);
+  });
+
+  testWidgets('opens subtask menu to edit and set color',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Sit for 10 minutes in silence'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Add subtask'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).first, 'Menu subtask');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Subtask'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Menu subtask'));
+    await tester.pumpAndSettle();
+    expect(find.text('Subtask options'), findsOneWidget);
+    await tester.tap(find.text('Edit subtask'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'Edited subtask');
+    await tester.enterText(find.byType(TextField).last, 'Subtask body text');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Edited subtask'), findsOneWidget);
+    expect(find.text('Subtask body text'), findsNothing);
+    expect(find.byIcon(Icons.notes_outlined), findsWidgets);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Edited subtask'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Set color'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Coral').first);
+    await tester.pumpAndSettle();
+
+    final Card subTaskCard = tester.widget<Card>(
+      find
+          .ancestor(
+            of: find.text('Edited subtask'),
+            matching: find.byType(Card),
+          )
+          .first,
+    );
+    expect(subTaskCard.color, const Color(0xFFFFCDD2));
+  });
+
   testWidgets('long press enables drag mode for incoming cards',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());

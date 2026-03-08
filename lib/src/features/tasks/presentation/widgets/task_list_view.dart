@@ -34,6 +34,54 @@ class TaskListView extends StatelessWidget {
     );
   }
 
+  Widget _buildSubtaskCountIndicator(BuildContext context, int count) {
+    final ColorScheme colorScheme = Theme.of(context).colorScheme;
+    return Tooltip(
+      message: count == 1 ? '1 subtask' : '$count subtasks',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        decoration: BoxDecoration(
+          color: colorScheme.secondaryContainer,
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: Text(
+          '$count',
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                color: colorScheme.onSecondaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
+        ),
+      ),
+    );
+  }
+
+  Widget? _buildTrailing(
+    BuildContext context,
+    TaskItem task, {
+    Widget? trailing,
+  }) {
+    final List<Widget> parts = <Widget>[
+      if (task.subtasks.isNotEmpty)
+        _buildSubtaskCountIndicator(context, task.subtasks.length),
+      if (task.body.isNotEmpty) _buildContentIndicator(),
+      if (trailing != null) trailing,
+    ];
+
+    if (parts.isEmpty) {
+      return null;
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        for (int i = 0; i < parts.length; i++) ...<Widget>[
+          if (i > 0) const SizedBox(width: 8),
+          parts[i],
+        ],
+      ],
+    );
+  }
+
   Future<bool> _confirmTaskRemoval(BuildContext context) async {
     final bool? shouldRemove = await showDialog<bool>(
       context: context,
@@ -85,15 +133,13 @@ class TaskListView extends StatelessWidget {
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: <Widget>[
-                    if (task.body.isNotEmpty) _buildContentIndicator(),
-                    ReorderableDragStartListener(
-                      index: index,
-                      child: const Icon(Icons.drag_indicator_outlined),
-                    ),
-                  ],
+                trailing: _buildTrailing(
+                  context,
+                  task,
+                  trailing: ReorderableDragStartListener(
+                    index: index,
+                    child: const Icon(Icons.drag_indicator_outlined),
+                  ),
                 ),
               ),
             ),
@@ -157,7 +203,7 @@ class TaskListView extends StatelessWidget {
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium,
                 ),
-                trailing: task.body.isEmpty ? null : _buildContentIndicator(),
+                trailing: _buildTrailing(context, task),
                 onTap: () async => onTaskTap(task.id),
                 onLongPress: onEnterReorderMode,
               ),

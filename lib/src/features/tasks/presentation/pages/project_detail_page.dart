@@ -127,6 +127,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
+          colorLabels: widget.colorLabels,
           onTaskChanged: (TaskItem updatedTask) {
             final ProjectItem? activeProject = _findProject();
             if (activeProject == null) {
@@ -569,30 +570,49 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     Widget? trailing,
     double bottomPadding = 4,
   }) {
-    final Widget? effectiveTrailing =
-        switch ((task.body.isNotEmpty, trailing)) {
-      (false, final Widget? customTrailing) => customTrailing,
-      (true, null) => const Tooltip(
+    final List<Widget> trailingParts = <Widget>[
+      if (task.subtasks.isNotEmpty)
+        Tooltip(
+          message: task.subtasks.length == 1
+              ? '1 subtask'
+              : '${task.subtasks.length} subtasks',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.secondaryContainer,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Text(
+              '${task.subtasks.length}',
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ),
+      if (task.body.isNotEmpty)
+        const Tooltip(
           message: 'Has text content',
           child: Icon(
             Icons.notes_outlined,
             size: 18,
           ),
         ),
-      (true, final Widget customTrailing) => Row(
-          mainAxisSize: MainAxisSize.min,
-          children: <Widget>[
-            const Tooltip(
-              message: 'Has text content',
-              child: Icon(
-                Icons.notes_outlined,
-                size: 18,
-              ),
-            ),
-            customTrailing,
-          ],
-        ),
-    };
+      if (trailing != null) trailing,
+    ];
+
+    final Widget? effectiveTrailing = trailingParts.isEmpty
+        ? null
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              for (int i = 0; i < trailingParts.length; i++) ...<Widget>[
+                if (i > 0) const SizedBox(width: 8),
+                trailingParts[i],
+              ],
+            ],
+          );
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomPadding),
