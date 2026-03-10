@@ -2,6 +2,16 @@ import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
 
+class AddTaskResult {
+  const AddTaskResult({
+    required this.task,
+    required this.insertAtTop,
+  });
+
+  final TaskItem task;
+  final bool insertAtTop;
+}
+
 class AddTaskSheet extends StatefulWidget {
   const AddTaskSheet({super.key});
 
@@ -12,6 +22,7 @@ class AddTaskSheet extends StatefulWidget {
 class _AddTaskSheetState extends State<AddTaskSheet> {
   final TextEditingController _titleController = TextEditingController();
   final FocusNode _titleFocusNode = FocusNode();
+  bool _insertAtTop = true;
 
   @override
   void initState() {
@@ -37,7 +48,12 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
       return;
     }
 
-    Navigator.of(context).pop(TaskItem(title: title));
+    Navigator.of(context).pop(
+      AddTaskResult(
+        task: TaskItem(title: title),
+        insertAtTop: _insertAtTop,
+      ),
+    );
   }
 
   @override
@@ -66,8 +82,29 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             onSubmitted: (_) => _saveTask(),
             decoration: const InputDecoration(
               labelText: 'Title',
-              hintText: 'Buy groceries',
+              hintText: 'Capture a new idea or action',
             ),
+          ),
+          const SizedBox(height: 12),
+          SegmentedButton<bool>(
+            segments: const <ButtonSegment<bool>>[
+              ButtonSegment<bool>(
+                value: true,
+                label: Text('Add at top'),
+                icon: Icon(Icons.vertical_align_top_outlined),
+              ),
+              ButtonSegment<bool>(
+                value: false,
+                label: Text('Add at bottom'),
+                icon: Icon(Icons.vertical_align_bottom_outlined),
+              ),
+            ],
+            selected: <bool>{_insertAtTop},
+            onSelectionChanged: (Set<bool> selection) {
+              setState(() {
+                _insertAtTop = selection.first;
+              });
+            },
           ),
           const SizedBox(height: 12),
           FilledButton(

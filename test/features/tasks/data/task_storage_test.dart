@@ -146,6 +146,7 @@ void main() {
       colorLabels: const <int, String>{
         4294951112: 'Warm',
       },
+      hideCompletedProjectItems: false,
     );
 
     await storage.save(state);
@@ -156,7 +157,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 8);
+    expect(decoded['version'], 9);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -183,6 +184,7 @@ void main() {
       favoriteTasks: const <TaskItem>[],
       projects: const <ProjectItem>[],
       colorLabels: const <int, String>{},
+      hideCompletedProjectItems: false,
     );
 
     final String exported = storage.export(state);
@@ -193,8 +195,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 8,'), isTrue);
-    expect(decoded['version'], 8);
+    expect(exported.contains('\n  "version": 9,'), isTrue);
+    expect(decoded['version'], 9);
     expect(firstIncoming['type'], 'planning');
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));

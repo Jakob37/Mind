@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import 'item_icon_picker_sheet.dart';
 
 class TaskListView extends StatelessWidget {
   const TaskListView({
@@ -8,9 +9,9 @@ class TaskListView extends StatelessWidget {
     required this.tasks,
     required this.emptyLabel,
     required this.isReorderMode,
-    required this.onEnterReorderMode,
     required this.onReorder,
     required this.onTaskTap,
+    required this.onTaskLongPress,
     required this.onMoveTaskToProject,
     required this.onRemoveTask,
   });
@@ -18,11 +19,19 @@ class TaskListView extends StatelessWidget {
   final List<TaskItem> tasks;
   final String emptyLabel;
   final bool isReorderMode;
-  final VoidCallback onEnterReorderMode;
   final void Function(int oldIndex, int newIndex) onReorder;
   final Future<void> Function(String) onTaskTap;
+  final Future<void> Function(String) onTaskLongPress;
   final Future<void> Function(String) onMoveTaskToProject;
   final void Function(String) onRemoveTask;
+
+  Widget? _buildLeading(TaskItem task) {
+    final IconData? iconData = iconDataForKey(task.iconKey);
+    if (iconData == null) {
+      return null;
+    }
+    return Icon(iconData);
+  }
 
   Widget _buildContentIndicator() {
     return const Tooltip(
@@ -82,29 +91,6 @@ class TaskListView extends StatelessWidget {
     );
   }
 
-  Future<bool> _confirmTaskRemoval(BuildContext context) async {
-    final bool? shouldRemove = await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Remove task?'),
-          content: const Text('This action cannot be undone.'),
-          actions: <Widget>[
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(false),
-              child: const Text('Cancel'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.of(context).pop(true),
-              child: const Text('Remove'),
-            ),
-          ],
-        );
-      },
-    );
-    return shouldRemove ?? false;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (tasks.isEmpty) {
@@ -121,7 +107,7 @@ class TaskListView extends StatelessWidget {
           final TaskItem task = tasks[index];
           return Padding(
             key: ValueKey<String>(task.id),
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
             child: Card(
               color: task.colorValue == null ? null : Color(task.colorValue!),
               child: ListTile(
@@ -129,9 +115,11 @@ class TaskListView extends StatelessWidget {
                   horizontal: 12,
                   vertical: 6,
                 ),
+                leading: _buildLeading(task),
                 title: Text(
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: null,
                 ),
                 trailing: _buildTrailing(
                   context,
@@ -161,7 +149,7 @@ class TaskListView extends StatelessWidget {
               await onMoveTaskToProject(task.id);
               return false;
             }
-            return _confirmTaskRemoval(context);
+            return true;
           },
           onDismissed: (_) => onRemoveTask(task.id),
           background: Container(
@@ -199,13 +187,15 @@ class TaskListView extends StatelessWidget {
                   horizontal: 12,
                   vertical: 6,
                 ),
+                leading: _buildLeading(task),
                 title: Text(
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: null,
                 ),
                 trailing: _buildTrailing(context, task),
                 onTap: () async => onTaskTap(task.id),
-                onLongPress: onEnterReorderMode,
+                onLongPress: () async => onTaskLongPress(task.id),
               ),
             ),
           ),

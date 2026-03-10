@@ -47,7 +47,7 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 8;
+  static const int _currentSchemaVersion = 9;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
@@ -57,6 +57,7 @@ class TaskStorage {
     5: _migrateV5ToV6,
     6: _migrateV6ToV7,
     7: _migrateV7ToV8,
+    8: _migrateV8ToV9,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
@@ -67,6 +68,25 @@ class TaskStorage {
         'data': state.toJson(),
       },
     );
+  }
+
+  String exportPlainText(TaskBoardState state) {
+    final StringBuffer buffer = StringBuffer()
+      ..writeln('Mind export')
+      ..writeln();
+
+    _writeTaskSection(
+      buffer: buffer,
+      title: 'Incoming',
+      tasks: state.incomingTasks,
+    );
+    _writeProjectSection(
+      buffer: buffer,
+      title: 'Projects',
+      projects: state.projects,
+    );
+
+    return buffer.toString().trimRight();
   }
 
   Future<TaskLoadResult> load() async {
@@ -236,6 +256,18 @@ class TaskStorage {
       'favoriteTasks': _addTaskSubtasks(payload['favoriteTasks']),
       'projects': _addProjectTaskSubtasks(payload['projects']),
       'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+    };
+  }
+
+  static Map<String, dynamic> _migrateV8ToV9(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
+      'favoriteTasks': _upgradeTaskShape(payload['favoriteTasks']),
+      'projects': _upgradeProjectShape(payload['projects']),
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
     };
   }
 
@@ -562,11 +594,211 @@ class TaskStorage {
       final String? id = (rawSubtask['id'] as String?)?.trim();
       if (id != null && id.isNotEmpty) {
         subtask['id'] = id;
+      } else {
+        subtask['id'] = ModelIds.newSubTaskId();
       }
       subtask['color'] =
           rawSubtask['color'] is int ? rawSubtask['color'] : null;
+      subtask['completed'] = false;
+      subtask['icon'] = null;
+      subtask['children'] = <Map<String, dynamic>>[];
       subtasks.add(subtask);
     }
     return subtasks;
+  }
+
+  static List<Map<String, dynamic>> _upgradeTaskShape(Object? rawTasks) {
+    if (rawTasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> tasks = <Map<String, dynamic>>[];
+    for (final dynamic rawTask in rawTasks) {
+      if (rawTask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> task = Map<String, dynamic>.from(rawTask);
+      final String? id = (task['id'] as String?)?.trim();
+      if (id == null || id.isEmpty) {
+        task['id'] = ModelIds.newTaskId();
+      }
+      task['body'] =
+          task['body'] is String ? (task['body'] as String).trim() : '';
+      task['color'] = task['color'] is int ? task['color'] : null;
+      task['type'] =
+          task['type'] is String && (task['type'] as String).trim().isNotEmpty
+              ? (task['type'] as String).trim().toLowerCase()
+              : TaskItemType.planning.name;
+      task['icon'] =
+          task['icon'] is String && (task['icon'] as String).trim().isNotEmpty
+              ? (task['icon'] as String).trim()
+              : null;
+      task['subtasks'] = _upgradeSubtaskShape(task['subtasks']);
+      tasks.add(task);
+    }
+    return tasks;
+  }
+
+  static List<Map<String, dynamic>> _upgradeProjectShape(Object? rawProjects) {
+    if (rawProjects is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projects = <Map<String, dynamic>>[];
+    for (final dynamic rawProject in rawProjects) {
+      if (rawProject is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> project =
+          Map<String, dynamic>.from(rawProject);
+      final String? id = (project['id'] as String?)?.trim();
+      if (id == null || id.isEmpty) {
+        project['id'] = ModelIds.newProjectId();
+      }
+      project['body'] =
+          project['body'] is String ? (project['body'] as String).trim() : '';
+      project['color'] = project['color'] is int ? project['color'] : null;
+      project['icon'] = project['icon'] is String &&
+              (project['icon'] as String).trim().isNotEmpty
+          ? (project['icon'] as String).trim()
+          : null;
+      project['tasks'] = _upgradeTaskShape(project['tasks']);
+      projects.add(project);
+    }
+    return projects;
+  }
+
+  static List<Map<String, dynamic>> _upgradeSubtaskShape(Object? rawSubtasks) {
+    if (rawSubtasks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> subtasks = <Map<String, dynamic>>[];
+    for (final dynamic rawSubtask in rawSubtasks) {
+      if (rawSubtask is String) {
+        final String title = rawSubtask.trim();
+        if (title.isEmpty) {
+          continue;
+        }
+        subtasks.add(<String, dynamic>{
+          'id': ModelIds.newSubTaskId(),
+          'title': title,
+          'body': '',
+          'color': null,
+          'completed': false,
+          'icon': null,
+          'children': <Map<String, dynamic>>[],
+        });
+        continue;
+      }
+      if (rawSubtask is! Map<dynamic, dynamic>) {
+        continue;
+      }
+
+      final Map<String, dynamic> subtask =
+          Map<String, dynamic>.from(rawSubtask);
+      final String? title = (subtask['title'] as String?)?.trim();
+      if (title == null || title.isEmpty) {
+        continue;
+      }
+      subtask['title'] = title;
+      final String? id = (subtask['id'] as String?)?.trim();
+      subtask['id'] = id == null || id.isEmpty ? ModelIds.newSubTaskId() : id;
+      subtask['body'] =
+          subtask['body'] is String ? (subtask['body'] as String).trim() : '';
+      subtask['color'] = subtask['color'] is int ? subtask['color'] : null;
+      subtask['completed'] =
+          subtask['completed'] is bool ? subtask['completed'] : false;
+      subtask['icon'] = subtask['icon'] is String &&
+              (subtask['icon'] as String).trim().isNotEmpty
+          ? (subtask['icon'] as String).trim()
+          : null;
+      subtask['children'] = _upgradeSubtaskShape(
+        subtask['children'] ?? subtask['subtasks'],
+      );
+      subtask.remove('subtasks');
+      subtasks.add(subtask);
+    }
+    return subtasks;
+  }
+
+  static void _writeTaskSection({
+    required StringBuffer buffer,
+    required String title,
+    required List<TaskItem> tasks,
+  }) {
+    buffer.writeln(title);
+    if (tasks.isEmpty) {
+      buffer.writeln('- None');
+      buffer.writeln();
+      return;
+    }
+
+    for (final TaskItem task in tasks) {
+      buffer.writeln(_taskLine(task));
+      _writeSubtasks(buffer, task.subtasks, 1);
+    }
+    buffer.writeln();
+  }
+
+  static void _writeProjectSection({
+    required StringBuffer buffer,
+    required String title,
+    required List<ProjectItem> projects,
+  }) {
+    buffer.writeln(title);
+    if (projects.isEmpty) {
+      buffer.writeln('- None');
+      return;
+    }
+
+    for (final ProjectItem project in projects) {
+      buffer.writeln('- ${project.name}');
+      if (project.body.isNotEmpty) {
+        buffer.writeln('  ${project.body}');
+      }
+
+      final List<TaskItem> thinking = project.tasks
+          .where((TaskItem task) => task.type == TaskItemType.thinking)
+          .toList(growable: false);
+      final List<TaskItem> planning = project.tasks
+          .where((TaskItem task) => task.type == TaskItemType.planning)
+          .toList(growable: false);
+
+      if (thinking.isNotEmpty) {
+        buffer.writeln('  Ideas');
+        for (final TaskItem task in thinking) {
+          buffer.writeln('  ${_taskLine(task)}');
+          _writeSubtasks(buffer, task.subtasks, 2);
+        }
+      }
+      if (planning.isNotEmpty) {
+        buffer.writeln('  Action items');
+        for (final TaskItem task in planning) {
+          buffer.writeln('  ${_taskLine(task)}');
+          _writeSubtasks(buffer, task.subtasks, 2);
+        }
+      }
+    }
+  }
+
+  static String _taskLine(TaskItem task) {
+    final String iconPrefix = task.iconKey == null ? '' : '[${task.iconKey}] ';
+    return '- $iconPrefix${task.title}';
+  }
+
+  static void _writeSubtasks(
+    StringBuffer buffer,
+    List<SubTaskItem> subtasks,
+    int depth,
+  ) {
+    final String indent = '  ' * depth;
+    for (final SubTaskItem subtask in subtasks) {
+      final String iconPrefix =
+          subtask.iconKey == null ? '' : '[${subtask.iconKey}] ';
+      final String checkboxPrefix = subtask.isCompleted ? '[x] ' : '[ ] ';
+      buffer.writeln('$indent- $checkboxPrefix$iconPrefix${subtask.title}');
+      _writeSubtasks(buffer, subtask.children, depth + 1);
+    }
   }
 }

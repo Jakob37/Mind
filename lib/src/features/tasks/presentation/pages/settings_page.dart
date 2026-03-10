@@ -11,13 +11,19 @@ class SettingsPage extends StatefulWidget {
   const SettingsPage({
     super.key,
     required this.exportData,
+    required this.exportPlainText,
     required this.colorLabels,
     required this.onColorLabelsChanged,
+    required this.hideCompletedProjectItems,
+    required this.onHideCompletedProjectItemsChanged,
   });
 
   final String Function() exportData;
+  final String Function() exportPlainText;
   final Map<int, String> colorLabels;
   final void Function(Map<int, String> colorLabels) onColorLabelsChanged;
+  final bool hideCompletedProjectItems;
+  final ValueChanged<bool> onHideCompletedProjectItemsChanged;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -27,24 +33,61 @@ class _SettingsPageState extends State<SettingsPage> {
   late final Map<int, String> _colorLabels = Map<int, String>.from(
     widget.colorLabels,
   );
+  late bool _hideCompletedProjectItems = widget.hideCompletedProjectItems;
 
   bool get _isAndroidDevice =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
   Future<void> _exportJsonFile(BuildContext context, String exportJson) async {
+    await _exportTextFile(
+      context: context,
+      contents: exportJson,
+      mimeType: 'application/json',
+      prefix: 'mind-export',
+      extension: 'json',
+      successMessage: 'Choose where to save or share your JSON export.',
+      unsupportedMessage: 'JSON file export is only available on Android.',
+      failureMessage: 'Could not export JSON file. Please try again.',
+    );
+  }
+
+  Future<void> _exportPlainTextFile(
+      BuildContext context, String exportText) async {
+    await _exportTextFile(
+      context: context,
+      contents: exportText,
+      mimeType: 'text/plain',
+      prefix: 'mind-export',
+      extension: 'txt',
+      successMessage: 'Choose where to save or share your text export.',
+      unsupportedMessage: 'Text file export is only available on Android.',
+      failureMessage: 'Could not export text file. Please try again.',
+    );
+  }
+
+  Future<void> _exportTextFile({
+    required BuildContext context,
+    required String contents,
+    required String mimeType,
+    required String prefix,
+    required String extension,
+    required String successMessage,
+    required String unsupportedMessage,
+    required String failureMessage,
+  }) async {
     try {
       final String sanitizedTimestamp =
           DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
 
       final XFile exportFile = XFile.fromData(
-        Uint8List.fromList(utf8.encode(exportJson)),
-        mimeType: 'application/json',
-        name: 'mind-export-$sanitizedTimestamp.json',
+        Uint8List.fromList(utf8.encode(contents)),
+        mimeType: mimeType,
+        name: '$prefix-$sanitizedTimestamp.$extension',
       );
 
       await Share.shareXFiles(
         <XFile>[exportFile],
-        text: 'Mind data export (JSON)',
+        text: 'Mind data export',
         subject: 'Mind data export',
       );
 
@@ -52,27 +95,21 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Choose where to save or share your JSON export.'),
-        ),
+        SnackBar(content: Text(successMessage)),
       );
     } on MissingPluginException {
       if (!context.mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('JSON file export is only available on Android.'),
-        ),
+        SnackBar(content: Text(unsupportedMessage)),
       );
     } catch (_) {
       if (!context.mounted) {
         return;
       }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Could not export JSON file. Please try again.'),
-        ),
+        SnackBar(content: Text(failureMessage)),
       );
     }
   }
@@ -134,6 +171,73 @@ class _SettingsPageState extends State<SettingsPage> {
                     onPressed: () => _exportJsonFile(context, exportJson),
                     icon: const Icon(Icons.download_outlined),
                     label: const Text('Export JSON File (Android)'),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _showPlainTextExport(
+    BuildContext context,
+    String exportText,
+  ) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext bottomSheetContext) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              16,
+              16,
+              16,
+              16 + MediaQuery.of(bottomSheetContext).viewInsets.bottom,
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                Text(
+                  'Text Export',
+                  style: Theme.of(bottomSheetContext).textTheme.titleLarge,
+                ),
+                const SizedBox(height: 12),
+                ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight:
+                        MediaQuery.of(bottomSheetContext).size.height * 0.6,
+                  ),
+                  child: SingleChildScrollView(
+                    child: SelectableText(exportText),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                FilledButton.icon(
+                  onPressed: () async {
+                    await Clipboard.setData(ClipboardData(text: exportText));
+                    if (!context.mounted) {
+                      return;
+                    }
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('Export text copied to clipboard.'),
+                      ),
+                    );
+                    Navigator.of(bottomSheetContext).pop();
+                  },
+                  icon: const Icon(Icons.copy_outlined),
+                  label: const Text('Copy Text'),
+                ),
+                if (_isAndroidDevice) ...<Widget>[
+                  const SizedBox(height: 8),
+                  OutlinedButton.icon(
+                    onPressed: () => _exportPlainTextFile(context, exportText),
+                    icon: const Icon(Icons.download_outlined),
+                    label: const Text('Export TXT File (Android)'),
                   ),
                 ],
               ],
@@ -218,6 +322,31 @@ class _SettingsPageState extends State<SettingsPage> {
               'Copy JSON or export a file on Android',
             ),
             onTap: () => _showJsonExport(context, widget.exportData()),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.text_snippet_outlined),
+            title: const Text('Export projects and tasks as text'),
+            subtitle: const Text(
+              'Copy nested content or export a TXT file on Android',
+            ),
+            onTap: () =>
+                _showPlainTextExport(context, widget.exportPlainText()),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.check_box_outlined),
+            title: const Text('Hide completed project checklist items'),
+            subtitle: const Text(
+              'Completed nested planning items are collapsed from project views',
+            ),
+            value: _hideCompletedProjectItems,
+            onChanged: (bool value) {
+              setState(() {
+                _hideCompletedProjectItems = value;
+              });
+              widget.onHideCompletedProjectItemsChanged(value);
+            },
           ),
           const Divider(height: 1),
           const ListTile(

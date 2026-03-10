@@ -75,9 +75,12 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _titleController,
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.newline,
+            minLines: 1,
+            maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Title',
+              alignLabelWithHint: true,
             ),
           ),
           const SizedBox(height: 12),

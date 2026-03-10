@@ -12,6 +12,7 @@ import 'widgets/add_project_sheet.dart';
 import 'widgets/add_task_sheet.dart';
 import 'widgets/edit_project_sheet.dart';
 import 'widgets/edit_task_sheet.dart';
+import 'widgets/item_icon_picker_sheet.dart';
 import 'widgets/item_color_picker_sheet.dart';
 import 'widgets/move_project_task_sheet.dart';
 import 'widgets/project_list_view.dart';
@@ -20,7 +21,17 @@ import 'widgets/task_list_view.dart';
 enum _ProjectMenuAction {
   open,
   edit,
+  setIcon,
   setColor,
+  remove,
+}
+
+enum _IncomingTaskMenuAction {
+  open,
+  edit,
+  setIcon,
+  setColor,
+  moveToProject,
   remove,
 }
 
@@ -50,6 +61,7 @@ class _TaskPageState extends State<TaskPage>
   bool _isReorderMode = false;
   bool _isPersistencePaused = false;
   bool _hasShownPersistencePausedMessage = false;
+  bool _hideCompletedProjectItems = false;
 
   @override
   void initState() {
@@ -190,6 +202,11 @@ class _TaskPageState extends State<TaskPage>
               label: 'Edit task',
             ),
             TaskDetailMenuItem(
+              action: TaskDetailAction.setIcon,
+              icon: Icons.add_reaction_outlined,
+              label: 'Set icon',
+            ),
+            TaskDetailMenuItem(
               action: TaskDetailAction.setColor,
               icon: Icons.palette_outlined,
               label: 'Set color',
@@ -214,6 +231,10 @@ class _TaskPageState extends State<TaskPage>
 
     if (action == TaskDetailAction.edit) {
       await _editTaskInList(_incomingTasks, taskId);
+      return;
+    }
+    if (action == TaskDetailAction.setIcon) {
+      await _setTaskIconInList(_incomingTasks, taskId);
       return;
     }
     if (action == TaskDetailAction.setColor) {
@@ -251,15 +272,9 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      sourceTasks[sourceTaskIndex] = TaskItem(
-        id: existingTask.id,
+      sourceTasks[sourceTaskIndex] = existingTask.copyWith(
         title: result.title,
         body: result.body,
-        colorValue: existingTask.colorValue,
-        type: existingTask.type,
-        subtasks: existingTask.subtasks
-            .map((SubTaskItem subtask) => subtask.clone())
-            .toList(),
       );
     });
     _persistState();
@@ -289,15 +304,39 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      sourceTasks[sourceTaskIndex] = TaskItem(
-        id: task.id,
-        title: task.title,
-        body: task.body,
-        colorValue: selection.colorValue,
-        type: task.type,
-        subtasks: task.subtasks
-            .map((SubTaskItem subtask) => subtask.clone())
-            .toList(),
+      sourceTasks[sourceTaskIndex] =
+          task.copyWith(colorValue: selection.colorValue);
+    });
+    _persistState();
+  }
+
+  Future<void> _setTaskIconInList(
+    List<TaskItem> sourceTasks,
+    String taskId,
+  ) async {
+    final int sourceTaskIndex = _indexOfTaskById(sourceTasks, taskId);
+    if (sourceTaskIndex < 0) {
+      return;
+    }
+    final TaskItem task = sourceTasks[sourceTaskIndex];
+
+    final String? iconKey = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (_) => ItemIconPickerSheet(
+        currentIconKey: task.iconKey,
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (iconKey == task.iconKey) {
+      return;
+    }
+
+    setState(() {
+      sourceTasks[sourceTaskIndex] = task.copyWith(
+        iconKey: iconKey,
+        clearIcon: iconKey == null,
       );
     });
     _persistState();
@@ -342,10 +381,145 @@ class _TaskPageState extends State<TaskPage>
       return;
     }
 
+    final TaskItem removedTask = sourceTasks[sourceTaskIndex].clone();
     setState(() {
       sourceTasks.removeAt(sourceTaskIndex);
     });
+    _showUndoTaskDeletion(
+      message: 'Task removed.',
+      onUndo: () {
+        setState(() {
+          final int insertIndex = sourceTaskIndex <= sourceTasks.length
+              ? sourceTaskIndex
+              : sourceTasks.length;
+          sourceTasks.insert(insertIndex, removedTask);
+        });
+        _persistState();
+      },
+    );
     _persistState();
+  }
+
+  void _showUndoTaskDeletion({
+    required String message,
+    required VoidCallback onUndo,
+  }) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(message),
+          action: SnackBarAction(
+            label: 'Revert?',
+            onPressed: onUndo,
+          ),
+        ),
+      );
+  }
+
+  Future<_IncomingTaskMenuAction?> _showIncomingTaskMenu(TaskItem task) {
+    return showModalBottomSheet<_IncomingTaskMenuAction>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              ListTile(
+                title: Text(
+                  task.title,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Task options'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.open_in_new_outlined),
+                title: const Text('Open task'),
+                onTap: () =>
+                    Navigator.of(context).pop(_IncomingTaskMenuAction.open),
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit task'),
+                onTap: () =>
+                    Navigator.of(context).pop(_IncomingTaskMenuAction.edit),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_reaction_outlined),
+                title: const Text('Set icon'),
+                onTap: () =>
+                    Navigator.of(context).pop(_IncomingTaskMenuAction.setIcon),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_reaction_outlined),
+                title: const Text('Set icon'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setIcon),
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Set color'),
+                onTap: () =>
+                    Navigator.of(context).pop(_IncomingTaskMenuAction.setColor),
+              ),
+              ListTile(
+                leading: const Icon(Icons.drive_file_move_outlined),
+                title: const Text('Move to project'),
+                onTap: () => Navigator.of(context)
+                    .pop(_IncomingTaskMenuAction.moveToProject),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Remove task'),
+                onTap: () =>
+                    Navigator.of(context).pop(_IncomingTaskMenuAction.remove),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openIncomingTaskMenu(String taskId) async {
+    final TaskItem? task = _taskById(_incomingTasks, taskId);
+    if (task == null) {
+      return;
+    }
+
+    final _IncomingTaskMenuAction? action = await _showIncomingTaskMenu(task);
+    if (!mounted || action == null) {
+      return;
+    }
+
+    if (action == _IncomingTaskMenuAction.open) {
+      await _openIncomingTaskView(taskId);
+      return;
+    }
+    if (action == _IncomingTaskMenuAction.edit) {
+      await _editTaskInList(_incomingTasks, taskId);
+      return;
+    }
+    if (action == _IncomingTaskMenuAction.setIcon) {
+      await _setTaskIconInList(_incomingTasks, taskId);
+      return;
+    }
+    if (action == _IncomingTaskMenuAction.setColor) {
+      await _setTaskColorInList(_incomingTasks, taskId);
+      return;
+    }
+    if (action == _IncomingTaskMenuAction.moveToProject) {
+      await _moveTaskFromListToProject(_incomingTasks, taskId);
+      return;
+    }
+    if (action == _IncomingTaskMenuAction.remove) {
+      _deleteTaskInList(_incomingTasks, taskId);
+    }
   }
 
   Future<_ProjectMenuAction?> _showProjectMenu(ProjectItem project) {
@@ -409,12 +583,19 @@ class _TaskPageState extends State<TaskPage>
       await _editProject(projectId);
       return;
     }
+    if (action == _ProjectMenuAction.setIcon) {
+      await _setProjectIcon(projectId);
+      return;
+    }
     if (action == _ProjectMenuAction.setColor) {
       await _setProjectColor(projectId);
       return;
     }
     if (action == _ProjectMenuAction.remove) {
-      _deleteProject(projectId);
+      final bool shouldDelete = await _confirmProjectRemoval();
+      if (shouldDelete) {
+        _deleteProject(projectId);
+      }
     }
   }
 
@@ -440,12 +621,38 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      _projects[projectIndex] = ProjectItem(
-        id: project.id,
+      _projects[projectIndex] = project.copyWith(
         name: result.name,
         body: result.body,
-        colorValue: project.colorValue,
-        tasks: List<TaskItem>.from(project.tasks),
+      );
+    });
+    _persistState();
+  }
+
+  Future<void> _setProjectIcon(String projectId) async {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return;
+    }
+    final ProjectItem project = _projects[projectIndex];
+
+    final String? iconKey = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (_) => ItemIconPickerSheet(
+        currentIconKey: project.iconKey,
+      ),
+    );
+    if (!mounted) {
+      return;
+    }
+    if (iconKey == project.iconKey) {
+      return;
+    }
+
+    setState(() {
+      _projects[projectIndex] = project.copyWith(
+        iconKey: iconKey,
+        clearIcon: iconKey == null,
       );
     });
     _persistState();
@@ -472,13 +679,8 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      _projects[projectIndex] = ProjectItem(
-        id: project.id,
-        name: project.name,
-        body: project.body,
-        colorValue: selection.colorValue,
-        tasks: List<TaskItem>.from(project.tasks),
-      );
+      _projects[projectIndex] =
+          project.copyWith(colorValue: selection.colorValue);
     });
     _persistState();
   }
@@ -493,6 +695,29 @@ class _TaskPageState extends State<TaskPage>
       _projects.removeAt(projectIndex);
     });
     _persistState();
+  }
+
+  Future<bool> _confirmProjectRemoval() async {
+    final bool? shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remove project?'),
+          content: const Text('Projects always require confirmation.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldRemove ?? false;
   }
 
   Future<void> _setupWidgetActionHandling() async {
@@ -537,19 +762,23 @@ class _TaskPageState extends State<TaskPage>
     }
 
     _isAddTaskSheetOpen = true;
-    final TaskItem? newTask = await showModalBottomSheet<TaskItem>(
+    final AddTaskResult? result = await showModalBottomSheet<AddTaskResult>(
       context: context,
       isScrollControlled: true,
       builder: (_) => const AddTaskSheet(),
     );
     _isAddTaskSheetOpen = false;
 
-    if (newTask == null) {
+    if (result == null) {
       return;
     }
 
     setState(() {
-      _incomingTasks.insert(0, newTask);
+      if (result.insertAtTop) {
+        _incomingTasks.insert(0, result.task);
+      } else {
+        _incomingTasks.add(result.task);
+      }
     });
     _persistState();
   }
@@ -579,6 +808,7 @@ class _TaskPageState extends State<TaskPage>
           projectId: projectId,
           initialProjects: projectsSnapshot,
           colorLabels: _colorLabels,
+          hideCompletedProjectItems: _hideCompletedProjectItems,
           onProjectsChanged: (List<ProjectItem> updatedProjects) {
             final List<ProjectItem> projectsCopy =
                 _cloneProjects(updatedProjects);
@@ -613,6 +843,7 @@ class _TaskPageState extends State<TaskPage>
         _colorLabels
           ..clear()
           ..addAll(persistedState.colorLabels);
+        _hideCompletedProjectItems = persistedState.hideCompletedProjectItems;
       });
       return;
     }
@@ -677,46 +908,13 @@ class _TaskPageState extends State<TaskPage>
 
   TaskBoardState _createSnapshot() {
     return TaskBoardState(
-      incomingTasks: _incomingTasks
-          .map(
-            (TaskItem task) => TaskItem(
-              id: task.id,
-              title: task.title,
-              body: task.body,
-              colorValue: task.colorValue,
-              type: task.type,
-              subtasks: task.subtasks
-                  .map((SubTaskItem subtask) => subtask.clone())
-                  .toList(),
-            ),
-          )
-          .toList(),
+      incomingTasks:
+          _incomingTasks.map((TaskItem task) => task.clone()).toList(),
       favoriteTasks: const <TaskItem>[],
-      projects: _projects
-          .map(
-            (ProjectItem project) => ProjectItem(
-              id: project.id,
-              name: project.name,
-              body: project.body,
-              colorValue: project.colorValue,
-              tasks: project.tasks
-                  .map(
-                    (TaskItem task) => TaskItem(
-                      id: task.id,
-                      title: task.title,
-                      body: task.body,
-                      colorValue: task.colorValue,
-                      type: task.type,
-                      subtasks: task.subtasks
-                          .map((SubTaskItem subtask) => subtask.clone())
-                          .toList(),
-                    ),
-                  )
-                  .toList(),
-            ),
-          )
-          .toList(),
+      projects:
+          _projects.map((ProjectItem project) => project.clone()).toList(),
       colorLabels: Map<int, String>.from(_colorLabels),
+      hideCompletedProjectItems: _hideCompletedProjectItems,
     );
   }
 
@@ -729,13 +927,24 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
+  void _updateHideCompletedProjectItems(bool value) {
+    setState(() {
+      _hideCompletedProjectItems = value;
+    });
+    _persistState();
+  }
+
   Future<void> _openSettingsPage() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => SettingsPage(
           exportData: () => _taskStorage.export(_createSnapshot()),
+          exportPlainText: () =>
+              _taskStorage.exportPlainText(_createSnapshot()),
           colorLabels: _colorLabels,
           onColorLabelsChanged: _updateColorLabels,
+          hideCompletedProjectItems: _hideCompletedProjectItems,
+          onHideCompletedProjectItemsChanged: _updateHideCompletedProjectItems,
         ),
       ),
     );
@@ -745,8 +954,21 @@ class _TaskPageState extends State<TaskPage>
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Mind'),
+        title: Row(
+          children: <Widget>[
+            Icon(iconDataForKey(kMindAppIconKey) ??
+                Icons.psychology_alt_outlined),
+            const SizedBox(width: 10),
+            const Text('Mind'),
+          ],
+        ),
         actions: <Widget>[
+          if (!_isReorderMode)
+            IconButton(
+              onPressed: _enterReorderMode,
+              tooltip: 'Enter drag mode',
+              icon: const Icon(Icons.drag_indicator_outlined),
+            ),
           if (_isReorderMode)
             IconButton(
               onPressed: _exitReorderMode,
@@ -774,9 +996,9 @@ class _TaskPageState extends State<TaskPage>
             tasks: _incomingTasks,
             emptyLabel: 'No incoming tasks yet.',
             isReorderMode: _isReorderMode,
-            onEnterReorderMode: _enterReorderMode,
             onReorder: _reorderIncomingTasks,
             onTaskTap: _openIncomingTaskView,
+            onTaskLongPress: _openIncomingTaskMenu,
             onMoveTaskToProject: (String taskId) =>
                 _moveTaskFromListToProject(_incomingTasks, taskId),
             onRemoveTask: (String taskId) =>
@@ -785,11 +1007,11 @@ class _TaskPageState extends State<TaskPage>
           ProjectListView(
             projects: _projects,
             isReorderMode: _isReorderMode,
-            onEnterReorderMode: _enterReorderMode,
             onReorder: _reorderProjects,
             onProjectTap: (String projectId) async =>
                 _openProjectDetail(projectId),
             onProjectRemove: _deleteProject,
+            onProjectLongPress: _openProjectMenu,
             onProjectOptionsTap: _openProjectMenu,
           ),
         ],

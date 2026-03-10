@@ -36,13 +36,20 @@ class SubTaskItem {
     required this.title,
     String? body,
     this.colorValue,
+    this.isCompleted = false,
+    this.iconKey,
+    List<SubTaskItem>? children,
   })  : id = id ?? ModelIds.newSubTaskId(),
-        body = body ?? '';
+        body = body ?? '',
+        children = children ?? <SubTaskItem>[];
 
   final String id;
   final String title;
   final String body;
   final int? colorValue;
+  final bool isCompleted;
+  final String? iconKey;
+  final List<SubTaskItem> children;
 
   SubTaskItem clone() {
     return SubTaskItem(
@@ -50,6 +57,32 @@ class SubTaskItem {
       title: title,
       body: body,
       colorValue: colorValue,
+      isCompleted: isCompleted,
+      iconKey: iconKey,
+      children: children.map((SubTaskItem item) => item.clone()).toList(),
+    );
+  }
+
+  SubTaskItem copyWith({
+    String? id,
+    String? title,
+    String? body,
+    int? colorValue,
+    bool clearColor = false,
+    bool? isCompleted,
+    String? iconKey,
+    bool clearIcon = false,
+    List<SubTaskItem>? children,
+  }) {
+    return SubTaskItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      colorValue: clearColor ? null : (colorValue ?? this.colorValue),
+      isCompleted: isCompleted ?? this.isCompleted,
+      iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      children: children ??
+          this.children.map((SubTaskItem item) => item.clone()).toList(),
     );
   }
 
@@ -59,6 +92,9 @@ class SubTaskItem {
       'title': title,
       'body': body,
       'color': colorValue,
+      'completed': isCompleted,
+      'icon': iconKey,
+      'children': children.map((SubTaskItem item) => item.toJson()).toList(),
     };
   }
 
@@ -67,12 +103,27 @@ class SubTaskItem {
     final String? id = _readOptionalTrimmedString(json, 'id');
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
+    final bool isCompleted = _readOptionalBool(json, 'completed');
+    final String? iconKey = _readOptionalTrimmedString(json, 'icon');
+    final List<dynamic> childJson = _readOptionalList(json, 'children');
 
     return SubTaskItem(
       id: id == null || id.isEmpty ? null : id,
       title: title,
       body: body ?? '',
       colorValue: colorValue,
+      isCompleted: isCompleted,
+      iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
+      children: childJson
+          .map(
+            (dynamic item) => SubTaskItem.fromJson(
+              _mapFromDynamic(
+                item: item,
+                fieldPath: 'tasks.subtasks.children[]',
+              ),
+            ),
+          )
+          .toList(),
     );
   }
 }
@@ -84,6 +135,7 @@ class TaskItem {
     String? body,
     this.colorValue,
     TaskItemType? type,
+    this.iconKey,
     List<SubTaskItem>? subtasks,
   })  : id = id ?? ModelIds.newTaskId(),
         body = body ?? '',
@@ -95,6 +147,7 @@ class TaskItem {
   final String body;
   final int? colorValue;
   final TaskItemType type;
+  final String? iconKey;
   final List<SubTaskItem> subtasks;
 
   TaskItem clone() {
@@ -104,7 +157,31 @@ class TaskItem {
       body: body,
       colorValue: colorValue,
       type: type,
-      subtasks: subtasks.map((SubTaskItem subTask) => subTask.clone()).toList(),
+      iconKey: iconKey,
+      subtasks: subtasks.map((SubTaskItem item) => item.clone()).toList(),
+    );
+  }
+
+  TaskItem copyWith({
+    String? id,
+    String? title,
+    String? body,
+    int? colorValue,
+    bool clearColor = false,
+    TaskItemType? type,
+    String? iconKey,
+    bool clearIcon = false,
+    List<SubTaskItem>? subtasks,
+  }) {
+    return TaskItem(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      body: body ?? this.body,
+      colorValue: clearColor ? null : (colorValue ?? this.colorValue),
+      type: type ?? this.type,
+      iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      subtasks: subtasks ??
+          this.subtasks.map((SubTaskItem item) => item.clone()).toList(),
     );
   }
 
@@ -115,8 +192,8 @@ class TaskItem {
       'body': body,
       'color': colorValue,
       'type': type.name,
-      'subtasks':
-          subtasks.map((SubTaskItem subTask) => subTask.toJson()).toList(),
+      'icon': iconKey,
+      'subtasks': subtasks.map((SubTaskItem item) => item.toJson()).toList(),
     };
   }
 
@@ -126,6 +203,7 @@ class TaskItem {
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
     final TaskItemType type = TaskItemType.fromJsonValue(json['type']);
+    final String? iconKey = _readOptionalTrimmedString(json, 'icon');
     final List<dynamic> subtaskJson = _readOptionalList(json, 'subtasks');
 
     return TaskItem(
@@ -134,6 +212,7 @@ class TaskItem {
       body: body ?? '',
       colorValue: colorValue,
       type: type,
+      iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
       subtasks: subtaskJson
           .map(
             (dynamic item) => SubTaskItem.fromJson(
@@ -154,6 +233,7 @@ class ProjectItem {
     required this.name,
     String? body,
     this.colorValue,
+    this.iconKey,
     List<TaskItem>? tasks,
   })  : id = id ?? ModelIds.newProjectId(),
         body = body ?? '',
@@ -163,6 +243,7 @@ class ProjectItem {
   final String name;
   final String body;
   final int? colorValue;
+  final String? iconKey;
   final List<TaskItem> tasks;
 
   ProjectItem clone() {
@@ -171,7 +252,28 @@ class ProjectItem {
       name: name,
       body: body,
       colorValue: colorValue,
-      tasks: tasks.map((TaskItem task) => task.clone()).toList(),
+      iconKey: iconKey,
+      tasks: tasks.map((TaskItem item) => item.clone()).toList(),
+    );
+  }
+
+  ProjectItem copyWith({
+    String? id,
+    String? name,
+    String? body,
+    int? colorValue,
+    bool clearColor = false,
+    String? iconKey,
+    bool clearIcon = false,
+    List<TaskItem>? tasks,
+  }) {
+    return ProjectItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      body: body ?? this.body,
+      colorValue: clearColor ? null : (colorValue ?? this.colorValue),
+      iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
     );
   }
 
@@ -181,7 +283,8 @@ class ProjectItem {
       'name': name,
       'body': body,
       'color': colorValue,
-      'tasks': tasks.map((TaskItem task) => task.toJson()).toList(),
+      'icon': iconKey,
+      'tasks': tasks.map((TaskItem item) => item.toJson()).toList(),
     };
   }
 
@@ -190,6 +293,7 @@ class ProjectItem {
     final String? id = _readOptionalTrimmedString(json, 'id');
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
+    final String? iconKey = _readOptionalTrimmedString(json, 'icon');
     final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
 
     return ProjectItem(
@@ -197,6 +301,7 @@ class ProjectItem {
       name: name,
       body: body ?? '',
       colorValue: colorValue,
+      iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(
@@ -217,12 +322,14 @@ class TaskBoardState {
     required this.favoriteTasks,
     required this.projects,
     required this.colorLabels,
+    required this.hideCompletedProjectItems,
   });
 
   final List<TaskItem> incomingTasks;
   final List<TaskItem> favoriteTasks;
   final List<ProjectItem> projects;
   final Map<int, String> colorLabels;
+  final bool hideCompletedProjectItems;
 
   TaskBoardState clone() {
     return TaskBoardState(
@@ -232,6 +339,7 @@ class TaskBoardState {
           favoriteTasks.map((TaskItem task) => task.clone()).toList(),
       projects: projects.map((ProjectItem project) => project.clone()).toList(),
       colorLabels: Map<int, String>.from(colorLabels),
+      hideCompletedProjectItems: hideCompletedProjectItems,
     );
   }
 
@@ -252,6 +360,7 @@ class TaskBoardState {
         ProjectItem(name: 'Sleep Wind-Down'),
       ],
       colorLabels: <int, String>{},
+      hideCompletedProjectItems: false,
     );
   }
 
@@ -267,6 +376,7 @@ class TaskBoardState {
         (int colorValue, String label) =>
             MapEntry<String, String>(colorValue.toString(), label),
       ),
+      'hideCompletedProjectItems': hideCompletedProjectItems,
     };
   }
 
@@ -311,6 +421,8 @@ class TaskBoardState {
           )
           .toList(),
       colorLabels: colorLabels,
+      hideCompletedProjectItems:
+          _readOptionalBool(json, 'hideCompletedProjectItems'),
     );
   }
 }
@@ -345,6 +457,17 @@ int? _readOptionalInt(Map<String, dynamic> json, String key) {
   }
   if (value is! int) {
     throw FormatException('Expected "$key" to be an int when present.');
+  }
+  return value;
+}
+
+bool _readOptionalBool(Map<String, dynamic> json, String key) {
+  final Object? value = json[key];
+  if (value == null) {
+    return false;
+  }
+  if (value is! bool) {
+    throw FormatException('Expected "$key" to be a bool when present.');
   }
   return value;
 }

@@ -1,26 +1,35 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import 'item_icon_picker_sheet.dart';
 
 class ProjectListView extends StatelessWidget {
   const ProjectListView({
     super.key,
     required this.projects,
     required this.isReorderMode,
-    required this.onEnterReorderMode,
     required this.onReorder,
     required this.onProjectTap,
     required this.onProjectRemove,
+    required this.onProjectLongPress,
     required this.onProjectOptionsTap,
   });
 
   final List<ProjectItem> projects;
   final bool isReorderMode;
-  final VoidCallback onEnterReorderMode;
   final void Function(int oldIndex, int newIndex) onReorder;
   final Future<void> Function(String) onProjectTap;
   final void Function(String) onProjectRemove;
+  final Future<void> Function(String) onProjectLongPress;
   final Future<void> Function(String) onProjectOptionsTap;
+
+  Widget _buildLeading(ProjectItem project) {
+    final IconData? iconData = iconDataForKey(project.iconKey);
+    if (iconData == null) {
+      return const Icon(Icons.folder_outlined);
+    }
+    return Icon(iconData);
+  }
 
   Future<bool> _confirmProjectRemoval(BuildContext context) async {
     final bool? shouldRemove = await showDialog<bool>(
@@ -63,7 +72,7 @@ class ProjectListView extends StatelessWidget {
               '${project.tasks.length} task${project.tasks.length == 1 ? '' : 's'}';
           return Padding(
             key: ValueKey<String>(project.id),
-            padding: const EdgeInsets.only(bottom: 4),
+            padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
             child: Card(
               color: project.colorValue == null
                   ? null
@@ -73,10 +82,11 @@ class ProjectListView extends StatelessWidget {
                   horizontal: 12,
                   vertical: 6,
                 ),
-                leading: const Icon(Icons.folder_outlined),
+                leading: _buildLeading(project),
                 title: Text(
                   project.name,
                   style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: null,
                 ),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -133,10 +143,11 @@ class ProjectListView extends StatelessWidget {
                   horizontal: 12,
                   vertical: 6,
                 ),
-                leading: const Icon(Icons.folder_outlined),
+                leading: _buildLeading(project),
                 title: Text(
                   project.name,
                   style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: null,
                 ),
                 subtitle: Padding(
                   padding: const EdgeInsets.only(top: 4),
@@ -151,7 +162,7 @@ class ProjectListView extends StatelessWidget {
                   icon: const Icon(Icons.settings_outlined),
                 ),
                 onTap: () async => onProjectTap(project.id),
-                onLongPress: onEnterReorderMode,
+                onLongPress: () async => onProjectLongPress(project.id),
               ),
             ),
           ),
