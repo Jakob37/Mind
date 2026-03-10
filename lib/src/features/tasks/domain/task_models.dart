@@ -355,9 +355,188 @@ class TaskBoardState {
       ],
       favoriteTasks: <TaskItem>[],
       projects: <ProjectItem>[
-        ProjectItem(name: 'Morning Routine'),
-        ProjectItem(name: 'Stress Reset'),
-        ProjectItem(name: 'Sleep Wind-Down'),
+        ProjectItem(
+          name: 'Morning Routine',
+          body: 'A lightweight weekday reset that gets the day started before messages and meetings take over.',
+          iconKey: 'sun',
+          tasks: <TaskItem>[
+            TaskItem(
+              title: 'Shape a calm start sequence',
+              body: 'Keep the first 20 minutes deliberate and friction-free.',
+              type: TaskItemType.thinking,
+              iconKey: 'lightbulb',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(
+                  title: 'Protect the first 10 minutes from the phone',
+                  body: 'No inbox, no scrolling, no notifications until after water and daylight.',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Charge phone outside the bedroom'),
+                    SubTaskItem(title: 'Use a simple alarm instead'),
+                  ],
+                ),
+                SubTaskItem(
+                  title: 'Make the routine feel easy to begin',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Lay out clothes the night before'),
+                    SubTaskItem(title: 'Keep water bottle filled on desk'),
+                    SubTaskItem(title: 'Choose one default breakfast'),
+                  ],
+                ),
+              ],
+            ),
+            TaskItem(
+              title: 'Morning reset checklist',
+              body: 'Short sequence before opening laptop.',
+              type: TaskItemType.planning,
+              iconKey: 'list-check',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(title: 'Open curtains and get daylight'),
+                SubTaskItem(title: 'Drink water'),
+                SubTaskItem(title: 'Two minutes of stretching'),
+                SubTaskItem(
+                  title: 'Review top priority for the day',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Write one sentence goal'),
+                    SubTaskItem(title: 'Pick the first work block'),
+                  ],
+                ),
+              ],
+            ),
+            TaskItem(
+              title: 'Build a better breakfast fallback',
+              body: 'Prevent decision fatigue on busy days.',
+              type: TaskItemType.planning,
+              iconKey: 'bolt',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(title: 'Stock yogurt, fruit, and oats'),
+                SubTaskItem(title: 'Choose one 5-minute option'),
+              ],
+            ),
+          ],
+        ),
+        ProjectItem(
+          name: 'Stress Reset',
+          body: 'A toolkit for catching overload earlier and responding before it spills into the rest of the day.',
+          iconKey: 'heart',
+          tasks: <TaskItem>[
+            TaskItem(
+              title: 'Notice early stress signals',
+              body: 'Define the clues that usually show up before burnout mode.',
+              type: TaskItemType.thinking,
+              iconKey: 'brain',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(
+                  title: 'Physical signs',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Jaw tightness'),
+                    SubTaskItem(title: 'Shallow breathing'),
+                    SubTaskItem(title: 'Restless switching between tabs'),
+                  ],
+                ),
+                SubTaskItem(
+                  title: 'Behavioral signs',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Snapping into urgency'),
+                    SubTaskItem(title: 'Starting tasks without finishing'),
+                    SubTaskItem(title: 'Avoiding simple messages'),
+                  ],
+                ),
+              ],
+            ),
+            TaskItem(
+              title: 'Three-step reset',
+              body: 'Use this when the day starts spiraling.',
+              type: TaskItemType.planning,
+              iconKey: 'seedling',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(title: 'Step away from screen for 2 minutes'),
+                SubTaskItem(title: 'Do one long exhale cycle x5'),
+                SubTaskItem(
+                  title: 'Reduce scope intentionally',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Choose one thing to finish'),
+                    SubTaskItem(title: 'Defer one nonessential task'),
+                  ],
+                ),
+              ],
+            ),
+            TaskItem(
+              title: 'Create a rescue playlist of interventions',
+              body: 'Small actions that reliably shift energy.',
+              type: TaskItemType.thinking,
+              iconKey: 'rocket',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(title: 'Five-minute walk outside'),
+                SubTaskItem(title: 'Cold water on wrists'),
+                SubTaskItem(
+                  title: 'Message one grounding person',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Write a one-line template'),
+                  ],
+                ),
+              ],
+            ),
+          ],
+        ),
+        ProjectItem(
+          name: 'Sleep Wind-Down',
+          body: 'Reduce late-evening stimulation and make sleep onset more predictable.',
+          iconKey: 'moon',
+          tasks: <TaskItem>[
+            TaskItem(
+              title: 'Design a lower-friction evening',
+              body: 'Make the last hour of the day quieter by default.',
+              type: TaskItemType.thinking,
+              iconKey: 'moon',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(
+                  title: 'Lower stimulation after 9:30pm',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Warm lights only'),
+                    SubTaskItem(title: 'No intense shows'),
+                    SubTaskItem(title: 'Keep phone charger away from bed'),
+                  ],
+                ),
+                SubTaskItem(
+                  title: 'Capture loose thoughts before bed',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Leave notebook on nightstand'),
+                    SubTaskItem(title: 'Write tomorrow’s first task'),
+                  ],
+                ),
+              ],
+            ),
+            TaskItem(
+              title: 'Night shutdown checklist',
+              body: 'Simple sequence to repeat every evening.',
+              type: TaskItemType.planning,
+              iconKey: 'star',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(title: 'Set phone to do not disturb'),
+                SubTaskItem(title: 'Brush teeth and wash face'),
+                SubTaskItem(title: 'Read 5 pages of a physical book'),
+                SubTaskItem(
+                  title: 'Prepare for tomorrow',
+                  children: <SubTaskItem>[
+                    SubTaskItem(title: 'Put out clothes'),
+                    SubTaskItem(title: 'Clear desk surface'),
+                  ],
+                ),
+              ],
+            ),
+            TaskItem(
+              title: 'Track what helps sleep most',
+              body: 'Run a loose experiment for a week.',
+              type: TaskItemType.planning,
+              iconKey: 'book-open',
+              subtasks: <SubTaskItem>[
+                SubTaskItem(title: 'Note bedtime'),
+                SubTaskItem(title: 'Note caffeine after lunch'),
+                SubTaskItem(title: 'Score next-morning energy 1-5'),
+              ],
+            ),
+          ],
+        ),
       ],
       colorLabels: <int, String>{},
       hideCompletedProjectItems: false,

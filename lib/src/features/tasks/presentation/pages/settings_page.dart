@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -12,6 +13,7 @@ class SettingsPage extends StatefulWidget {
     super.key,
     required this.exportData,
     required this.exportPlainText,
+    required this.onImportData,
     required this.colorLabels,
     required this.onColorLabelsChanged,
     required this.hideCompletedProjectItems,
@@ -20,6 +22,7 @@ class SettingsPage extends StatefulWidget {
 
   final String Function() exportData;
   final String Function() exportPlainText;
+  final Future<String?> Function(String) onImportData;
   final Map<int, String> colorLabels;
   final void Function(Map<int, String> colorLabels) onColorLabelsChanged;
   final bool hideCompletedProjectItems;
@@ -311,6 +314,92 @@ class _SettingsPageState extends State<SettingsPage> {
     return 'Shown as "$customLabel" in picker';
   }
 
+  Future<void> _showJsonImport(BuildContext context) async {
+    const XTypeGroup jsonTypeGroup = XTypeGroup(
+      label: 'JSON',
+      extensions: <String>['json'],
+      mimeTypes: <String>['application/json', 'text/json'],
+    );
+
+    try {
+      final XFile? file = await openFile(
+        acceptedTypeGroups: <XTypeGroup>[jsonTypeGroup],
+        confirmButtonText: 'Import',
+      );
+      if (file == null) {
+        return;
+      }
+
+      if (!context.mounted) {
+        return;
+      }
+
+      final bool shouldImport = await _confirmJsonImport(context, file.name);
+      if (!shouldImport) {
+        return;
+      }
+
+      final String importJson = await file.readAsString();
+      final String? errorMessage = await widget.onImportData(importJson);
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            errorMessage ?? 'JSON import complete. Current data was replaced.',
+          ),
+        ),
+      );
+    } on MissingPluginException {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('File import is not available on this device.'),
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Could not import JSON file: $error'),
+        ),
+      );
+    }
+  }
+
+  Future<bool> _confirmJsonImport(
+    BuildContext context,
+    String fileName,
+  ) async {
+    final bool? shouldImport = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Import JSON'),
+          content: Text(
+            'Import "$fileName"? This replaces the current board state.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Import'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldImport ?? false;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -324,6 +413,15 @@ class _SettingsPageState extends State<SettingsPage> {
               'Copy JSON or export a file on Android',
             ),
             onTap: () => _showJsonExport(context, widget.exportData()),
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.file_download_outlined),
+            title: const Text('Import data from JSON'),
+            subtitle: const Text(
+              'Choose a previous JSON export file and replace current data',
+            ),
+            onTap: () => _showJsonImport(context),
           ),
           const Divider(height: 1),
           ListTile(

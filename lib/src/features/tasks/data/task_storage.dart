@@ -70,6 +70,27 @@ class TaskStorage {
     );
   }
 
+  TaskBoardState import(String rawJson) {
+    final Object? decoded = jsonDecode(rawJson);
+    if (decoded is! Map<dynamic, dynamic>) {
+      throw const FormatException('Import JSON is not a map.');
+    }
+
+    final Map<String, dynamic> decodedMap = Map<String, dynamic>.from(decoded);
+    final int storedVersion = _readStoredVersion(decodedMap);
+    final Object? payload = _readStoredPayload(decodedMap);
+    if (payload is! Map<dynamic, dynamic>) {
+      throw const FormatException('Import JSON data payload is not a map.');
+    }
+
+    final Map<String, dynamic> migratedPayload = _migrateToCurrentVersion(
+      version: storedVersion,
+      payload: Map<String, dynamic>.from(payload),
+    );
+
+    return TaskBoardState.fromJson(migratedPayload);
+  }
+
   String exportPlainText(TaskBoardState state) {
     final StringBuffer buffer = StringBuffer()
       ..writeln('Mind export')
@@ -99,34 +120,7 @@ class TaskStorage {
     }
 
     try {
-      final Object? decoded = jsonDecode(rawJson);
-      if (decoded is! Map<dynamic, dynamic>) {
-        return TaskLoadResult.failure(
-          loadError:
-              const FormatException('Persisted state is not a JSON map.'),
-          loadStackTrace: StackTrace.current,
-        );
-      }
-
-      final Map<String, dynamic> decodedMap =
-          Map<String, dynamic>.from(decoded);
-      final int storedVersion = _readStoredVersion(decodedMap);
-      final Object? payload = _readStoredPayload(decodedMap);
-      if (payload is! Map<dynamic, dynamic>) {
-        return TaskLoadResult.failure(
-          loadError: const FormatException(
-            'Persisted state payload is not a JSON map.',
-          ),
-          loadStackTrace: StackTrace.current,
-        );
-      }
-
-      final Map<String, dynamic> migratedPayload = _migrateToCurrentVersion(
-        version: storedVersion,
-        payload: Map<String, dynamic>.from(payload),
-      );
-
-      return TaskLoadResult.success(TaskBoardState.fromJson(migratedPayload));
+      return TaskLoadResult.success(import(rawJson));
     } catch (error, stackTrace) {
       return TaskLoadResult.failure(
         loadError: error,

@@ -934,6 +934,37 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
+  Future<String?> _importData(String rawJson) async {
+    try {
+      final TaskBoardState importedState = _taskStorage.import(rawJson);
+      setState(() {
+        _incomingTasks
+          ..clear()
+          ..addAll(
+            importedState.incomingTasks
+                .map((TaskItem task) => task.clone())
+                .toList(),
+          );
+        _projects
+          ..clear()
+          ..addAll(
+            importedState.projects
+                .map((ProjectItem project) => project.clone())
+                .toList(),
+          );
+        _colorLabels
+          ..clear()
+          ..addAll(importedState.colorLabels);
+        _hideCompletedProjectItems = importedState.hideCompletedProjectItems;
+        _isReorderMode = false;
+      });
+      await _taskStorage.save(_createSnapshot());
+      return null;
+    } catch (error) {
+      return 'Import failed: $error';
+    }
+  }
+
   Future<void> _openSettingsPage() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -941,6 +972,7 @@ class _TaskPageState extends State<TaskPage>
           exportData: () => _taskStorage.export(_createSnapshot()),
           exportPlainText: () =>
               _taskStorage.exportPlainText(_createSnapshot()),
+          onImportData: _importData,
           colorLabels: _colorLabels,
           onColorLabelsChanged: _updateColorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,

@@ -204,4 +204,58 @@ void main() {
         subtasks.first as Map<String, dynamic>;
     expect(firstSubtask['title'], 'Child card');
   });
+
+  test('import restores exported board state', () {
+    final TaskBoardState state = TaskBoardState(
+      incomingTasks: <TaskItem>[
+        TaskItem(
+          id: 'task-1',
+          title: 'Imported incoming',
+          type: TaskItemType.thinking,
+        ),
+      ],
+      favoriteTasks: const <TaskItem>[],
+      projects: <ProjectItem>[
+        ProjectItem(
+          id: 'project-1',
+          name: 'Imported project',
+          tasks: <TaskItem>[
+            TaskItem(
+              id: 'task-2',
+              title: 'Imported project task',
+              type: TaskItemType.planning,
+              subtasks: <SubTaskItem>[
+                SubTaskItem(
+                  id: 'subtask-1',
+                  title: 'Imported child',
+                ),
+              ],
+            ),
+          ],
+        ),
+      ],
+      colorLabels: const <int, String>{4294951112: 'Warm'},
+      hideCompletedProjectItems: true,
+    );
+
+    final String exported = storage.export(state);
+    final TaskBoardState imported = storage.import(exported);
+
+    expect(imported.incomingTasks.single.title, 'Imported incoming');
+    expect(imported.incomingTasks.single.type, TaskItemType.thinking);
+    expect(imported.projects.single.name, 'Imported project');
+    expect(
+      imported.projects.single.tasks.single.subtasks.single.title,
+      'Imported child',
+    );
+    expect(imported.colorLabels[4294951112], 'Warm');
+    expect(imported.hideCompletedProjectItems, isTrue);
+  });
+
+  test('import rejects invalid payload shapes', () {
+    expect(
+      () => storage.import('["not-a-map"]'),
+      throwsA(isA<FormatException>()),
+    );
+  });
 }

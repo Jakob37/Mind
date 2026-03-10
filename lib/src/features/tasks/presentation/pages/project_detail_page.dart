@@ -49,6 +49,8 @@ class ProjectDetailPage extends StatefulWidget {
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
   late final List<ProjectItem> _projects;
   bool _isReorderMode = false;
+  final Set<String> _expandedProjectTaskIds = <String>{};
+  final Set<String> _expandedPreviewSubtaskIds = <String>{};
 
   @override
   void initState() {
@@ -119,6 +121,26 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
     setState(() {
       _isReorderMode = false;
+    });
+  }
+
+  void _toggleProjectTaskExpanded(String taskId) {
+    setState(() {
+      if (_expandedProjectTaskIds.contains(taskId)) {
+        _expandedProjectTaskIds.remove(taskId);
+      } else {
+        _expandedProjectTaskIds.add(taskId);
+      }
+    });
+  }
+
+  void _togglePreviewSubtaskExpanded(String subTaskId) {
+    setState(() {
+      if (_expandedPreviewSubtaskIds.contains(subTaskId)) {
+        _expandedPreviewSubtaskIds.remove(subTaskId);
+      } else {
+        _expandedPreviewSubtaskIds.add(subTaskId);
+      }
     });
   }
 
@@ -797,11 +819,24 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     required TaskItem task,
     required VoidCallback? onTap,
     required VoidCallback? onLongPress,
+    bool showNestedPreview = false,
     Widget? trailing,
     double bottomPadding = 4,
   }) {
     final IconData? iconData = iconDataForKey(task.iconKey);
+    final bool hasNestedItems = task.subtasks.isNotEmpty;
+    final bool isExpanded = _expandedProjectTaskIds.contains(task.id);
     final List<Widget> trailingParts = <Widget>[
+      if (showNestedPreview && hasNestedItems)
+        IconButton(
+          onPressed: () => _toggleProjectTaskExpanded(task.id),
+          tooltip: isExpanded ? 'Collapse ideas' : 'Expand ideas',
+          icon: Icon(
+            isExpanded
+                ? Icons.expand_more_outlined
+                : Icons.chevron_right_outlined,
+          ),
+        ),
       if (task.subtasks.isNotEmpty)
         Tooltip(
           message: task.subtasks.length == 1
@@ -847,23 +882,127 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomPadding),
-      child: Card(
-        color: task.colorValue == null ? null : Color(task.colorValue!),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
+      child: Column(
+        children: <Widget>[
+          Card(
+            color: task.colorValue == null ? null : Color(task.colorValue!),
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              leading: iconData == null ? null : Icon(iconData),
+              title: Text(
+                task.title,
+                style: Theme.of(context).textTheme.titleMedium,
+                maxLines: null,
+              ),
+              trailing: effectiveTrailing,
+              onTap: onTap,
+              onLongPress: onLongPress,
+            ),
           ),
-          leading: iconData == null ? null : Icon(iconData),
-          title: Text(
-            task.title,
-            style: Theme.of(context).textTheme.titleMedium,
-            maxLines: null,
+          if (showNestedPreview && hasNestedItems && isExpanded)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 8, bottom: 8),
+              child: _buildPreviewSubtaskList(task.subtasks, 0),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPreviewSubtaskList(List<SubTaskItem> items, int depth) {
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: items
+          .map(
+            (SubTaskItem item) => _buildPreviewSubtaskNode(item, depth),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Widget _buildPreviewSubtaskNode(SubTaskItem subTask, int depth) {
+    final bool hasChildren = subTask.children.isNotEmpty;
+    final bool isExpanded = _expandedPreviewSubtaskIds.contains(subTask.id);
+    final IconData? iconData = iconDataForKey(subTask.iconKey);
+    final List<Widget> trailingParts = <Widget>[
+      if (subTask.body.isNotEmpty)
+        const Tooltip(
+          message: 'Has text content',
+          child: Icon(
+            Icons.notes_outlined,
+            size: 18,
           ),
-          trailing: effectiveTrailing,
-          onTap: onTap,
-          onLongPress: onLongPress,
         ),
+      if (iconData != null)
+        Icon(
+          iconData,
+          size: 18,
+        ),
+    ];
+
+    return Padding(
+      padding: EdgeInsets.only(left: depth * 18.0, top: 4),
+      child: Column(
+        children: <Widget>[
+          Card(
+            margin: EdgeInsets.zero,
+            color:
+                subTask.colorValue == null ? null : Color(subTask.colorValue!),
+            child: ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 2,
+              ),
+              leading: hasChildren
+                  ? IconButton(
+                      onPressed: () => _togglePreviewSubtaskExpanded(subTask.id),
+                      tooltip:
+                          isExpanded ? 'Collapse nested ideas' : 'Expand nested ideas',
+                      icon: Icon(
+                        isExpanded
+                            ? Icons.expand_more_outlined
+                            : Icons.chevron_right_outlined,
+                      ),
+                    )
+                  : Icon(
+                      iconData ?? Icons.subdirectory_arrow_right_outlined,
+                      size: 20,
+                    ),
+              title: Text(
+                subTask.title,
+                maxLines: null,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              subtitle: subTask.body.isEmpty
+                  ? null
+                  : Text(
+                      subTask.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+              trailing: trailingParts.isEmpty
+                  ? null
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        for (int i = 0; i < trailingParts.length; i++) ...<Widget>[
+                          if (i > 0) const SizedBox(width: 8),
+                          trailingParts[i],
+                        ],
+                      ],
+                    ),
+            ),
+          ),
+          if (hasChildren && isExpanded)
+            _buildPreviewSubtaskList(subTask.children, depth + 1),
+        ],
       ),
     );
   }
@@ -872,6 +1011,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     required String title,
     required String emptyLabel,
     required List<TaskItem> tasks,
+    bool showNestedPreview = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -913,6 +1053,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               task: task,
               onTap: () => _openTaskView(task.id),
               onLongPress: () => _openTaskQuickMenu(task.id),
+              showNestedPreview: showNestedPreview,
             ),
           ),
       ],
@@ -1153,6 +1294,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               title: 'Thinking (ideas)',
               emptyLabel: 'No ideas in this project yet.',
               tasks: thinkingTasks,
+              showNestedPreview: true,
             ),
           const SizedBox(height: 8),
           if (_isReorderMode)
