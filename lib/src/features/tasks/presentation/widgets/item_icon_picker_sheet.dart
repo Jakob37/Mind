@@ -10,7 +10,7 @@ class ItemIconChoice {
 
   final String key;
   final String label;
-  final IconData icon;
+  final FaIconData icon;
 }
 
 const String kMindAppIconKey = 'brain';
@@ -85,7 +85,7 @@ IconData? iconDataForKey(String? key) {
 
   for (final ItemIconChoice choice in kItemIconChoices) {
     if (choice.key == key) {
-      return choice.icon;
+      return choice.icon.data;
     }
   }
   return null;

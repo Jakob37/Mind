@@ -85,10 +85,12 @@ class _SettingsPageState extends State<SettingsPage> {
         name: '$prefix-$sanitizedTimestamp.$extension',
       );
 
-      await Share.shareXFiles(
-        <XFile>[exportFile],
-        text: 'Mind data export',
-        subject: 'Mind data export',
+      await SharePlus.instance.share(
+        ShareParams(
+          files: <XFile>[exportFile],
+          text: 'Mind data export',
+          subject: 'Mind data export',
+        ),
       );
 
       if (!context.mounted) {
