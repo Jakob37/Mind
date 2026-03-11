@@ -23,6 +23,8 @@ enum _ProjectTaskMenuAction {
   setColor,
   moveBetweenSections,
   moveToProject,
+  archive,
+  restore,
   remove,
 }
 
@@ -31,6 +33,7 @@ class ProjectDetailPage extends StatefulWidget {
     super.key,
     required this.projectId,
     required this.initialProjects,
+    required this.projectTypes,
     required this.colorLabels,
     required this.hideCompletedProjectItems,
     required this.onProjectsChanged,
@@ -38,6 +41,7 @@ class ProjectDetailPage extends StatefulWidget {
 
   final String projectId;
   final List<ProjectItem> initialProjects;
+  final List<ProjectTypeConfig> projectTypes;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
   final ValueChanged<List<ProjectItem>> onProjectsChanged;
@@ -49,6 +53,7 @@ class ProjectDetailPage extends StatefulWidget {
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
   late final List<ProjectItem> _projects;
   bool _isReorderMode = false;
+  bool _showArchivedTasks = false;
   final Set<String> _expandedProjectTaskIds = <String>{};
   final Set<String> _expandedPreviewSubtaskIds = <String>{};
 
@@ -77,9 +82,22 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return null;
   }
 
-  List<TaskItem> _tasksByType(ProjectItem project, TaskItemType type) {
+  List<TaskItem> _tasksByType(
+    ProjectItem project,
+    TaskItemType type, {
+    bool includeArchived = false,
+  }) {
     return project.tasks
-        .where((TaskItem task) => task.type == type)
+        .where(
+          (TaskItem task) => task.type == type &&
+              (includeArchived || !task.isArchived),
+        )
+        .toList(growable: false);
+  }
+
+  List<TaskItem> _archivedTasks(ProjectItem project) {
+    return project.tasks
+        .where((TaskItem task) => task.isArchived)
         .toList(growable: false);
   }
 
@@ -96,6 +114,50 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       ..clear()
       ..addAll(thinkingTasks)
       ..addAll(planningTasks);
+  }
+
+  ProjectTypeConfig _projectTypeFor(ProjectItem project) {
+    final String targetId =
+        project.projectTypeId ?? ProjectTypeDefaults.blankId;
+    for (final ProjectTypeConfig type in widget.projectTypes) {
+      if (type.id == targetId) {
+        return type;
+      }
+    }
+    return ProjectTypeConfig.defaults().first;
+  }
+
+  bool _showsIdeasSection(ProjectItem project) {
+    final ProjectTypeConfig projectType = _projectTypeFor(project);
+    return projectType.showsIdeas ||
+        _tasksByType(project, TaskItemType.thinking).isNotEmpty;
+  }
+
+  bool _showsPlanningSection(ProjectItem project) {
+    final ProjectTypeConfig projectType = _projectTypeFor(project);
+    return projectType.showsPlanningTasks ||
+        _tasksByType(project, TaskItemType.planning).isNotEmpty;
+  }
+
+  bool _canCreateTasks(ProjectItem project) {
+    return _projectTypeFor(project).supportsAnyTasks;
+  }
+
+  TaskItem _taskAdjustedForProjectType(
+    TaskItem task,
+    ProjectTypeConfig projectType,
+  ) {
+    if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
+      return task.type == TaskItemType.thinking
+          ? task
+          : task.copyWith(type: TaskItemType.thinking);
+    }
+    if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
+      return task.type == TaskItemType.planning
+          ? task
+          : task.copyWith(type: TaskItemType.planning);
+    }
+    return task;
   }
 
   void _enterReorderMode() {
@@ -156,6 +218,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     final TaskItem task = project.tasks[taskIndex];
+    final bool canMoveBetweenSections =
+        _projectTypeFor(project).showsIdeas &&
+        _projectTypeFor(project).showsPlanningTasks;
     final TaskDetailAction? action = await Navigator.of(
       context,
     ).push<TaskDetailAction>(
@@ -193,17 +258,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               icon: Icons.palette_outlined,
               label: 'Set color',
             ),
-            TaskDetailMenuItem(
-              action: task.type == TaskItemType.thinking
-                  ? TaskDetailAction.moveToPlanning
-                  : TaskDetailAction.moveToThinking,
-              icon: task.type == TaskItemType.thinking
-                  ? Icons.checklist_rtl_outlined
-                  : Icons.lightbulb_outline,
-              label: task.type == TaskItemType.thinking
-                  ? 'Move to planning'
-                  : 'Move to thinking',
-            ),
+            if (canMoveBetweenSections)
+              TaskDetailMenuItem(
+                action: task.type == TaskItemType.thinking
+                    ? TaskDetailAction.moveToPlanning
+                    : TaskDetailAction.moveToThinking,
+                icon: task.type == TaskItemType.thinking
+                    ? Icons.checklist_rtl_outlined
+                    : Icons.lightbulb_outline,
+                label: task.type == TaskItemType.thinking
+                    ? 'Move to planning'
+                    : 'Move to thinking',
+              ),
             const TaskDetailMenuItem(
               action: TaskDetailAction.moveToProject,
               icon: Icons.drive_file_move_outlined,
@@ -253,7 +319,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   Future<_ProjectTaskMenuAction?> _showTaskMenu(TaskItem task) {
-    final bool canMoveToOtherSection = true;
+    final ProjectItem? project = _findProject();
+    final bool canMoveToOtherSection = project != null &&
+        _projectTypeFor(project).showsIdeas &&
+        _projectTypeFor(project).showsPlanningTasks;
     return showModalBottomSheet<_ProjectTaskMenuAction>(
       context: context,
       builder: (BuildContext context) {
@@ -315,6 +384,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     .pop(_ProjectTaskMenuAction.moveToProject),
               ),
               ListTile(
+                leading: Icon(
+                  task.isArchived
+                      ? Icons.unarchive_outlined
+                      : Icons.archive_outlined,
+                ),
+                title: Text(
+                  task.isArchived ? 'Restore task' : 'Archive task',
+                ),
+                onTap: () => Navigator.of(context).pop(
+                  task.isArchived
+                      ? _ProjectTaskMenuAction.restore
+                      : _ProjectTaskMenuAction.archive,
+                ),
+              ),
+              ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: const Text('Remove task'),
                 onTap: () =>
@@ -370,6 +454,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
     if (action == _ProjectTaskMenuAction.moveToProject) {
       await _moveTaskToAnotherProject(taskId);
+      return;
+    }
+    if (action == _ProjectTaskMenuAction.archive) {
+      _archiveTask(taskId);
+      return;
+    }
+    if (action == _ProjectTaskMenuAction.restore) {
+      _restoreTask(taskId);
       return;
     }
     if (action == _ProjectTaskMenuAction.remove) {
@@ -652,6 +744,90 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _notifyProjectsChanged();
   }
 
+  void _archiveTask(String taskId) {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final int taskIndex = _findTaskIndex(project, taskId);
+    if (taskIndex < 0) {
+      return;
+    }
+
+    final TaskItem task = project.tasks[taskIndex];
+    if (task.isArchived) {
+      return;
+    }
+
+    setState(() {
+      project.tasks[taskIndex] = task.copyWith(isArchived: true);
+      _isReorderMode = false;
+    });
+    _notifyProjectsChanged();
+    _showUndoTaskDeletion(
+      message: 'Task archived.',
+      onUndo: () {
+        final ProjectItem? activeProject = _findProject();
+        if (activeProject == null) {
+          return;
+        }
+        final int currentIndex = _findTaskIndex(activeProject, taskId);
+        if (currentIndex < 0) {
+          return;
+        }
+        setState(() {
+          activeProject.tasks[currentIndex] = activeProject.tasks[currentIndex]
+              .copyWith(isArchived: false);
+        });
+        _notifyProjectsChanged();
+      },
+    );
+  }
+
+  void _restoreTask(String taskId) {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final int taskIndex = _findTaskIndex(project, taskId);
+    if (taskIndex < 0) {
+      return;
+    }
+
+    final TaskItem task = project.tasks[taskIndex];
+    if (!task.isArchived) {
+      return;
+    }
+
+    setState(() {
+      project.tasks[taskIndex] = task.copyWith(isArchived: false);
+    });
+    _notifyProjectsChanged();
+  }
+
+  void _toggleProjectArchived() {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final bool nextArchived = !project.isArchived;
+    setState(() {
+      final int projectIndex =
+          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      if (projectIndex < 0) {
+        return;
+      }
+      _projects[projectIndex] = project.copyWith(isArchived: nextArchived);
+      if (nextArchived) {
+        _isReorderMode = false;
+      }
+    });
+    _notifyProjectsChanged();
+  }
+
   void _showUndoTaskDeletion({
     required String message,
     required VoidCallback onUndo,
@@ -679,10 +855,19 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
+    final List<ProjectItem> targetProjects = <ProjectItem>[
+      for (final ProjectItem project in _projects)
+        if (project.id != widget.projectId &&
+            !project.isArchived &&
+            _projectTypeFor(project).supportsAnyTasks)
+          project,
+    ];
+
     final String? targetProjectId = await showModalBottomSheet<String>(
       context: context,
       builder: (_) => MoveProjectTaskSheet(
-        projects: _projects,
+        projects: targetProjects,
+        projectTypes: widget.projectTypes,
         currentProjectId: widget.projectId,
       ),
     );
@@ -705,12 +890,32 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     setState(() {
       final TaskItem task = sourceProject.tasks.removeAt(sourceTaskIndex);
-      _projects[targetProjectIndex].tasks.insert(0, task);
+      final ProjectItem targetProject = _projects[targetProjectIndex];
+      final TaskItem adjustedTask = _taskAdjustedForProjectType(
+        task,
+        _projectTypeFor(targetProject),
+      );
+      _projects[targetProjectIndex].tasks.insert(0, adjustedTask);
     });
     _notifyProjectsChanged();
   }
 
   Future<TaskItemType?> _chooseTaskTypeForCreate() {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return Future<TaskItemType?>.value(null);
+    }
+    final ProjectTypeConfig projectType = _projectTypeFor(project);
+    if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
+      return Future<TaskItemType?>.value(TaskItemType.thinking);
+    }
+    if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
+      return Future<TaskItemType?>.value(TaskItemType.planning);
+    }
+    if (!projectType.supportsAnyTasks) {
+      return Future<TaskItemType?>.value(null);
+    }
+
     return showModalBottomSheet<TaskItemType>(
       context: context,
       builder: (BuildContext context) {
@@ -884,22 +1089,25 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       padding: EdgeInsets.only(bottom: bottomPadding),
       child: Column(
         children: <Widget>[
-          Card(
-            color: task.colorValue == null ? null : Color(task.colorValue!),
-            child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
+          Opacity(
+            opacity: task.isArchived ? 0.78 : 1,
+            child: Card(
+              color: task.colorValue == null ? null : Color(task.colorValue!),
+              child: ListTile(
+                contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 6,
+                ),
+                leading: iconData == null ? null : Icon(iconData),
+                title: Text(
+                  task.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: null,
+                ),
+                trailing: effectiveTrailing,
+                onTap: onTap,
+                onLongPress: onLongPress,
               ),
-              leading: iconData == null ? null : Icon(iconData),
-              title: Text(
-                task.title,
-                style: Theme.of(context).textTheme.titleMedium,
-                maxLines: null,
-              ),
-              trailing: effectiveTrailing,
-              onTap: onTap,
-              onLongPress: onLongPress,
             ),
           ),
           if (showNestedPreview && hasNestedItems && isExpanded)
@@ -1012,6 +1220,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     required String emptyLabel,
     required List<TaskItem> tasks,
     bool showNestedPreview = false,
+    bool isArchivedSection = false,
   }) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1032,10 +1241,42 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         for (final TaskItem task in tasks)
           Dismissible(
             key: ValueKey<String>('project-task-swipe-${task.id}'),
-            direction: DismissDirection.endToStart,
-            confirmDismiss: (_) async => true,
-            onDismissed: (_) => _deleteTask(task.id),
-            background: Container(),
+            direction: DismissDirection.horizontal,
+            confirmDismiss: (DismissDirection direction) async {
+              if (direction == DismissDirection.startToEnd) {
+                if (task.isArchived) {
+                  _restoreTask(task.id);
+                } else {
+                  _archiveTask(task.id);
+                }
+                return true;
+              }
+              return true;
+            },
+            onDismissed: (DismissDirection direction) {
+              if (direction == DismissDirection.endToStart) {
+                _deleteTask(task.id);
+              }
+            },
+            background: Container(
+              margin: const EdgeInsets.only(bottom: 4),
+              decoration: BoxDecoration(
+                color: task.isArchived
+                    ? Theme.of(context).colorScheme.secondaryContainer
+                    : Theme.of(context).colorScheme.tertiaryContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.centerLeft,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Icon(
+                task.isArchived
+                    ? Icons.unarchive_outlined
+                    : Icons.archive_outlined,
+                color: task.isArchived
+                    ? Theme.of(context).colorScheme.onSecondaryContainer
+                    : Theme.of(context).colorScheme.onTertiaryContainer,
+              ),
+            ),
             secondaryBackground: Container(
               margin: const EdgeInsets.only(bottom: 4),
               decoration: BoxDecoration(
@@ -1053,7 +1294,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               task: task,
               onTap: () => _openTaskView(task.id),
               onLongPress: () => _openTaskQuickMenu(task.id),
-              showNestedPreview: showNestedPreview,
+              showNestedPreview: showNestedPreview && !isArchivedSection,
             ),
           ),
       ],
@@ -1242,6 +1483,50 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
+  Widget _buildArchivedTaskSection(List<TaskItem> archivedTasks) {
+    return Card(
+      margin: const EdgeInsets.only(top: 12),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          InkWell(
+            onTap: () {
+              setState(() {
+                _showArchivedTasks = !_showArchivedTasks;
+              });
+            },
+            child: ListTile(
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              leading: const Icon(Icons.archive_outlined),
+              title: const Text('Archived'),
+              subtitle: Text(
+                '${archivedTasks.length} task${archivedTasks.length == 1 ? '' : 's'}',
+              ),
+              trailing: Icon(
+                _showArchivedTasks
+                    ? Icons.expand_more_outlined
+                    : Icons.chevron_right_outlined,
+              ),
+            ),
+          ),
+          if (_showArchivedTasks)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: _buildTaskSection(
+                title: 'Archived',
+                emptyLabel: 'No archived tasks.',
+                tasks: archivedTasks,
+                isArchivedSection: true,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final ProjectItem? project = _findProject();
@@ -1260,10 +1545,25 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       project,
       TaskItemType.planning,
     );
+    final List<TaskItem> archivedTasks = _archivedTasks(project);
+    final bool showsIdeasSection = _showsIdeasSection(project);
+    final bool showsPlanningSection = _showsPlanningSection(project);
+    final bool canCreateTasks = _canCreateTasks(project);
+    final IconData? projectIconData =
+        iconDataForKey(project.iconKey) ??
+        iconDataForKey(_projectTypeFor(project).iconKey);
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(project.name),
+        title: Row(
+          children: <Widget>[
+            if (projectIconData != null) ...<Widget>[
+              Icon(projectIconData),
+              const SizedBox(width: 10),
+            ],
+            Expanded(child: Text(project.name)),
+          ],
+        ),
         actions: <Widget>[
           if (!_isReorderMode)
             IconButton(
@@ -1277,42 +1577,66 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               tooltip: 'Done reordering',
               icon: const Icon(Icons.check),
             ),
+          IconButton(
+            onPressed: _toggleProjectArchived,
+            tooltip:
+                project.isArchived ? 'Restore project' : 'Archive project',
+            icon: Icon(
+              project.isArchived
+                  ? Icons.unarchive_outlined
+                  : Icons.archive_outlined,
+            ),
+          ),
         ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(12),
         children: <Widget>[
-          if (_isReorderMode)
+          if (project.isArchived)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Text(
+                'This project is archived. Restore it to bring it back into the main project list.',
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ),
+          if (showsIdeasSection && _isReorderMode)
             _buildReorderTaskSection(
               title: 'Thinking (ideas)',
               emptyLabel: 'Drop ideas here.',
               tasks: thinkingTasks,
               sectionType: TaskItemType.thinking,
             )
-          else
+          else if (showsIdeasSection)
             _buildTaskSection(
               title: 'Thinking (ideas)',
               emptyLabel: 'No ideas in this project yet.',
               tasks: thinkingTasks,
               showNestedPreview: true,
             ),
-          const SizedBox(height: 8),
-          if (_isReorderMode)
+          if (showsIdeasSection && showsPlanningSection) const SizedBox(height: 8),
+          if (showsPlanningSection && _isReorderMode)
             _buildReorderTaskSection(
               title: 'Planning (action items)',
               emptyLabel: 'Drop action items here.',
               tasks: planningTasks,
               sectionType: TaskItemType.planning,
             )
-          else
+          else if (showsPlanningSection)
             _buildTaskSection(
               title: 'Planning (action items)',
               emptyLabel: 'No action items in this project yet.',
               tasks: planningTasks,
             ),
+          if (!showsIdeasSection && !showsPlanningSection)
+            Text(
+              'This project type is blank. Enable ideas or tasks in project type settings to add sections.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          if (archivedTasks.isNotEmpty) _buildArchivedTaskSection(archivedTasks),
         ],
       ),
-      floatingActionButton: _isReorderMode
+      floatingActionButton: _isReorderMode || !canCreateTasks || project.isArchived
           ? null
           : FloatingActionButton(
               onPressed: _addTaskToProject,

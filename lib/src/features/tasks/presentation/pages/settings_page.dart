@@ -6,6 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../domain/task_models.dart';
+import '../widgets/edit_project_type_sheet.dart';
+import '../widgets/item_icon_picker_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 
 class SettingsPage extends StatefulWidget {
@@ -14,6 +17,8 @@ class SettingsPage extends StatefulWidget {
     required this.exportData,
     required this.exportPlainText,
     required this.onImportData,
+    required this.projectTypes,
+    required this.onProjectTypesChanged,
     required this.colorLabels,
     required this.onColorLabelsChanged,
     required this.hideCompletedProjectItems,
@@ -23,6 +28,8 @@ class SettingsPage extends StatefulWidget {
   final String Function() exportData;
   final String Function() exportPlainText;
   final Future<String?> Function(String) onImportData;
+  final List<ProjectTypeConfig> projectTypes;
+  final ValueChanged<List<ProjectTypeConfig>> onProjectTypesChanged;
   final Map<int, String> colorLabels;
   final void Function(Map<int, String> colorLabels) onColorLabelsChanged;
   final bool hideCompletedProjectItems;
@@ -33,6 +40,9 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  late final List<ProjectTypeConfig> _projectTypes = widget.projectTypes
+      .map((ProjectTypeConfig type) => type.clone())
+      .toList();
   late final Map<int, String> _colorLabels = Map<int, String>.from(
     widget.colorLabels,
   );
@@ -40,6 +50,8 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool get _isAndroidDevice =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
+
+  bool get _supportsFolderSave => !kIsWeb;
 
   Future<void> _exportJsonFile(BuildContext context, String exportJson) async {
     await _exportTextFile(
@@ -68,6 +80,23 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  String _timestampedFileName({
+    required String prefix,
+    required String extension,
+  }) {
+    final String sanitizedTimestamp =
+        DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
+    return '$prefix-$sanitizedTimestamp.$extension';
+  }
+
+  String _appendFileName(String directoryPath, String fileName) {
+    if (directoryPath.endsWith('/') || directoryPath.endsWith(r'\')) {
+      return '$directoryPath$fileName';
+    }
+    final String separator = directoryPath.contains(r'\') ? r'\' : '/';
+    return '$directoryPath$separator$fileName';
+  }
+
   Future<void> _exportTextFile({
     required BuildContext context,
     required String contents,
@@ -79,13 +108,13 @@ class _SettingsPageState extends State<SettingsPage> {
     required String failureMessage,
   }) async {
     try {
-      final String sanitizedTimestamp =
-          DateTime.now().toUtc().toIso8601String().replaceAll(':', '-');
-
       final XFile exportFile = XFile.fromData(
         Uint8List.fromList(utf8.encode(contents)),
         mimeType: mimeType,
-        name: '$prefix-$sanitizedTimestamp.$extension',
+        name: _timestampedFileName(
+          prefix: prefix,
+          extension: extension,
+        ),
       );
 
       await SharePlus.instance.share(
@@ -119,6 +148,57 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _saveJsonToFolder(
+    BuildContext context,
+    String exportJson,
+  ) async {
+    try {
+      final String? directoryPath = await getDirectoryPath(
+        confirmButtonText: 'Save here',
+      );
+      if (directoryPath == null || directoryPath.isEmpty) {
+        return;
+      }
+
+      final XFile exportFile = XFile.fromData(
+        Uint8List.fromList(utf8.encode(exportJson)),
+        mimeType: 'application/json',
+        name: _timestampedFileName(
+          prefix: 'mind-export',
+          extension: 'json',
+        ),
+      );
+      final String outputPath = _appendFileName(
+        directoryPath,
+        exportFile.name,
+      );
+      await exportFile.saveTo(outputPath);
+
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('JSON export saved to $outputPath')),
+      );
+    } on MissingPluginException {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Saving to a folder is not available on this device.'),
+        ),
+      );
+    } catch (error) {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save JSON export: $error')),
+      );
+    }
+  }
+
   Future<void> _showJsonExport(
     BuildContext context,
     String exportJson,
@@ -135,50 +215,74 @@ class _SettingsPageState extends State<SettingsPage> {
               16,
               16 + MediaQuery.of(bottomSheetContext).viewInsets.bottom,
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: <Widget>[
-                Text(
-                  'JSON Export',
-                  style: Theme.of(bottomSheetContext).textTheme.titleLarge,
-                ),
-                const SizedBox(height: 12),
-                ConstrainedBox(
-                  constraints: BoxConstraints(
-                    maxHeight:
-                        MediaQuery.of(bottomSheetContext).size.height * 0.6,
+            child: LayoutBuilder(
+              builder: (BuildContext context, BoxConstraints constraints) {
+                final double maxPreviewHeight = constraints.maxHeight.isFinite
+                    ? constraints.maxHeight * 0.5
+                    : MediaQuery.of(bottomSheetContext).size.height * 0.5;
+                return SingleChildScrollView(
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(minWidth: constraints.maxWidth),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: <Widget>[
+                        Text(
+                          'JSON Export',
+                          style:
+                              Theme.of(bottomSheetContext).textTheme.titleLarge,
+                        ),
+                        const SizedBox(height: 12),
+                        ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxHeight: maxPreviewHeight,
+                          ),
+                          child: SingleChildScrollView(
+                            child: SelectableText(exportJson),
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: () async {
+                            await Clipboard.setData(
+                              ClipboardData(text: exportJson),
+                            );
+                            if (!context.mounted) {
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Export JSON copied to clipboard.'),
+                              ),
+                            );
+                            Navigator.of(bottomSheetContext).pop();
+                          },
+                          icon: const Icon(Icons.copy_outlined),
+                          label: const Text('Copy JSON'),
+                        ),
+                        if (_supportsFolderSave) ...<Widget>[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _saveJsonToFolder(context, exportJson),
+                            icon: const Icon(Icons.folder_open_outlined),
+                            label: const Text('Save JSON to Folder'),
+                          ),
+                        ],
+                        if (_isAndroidDevice) ...<Widget>[
+                          const SizedBox(height: 8),
+                          OutlinedButton.icon(
+                            onPressed: () =>
+                                _exportJsonFile(context, exportJson),
+                            icon: const Icon(Icons.download_outlined),
+                            label: const Text('Export JSON File (Android)'),
+                          ),
+                        ],
+                      ],
+                    ),
                   ),
-                  child: SingleChildScrollView(
-                    child: SelectableText(exportJson),
-                  ),
-                ),
-                const SizedBox(height: 12),
-                FilledButton.icon(
-                  onPressed: () async {
-                    await Clipboard.setData(ClipboardData(text: exportJson));
-                    if (!context.mounted) {
-                      return;
-                    }
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Export JSON copied to clipboard.'),
-                      ),
-                    );
-                    Navigator.of(bottomSheetContext).pop();
-                  },
-                  icon: const Icon(Icons.copy_outlined),
-                  label: const Text('Copy JSON'),
-                ),
-                if (_isAndroidDevice) ...<Widget>[
-                  const SizedBox(height: 8),
-                  OutlinedButton.icon(
-                    onPressed: () => _exportJsonFile(context, exportJson),
-                    icon: const Icon(Icons.download_outlined),
-                    label: const Text('Export JSON File (Android)'),
-                  ),
-                ],
-              ],
+                );
+              },
             ),
           ),
         );
@@ -314,6 +418,44 @@ class _SettingsPageState extends State<SettingsPage> {
     return 'Shown as "$customLabel" in picker';
   }
 
+  String _projectTypeSummary(ProjectTypeConfig type) {
+    final List<String> labels = <String>[];
+    if (type.showsIdeas) {
+      labels.add('ideas');
+    }
+    if (type.showsPlanningTasks) {
+      labels.add('tasks');
+    }
+    if (labels.isEmpty) {
+      labels.add('blank');
+    }
+    return labels.join(' + ');
+  }
+
+  Future<void> _editProjectType(ProjectTypeConfig type) async {
+    final ProjectTypeConfig? updatedType =
+        await showModalBottomSheet<ProjectTypeConfig>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditProjectTypeSheet(projectType: type),
+    );
+    if (updatedType == null) {
+      return;
+    }
+
+    setState(() {
+      final int index = _projectTypes.indexWhere(
+        (ProjectTypeConfig entry) => entry.id == updatedType.id,
+      );
+      if (index >= 0) {
+        _projectTypes[index] = updatedType;
+      }
+    });
+    widget.onProjectTypesChanged(
+      _projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
+    );
+  }
+
   Future<void> _showJsonImport(BuildContext context) async {
     const XTypeGroup jsonTypeGroup = XTypeGroup(
       label: 'JSON',
@@ -433,6 +575,23 @@ class _SettingsPageState extends State<SettingsPage> {
             onTap: () =>
                 _showPlainTextExport(context, widget.exportPlainText()),
           ),
+          const Divider(height: 1),
+          const ListTile(
+            title: Text('Project types'),
+            subtitle: Text(
+              'Configure the icon and whether each type shows ideas and tasks',
+            ),
+          ),
+          for (final ProjectTypeConfig type in _projectTypes)
+            ListTile(
+              leading: Icon(
+                iconDataForKey(type.iconKey) ?? Icons.label_outline,
+              ),
+              title: Text(type.name),
+              subtitle: Text(_projectTypeSummary(type)),
+              trailing: const Icon(Icons.edit_outlined),
+              onTap: () => _editProjectType(type),
+            ),
           const Divider(height: 1),
           SwitchListTile(
             secondary: const Icon(Icons.check_box_outlined),

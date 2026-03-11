@@ -144,6 +144,7 @@ void main() {
       favoriteTasks: const <TaskItem>[],
       projects: const <ProjectItem>[],
       projectStacks: const <ProjectStack>[],
+      projectTypes: const <ProjectTypeConfig>[],
       colorLabels: const <int, String>{
         4294951112: 'Warm',
       },
@@ -158,7 +159,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 10);
+    expect(decoded['version'], 12);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -185,6 +186,7 @@ void main() {
       favoriteTasks: const <TaskItem>[],
       projects: const <ProjectItem>[],
       projectStacks: const <ProjectStack>[],
+      projectTypes: const <ProjectTypeConfig>[],
       colorLabels: const <int, String>{},
       hideCompletedProjectItems: false,
     );
@@ -197,9 +199,10 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 10,'), isTrue);
-    expect(decoded['version'], 10);
+    expect(exported.contains('\n  "version": 12,'), isTrue);
+    expect(decoded['version'], 12);
     expect(firstIncoming['type'], 'planning');
+    expect(firstIncoming['archived'], isFalse);
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));
     final Map<String, dynamic> firstSubtask =
@@ -221,12 +224,14 @@ void main() {
         ProjectItem(
           id: 'project-1',
           name: 'Imported project',
+          isArchived: true,
           stackId: 'stack-1',
           tasks: <TaskItem>[
             TaskItem(
               id: 'task-2',
               title: 'Imported project task',
               type: TaskItemType.planning,
+              isArchived: true,
               subtasks: <SubTaskItem>[
                 SubTaskItem(
                   id: 'subtask-1',
@@ -243,6 +248,15 @@ void main() {
           name: 'Imported stack',
         ),
       ],
+      projectTypes: <ProjectTypeConfig>[
+        const ProjectTypeConfig(
+          id: ProjectTypeDefaults.projectId,
+          name: 'Project',
+          iconKey: 'folder-open',
+          showsPlanningTasks: true,
+          showsIdeas: true,
+        ),
+      ],
       colorLabels: const <int, String>{4294951112: 'Warm'},
       hideCompletedProjectItems: true,
     );
@@ -253,8 +267,10 @@ void main() {
     expect(imported.incomingTasks.single.title, 'Imported incoming');
     expect(imported.incomingTasks.single.type, TaskItemType.thinking);
     expect(imported.projects.single.name, 'Imported project');
+    expect(imported.projects.single.isArchived, isTrue);
     expect(imported.projects.single.stackId, 'stack-1');
     expect(imported.projectStacks.single.name, 'Imported stack');
+    expect(imported.projects.single.tasks.single.isArchived, isTrue);
     expect(
       imported.projects.single.tasks.single.subtasks.single.title,
       'Imported child',
@@ -268,5 +284,51 @@ void main() {
       () => storage.import('["not-a-map"]'),
       throwsA(isA<FormatException>()),
     );
+  });
+
+  test('load migrates v11 payload and adds archived flags', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 11,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'incoming-1',
+              'title': 'Incoming task',
+              'type': 'planning',
+            },
+          ],
+          'favoriteTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-1',
+              'name': 'Project one',
+              'projectTypeId': ProjectTypeDefaults.projectId,
+              'tasks': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 'task-1',
+                  'title': 'Project task',
+                  'type': 'thinking',
+                },
+              ],
+            },
+          ],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': ProjectTypeConfig.defaults()
+              .map((ProjectTypeConfig type) => type.toJson())
+              .toList(),
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    expect(state.incomingTasks.single.isArchived, isFalse);
+    expect(state.projects.single.isArchived, isFalse);
+    expect(state.projects.single.tasks.single.isArchived, isFalse);
   });
 }

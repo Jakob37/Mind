@@ -1,25 +1,31 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import 'item_icon_picker_sheet.dart';
 import 'select_project_stack_sheet.dart';
+import 'select_project_type_sheet.dart';
 
 class AddProjectResult {
   const AddProjectResult({
     required this.name,
     required this.stackSelection,
+    required this.projectTypeId,
   });
 
   final String name;
   final ProjectStackSelection stackSelection;
+  final String projectTypeId;
 }
 
 class AddProjectSheet extends StatefulWidget {
   const AddProjectSheet({
     super.key,
     required this.projectStacks,
+    required this.projectTypes,
   });
 
   final List<ProjectStack> projectStacks;
+  final List<ProjectTypeConfig> projectTypes;
 
   @override
   State<AddProjectSheet> createState() => _AddProjectSheetState();
@@ -28,6 +34,7 @@ class AddProjectSheet extends StatefulWidget {
 class _AddProjectSheetState extends State<AddProjectSheet> {
   final TextEditingController _projectNameController = TextEditingController();
   ProjectStackSelection _stackSelection = const ProjectStackSelection.none();
+  String _projectTypeId = ProjectTypeDefaults.blankId;
 
   @override
   void dispose() {
@@ -44,6 +51,7 @@ class _AddProjectSheetState extends State<AddProjectSheet> {
       AddProjectResult(
         name: name,
         stackSelection: _stackSelection,
+        projectTypeId: _projectTypeId,
       ),
     );
   }
@@ -68,6 +76,22 @@ class _AddProjectSheetState extends State<AddProjectSheet> {
     });
   }
 
+  Future<void> _selectProjectType() async {
+    final String? projectTypeId = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => SelectProjectTypeSheet(
+        projectTypes: widget.projectTypes,
+        currentProjectTypeId: _projectTypeId,
+      ),
+    );
+    if (!mounted || projectTypeId == null) {
+      return;
+    }
+    setState(() {
+      _projectTypeId = projectTypeId;
+    });
+  }
+
   String _stackLabel() {
     if (_stackSelection.mode == ProjectStackSelectionMode.none) {
       return 'No stack';
@@ -82,6 +106,15 @@ class _AddProjectSheetState extends State<AddProjectSheet> {
       }
     }
     return 'Select stack';
+  }
+
+  ProjectTypeConfig _projectType() {
+    for (final ProjectTypeConfig type in widget.projectTypes) {
+      if (type.id == _projectTypeId) {
+        return type;
+      }
+    }
+    return ProjectTypeConfig.defaults().first;
   }
 
   @override
@@ -116,6 +149,14 @@ class _AddProjectSheetState extends State<AddProjectSheet> {
             onPressed: _selectStack,
             icon: const Icon(Icons.layers_outlined),
             label: Text('Stack: ${_stackLabel()}'),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            onPressed: _selectProjectType,
+            icon: Icon(
+              iconDataForKey(_projectType().iconKey) ?? Icons.label_outline,
+            ),
+            label: Text('Type: ${_projectType().name}'),
           ),
           const SizedBox(height: 12),
           FilledButton(

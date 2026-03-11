@@ -17,14 +17,18 @@ import 'widgets/item_color_picker_sheet.dart';
 import 'widgets/move_project_task_sheet.dart';
 import 'widgets/project_list_view.dart';
 import 'widgets/select_project_stack_sheet.dart';
+import 'widgets/select_project_type_sheet.dart';
 import 'widgets/task_list_view.dart';
 
 enum _ProjectMenuAction {
   open,
   edit,
+  setType,
   setStack,
   setIcon,
   setColor,
+  archive,
+  restore,
   remove,
 }
 
@@ -56,6 +60,7 @@ class _TaskPageState extends State<TaskPage>
   late final List<TaskItem> _incomingTasks;
   late final List<ProjectItem> _projects;
   late final List<ProjectStack> _projectStacks;
+  late final List<ProjectTypeConfig> _projectTypes;
   final Map<int, String> _colorLabels = <int, String>{};
 
   late final TabController _tabController;
@@ -72,6 +77,7 @@ class _TaskPageState extends State<TaskPage>
     _incomingTasks = List<TaskItem>.from(_defaultState.incomingTasks);
     _projects = List<ProjectItem>.from(_defaultState.projects);
     _projectStacks = List<ProjectStack>.from(_defaultState.projectStacks);
+    _projectTypes = List<ProjectTypeConfig>.from(_defaultState.projectTypes);
 
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
@@ -115,20 +121,65 @@ class _TaskPageState extends State<TaskPage>
         .toList();
   }
 
-  ({List<ProjectItem> projects, List<ProjectStack> projectStacks})
-      _normalizeProjectsAndStacks({
+  List<ProjectTypeConfig> _cloneProjectTypes(
+    List<ProjectTypeConfig> projectTypes,
+  ) {
+    return projectTypes
+        .map((ProjectTypeConfig type) => type.clone())
+        .toList();
+  }
+
+  List<ProjectTypeConfig> _normalizeProjectTypes(
+    List<ProjectTypeConfig> projectTypes,
+  ) {
+    final Map<String, ProjectTypeConfig> providedById = <String, ProjectTypeConfig>{
+      for (final ProjectTypeConfig type in projectTypes) type.id: type.clone(),
+    };
+    final List<ProjectTypeConfig> normalized = <ProjectTypeConfig>[];
+    for (final ProjectTypeConfig defaultType in ProjectTypeConfig.defaults()) {
+      normalized.add(providedById.remove(defaultType.id) ?? defaultType);
+    }
+    normalized.addAll(providedById.values);
+    return normalized;
+  }
+
+  ({
+    List<ProjectItem> projects,
+    List<ProjectStack> projectStacks,
+    List<ProjectTypeConfig> projectTypes,
+  }) _normalizeProjectData({
     required List<ProjectItem> projects,
     required List<ProjectStack> projectStacks,
+    required List<ProjectTypeConfig> projectTypes,
   }) {
+    final List<ProjectTypeConfig> normalizedProjectTypes =
+        _normalizeProjectTypes(projectTypes);
     final Set<String> validStackIds = projectStacks
         .map((ProjectStack stack) => stack.id)
         .toSet();
+    final Set<String> validProjectTypeIds = normalizedProjectTypes
+        .map((ProjectTypeConfig type) => type.id)
+        .toSet();
     final List<ProjectItem> normalizedProjects = projects
         .map((ProjectItem project) {
-          if (project.stackId == null || validStackIds.contains(project.stackId)) {
+          final String? normalizedStackId =
+              project.stackId == null || validStackIds.contains(project.stackId)
+                  ? project.stackId
+                  : null;
+          final String? normalizedProjectTypeId = project.projectTypeId == null ||
+                  validProjectTypeIds.contains(project.projectTypeId)
+              ? project.projectTypeId
+              : ProjectTypeDefaults.blankId;
+          if (normalizedStackId == project.stackId &&
+              normalizedProjectTypeId == project.projectTypeId) {
             return project.clone();
           }
-          return project.copyWith(clearStack: true);
+          return project.copyWith(
+            stackId: normalizedStackId,
+            clearStack: normalizedStackId == null,
+            projectTypeId: normalizedProjectTypeId,
+            clearProjectType: normalizedProjectTypeId == null,
+          );
         })
         .toList(growable: false);
 
@@ -144,17 +195,23 @@ class _TaskPageState extends State<TaskPage>
     return (
       projects: normalizedProjects,
       projectStacks: normalizedStacks,
+      projectTypes: normalizedProjectTypes,
     );
   }
 
-  void _replaceProjectsAndStacks({
+  void _replaceProjectData({
     required List<ProjectItem> projects,
     required List<ProjectStack> projectStacks,
+    required List<ProjectTypeConfig> projectTypes,
   }) {
-    final ({List<ProjectItem> projects, List<ProjectStack> projectStacks})
-        normalized = _normalizeProjectsAndStacks(
+    final ({
+      List<ProjectItem> projects,
+      List<ProjectStack> projectStacks,
+      List<ProjectTypeConfig> projectTypes,
+    }) normalized = _normalizeProjectData(
       projects: projects,
       projectStacks: projectStacks,
+      projectTypes: projectTypes,
     );
     _projects
       ..clear()
@@ -162,6 +219,9 @@ class _TaskPageState extends State<TaskPage>
     _projectStacks
       ..clear()
       ..addAll(normalized.projectStacks);
+    _projectTypes
+      ..clear()
+      ..addAll(normalized.projectTypes);
   }
 
   ProjectItem? _projectById(String projectId) {
@@ -187,6 +247,61 @@ class _TaskPageState extends State<TaskPage>
       }
     }
     return null;
+  }
+
+  ProjectTypeConfig _projectTypeById(
+    String? projectTypeId, {
+    List<ProjectTypeConfig>? projectTypes,
+  }) {
+    final List<ProjectTypeConfig> source = projectTypes ?? _projectTypes;
+    final String targetId = (projectTypeId == null || projectTypeId.isEmpty)
+        ? ProjectTypeDefaults.blankId
+        : projectTypeId;
+    for (final ProjectTypeConfig type in source) {
+      if (type.id == targetId) {
+        return type;
+      }
+    }
+    return ProjectTypeConfig.defaults().first;
+  }
+
+  ProjectTypeConfig _projectTypeForProject(
+    ProjectItem project, {
+    List<ProjectTypeConfig>? projectTypes,
+  }) {
+    return _projectTypeById(
+      project.projectTypeId,
+      projectTypes: projectTypes,
+    );
+  }
+
+  List<ProjectItem> _taskCompatibleProjects({
+    required String currentProjectId,
+  }) {
+    return <ProjectItem>[
+      for (final ProjectItem project in _projects)
+        if (project.id != currentProjectId &&
+            !project.isArchived &&
+            _projectTypeForProject(project).supportsAnyTasks)
+          project
+    ];
+  }
+
+  TaskItem _taskAdjustedForProjectType(
+    TaskItem task,
+    ProjectTypeConfig projectType,
+  ) {
+    if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
+      return task.type == TaskItemType.thinking
+          ? task
+          : task.copyWith(type: TaskItemType.thinking);
+    }
+    if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
+      return task.type == TaskItemType.planning
+          ? task
+          : task.copyWith(type: TaskItemType.planning);
+    }
+    return task;
   }
 
   String? _resolveStackIdForSelection({
@@ -268,9 +383,35 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
-  void _reorderProjects(int oldIndex, int newIndex) {
+  void _reorderVisibleProjects(List<String> reorderedProjectIds) {
+    final Set<String> reorderedIdSet = reorderedProjectIds.toSet();
+    final Map<String, ProjectItem> activeProjectsById = <String, ProjectItem>{
+      for (final ProjectItem project in _projects)
+        if (!project.isArchived) project.id: project.clone(),
+    };
+    final List<ProjectItem> reorderedProjects = <ProjectItem>[
+      for (final String projectId in reorderedProjectIds)
+        if (activeProjectsById.containsKey(projectId))
+          activeProjectsById.remove(projectId)!,
+    ];
+    reorderedProjects.addAll(
+      _projects.where(
+        (ProjectItem project) =>
+            !project.isArchived && !reorderedIdSet.contains(project.id),
+      ),
+    );
+    reorderedProjects.addAll(
+      _projects
+          .where((ProjectItem project) => project.isArchived)
+          .map((ProjectItem project) => project.clone()),
+    );
+
     setState(() {
-      _reorderListItems<ProjectItem>(_projects, oldIndex, newIndex);
+      _replaceProjectData(
+        projects: reorderedProjects,
+        projectStacks: _cloneProjectStacks(_projectStacks),
+        projectTypes: _cloneProjectTypes(_projectTypes),
+      );
     });
     _persistState();
   }
@@ -458,10 +599,14 @@ class _TaskPageState extends State<TaskPage>
     List<TaskItem> sourceTasks,
     String taskId,
   ) async {
+    final List<ProjectItem> targetProjects = _taskCompatibleProjects(
+      currentProjectId: '',
+    );
     final String? targetProjectId = await showModalBottomSheet<String>(
       context: context,
       builder: (_) => MoveProjectTaskSheet(
-        projects: _projects,
+        projects: targetProjects,
+        projectTypes: _projectTypes,
         currentProjectId: '',
       ),
     );
@@ -482,7 +627,12 @@ class _TaskPageState extends State<TaskPage>
 
     setState(() {
       final TaskItem task = sourceTasks.removeAt(sourceTaskIndex);
-      _projects[targetProjectIndex].tasks.insert(0, task);
+      final ProjectItem targetProject = _projects[targetProjectIndex];
+      final TaskItem adjustedTask = _taskAdjustedForProjectType(
+        task,
+        _projectTypeForProject(targetProject),
+      );
+      _projects[targetProjectIndex].tasks.insert(0, adjustedTask);
     });
     _persistState();
   }
@@ -661,6 +811,11 @@ class _TaskPageState extends State<TaskPage>
                 onTap: () => Navigator.of(context).pop(_ProjectMenuAction.edit),
               ),
               ListTile(
+                leading: const Icon(Icons.label_outline),
+                title: const Text('Set project type'),
+                onTap: () => Navigator.of(context).pop(_ProjectMenuAction.setType),
+              ),
+              ListTile(
                 leading: const Icon(Icons.layers_outlined),
                 title: const Text('Set stack'),
                 onTap: () =>
@@ -671,6 +826,21 @@ class _TaskPageState extends State<TaskPage>
                 title: const Text('Set color'),
                 onTap: () =>
                     Navigator.of(context).pop(_ProjectMenuAction.setColor),
+              ),
+              ListTile(
+                leading: Icon(
+                  project.isArchived
+                      ? Icons.unarchive_outlined
+                      : Icons.archive_outlined,
+                ),
+                title: Text(
+                  project.isArchived ? 'Restore project' : 'Archive project',
+                ),
+                onTap: () => Navigator.of(context).pop(
+                  project.isArchived
+                      ? _ProjectMenuAction.restore
+                      : _ProjectMenuAction.archive,
+                ),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
@@ -701,6 +871,10 @@ class _TaskPageState extends State<TaskPage>
       await _editProject(projectId);
       return;
     }
+    if (action == _ProjectMenuAction.setType) {
+      await _setProjectType(projectId);
+      return;
+    }
     if (action == _ProjectMenuAction.setStack) {
       await _setProjectStack(projectId);
       return;
@@ -711,6 +885,14 @@ class _TaskPageState extends State<TaskPage>
     }
     if (action == _ProjectMenuAction.setColor) {
       await _setProjectColor(projectId);
+      return;
+    }
+    if (action == _ProjectMenuAction.archive) {
+      _archiveProject(projectId);
+      return;
+    }
+    if (action == _ProjectMenuAction.restore) {
+      _restoreProject(projectId);
       return;
     }
     if (action == _ProjectMenuAction.remove) {
@@ -807,6 +989,31 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
+  Future<void> _setProjectType(String projectId) async {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return;
+    }
+
+    final ProjectItem project = _projects[projectIndex];
+    final String? projectTypeId = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => SelectProjectTypeSheet(
+        projectTypes: _projectTypes,
+        currentProjectTypeId:
+            project.projectTypeId ?? ProjectTypeDefaults.blankId,
+      ),
+    );
+    if (!mounted || projectTypeId == null) {
+      return;
+    }
+
+    setState(() {
+      _projects[projectIndex] = project.copyWith(projectTypeId: projectTypeId);
+    });
+    _persistState();
+  }
+
   Future<void> _setProjectStack(String projectId) async {
     final int projectIndex = _indexOfProjectById(projectId);
     if (projectIndex < 0) {
@@ -833,6 +1040,8 @@ class _TaskPageState extends State<TaskPage>
 
     final List<ProjectItem> projects = _cloneProjects(_projects);
     final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final List<ProjectTypeConfig> projectTypes =
+        _cloneProjectTypes(_projectTypes);
     final String? stackId = _resolveStackIdForSelection(
       selection: selection,
       projectStacks: projectStacks,
@@ -844,9 +1053,10 @@ class _TaskPageState extends State<TaskPage>
     );
 
     setState(() {
-      _replaceProjectsAndStacks(
+      _replaceProjectData(
         projects: projects,
         projectStacks: projectStacks,
+        projectTypes: projectTypes,
       );
     });
     _persistState();
@@ -861,10 +1071,61 @@ class _TaskPageState extends State<TaskPage>
     setState(() {
       final List<ProjectItem> projects = _cloneProjects(_projects)
         ..removeAt(projectIndex);
-      _replaceProjectsAndStacks(
+      _replaceProjectData(
         projects: projects,
         projectStacks: _cloneProjectStacks(_projectStacks),
+        projectTypes: _cloneProjectTypes(_projectTypes),
       );
+    });
+    _persistState();
+  }
+
+  void _archiveProject(String projectId) {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return;
+    }
+
+    final ProjectItem archivedProject = _projects[projectIndex].clone();
+    if (archivedProject.isArchived) {
+      return;
+    }
+
+    setState(() {
+      _projects[projectIndex] = archivedProject.copyWith(isArchived: true);
+      _isReorderMode = false;
+    });
+    _persistState();
+    _showUndoTaskDeletion(
+      message: 'Project archived.',
+      onUndo: () {
+        final int currentIndex = _indexOfProjectById(projectId);
+        if (currentIndex < 0) {
+          return;
+        }
+        setState(() {
+          _projects[currentIndex] = _projects[currentIndex].copyWith(
+            isArchived: false,
+          );
+        });
+        _persistState();
+      },
+    );
+  }
+
+  void _restoreProject(String projectId) {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return;
+    }
+
+    final ProjectItem project = _projects[projectIndex];
+    if (!project.isArchived) {
+      return;
+    }
+
+    setState(() {
+      _projects[projectIndex] = project.copyWith(isArchived: false);
     });
     _persistState();
   }
@@ -961,6 +1222,7 @@ class _TaskPageState extends State<TaskPage>
       isScrollControlled: true,
       builder: (_) => AddProjectSheet(
         projectStacks: _projectStacks,
+        projectTypes: _projectTypes,
       ),
     );
 
@@ -970,6 +1232,8 @@ class _TaskPageState extends State<TaskPage>
 
     final List<ProjectItem> projects = _cloneProjects(_projects);
     final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final List<ProjectTypeConfig> projectTypes =
+        _cloneProjectTypes(_projectTypes);
     final String? stackId = _resolveStackIdForSelection(
       selection: result.stackSelection,
       projectStacks: projectStacks,
@@ -981,31 +1245,43 @@ class _TaskPageState extends State<TaskPage>
         ProjectItem(
           name: result.name,
           stackId: stackId,
+          projectTypeId: result.projectTypeId,
         ),
       );
-      _replaceProjectsAndStacks(
+      _replaceProjectData(
         projects: projects,
         projectStacks: projectStacks,
+        projectTypes: projectTypes,
       );
     });
     _persistState();
   }
 
-  Future<void> _stackProjectsTogether({
-    required String sourceProjectId,
-    required String targetProjectId,
+  Future<void> _stackProjectGroupsTogether({
+    required List<String> sourceProjectIds,
+    required List<String> targetProjectIds,
   }) async {
-    if (sourceProjectId == targetProjectId) {
+    final Set<String> combinedIds = <String>{
+      ...sourceProjectIds,
+      ...targetProjectIds,
+    };
+    if (combinedIds.length < 2) {
       return;
     }
 
-    final ProjectItem? sourceProject = _projectById(sourceProjectId);
-    final ProjectItem? targetProject = _projectById(targetProjectId);
-    if (sourceProject == null || targetProject == null) {
+    final List<ProjectItem> selectedProjects = combinedIds
+        .map(_projectById)
+        .whereType<ProjectItem>()
+        .toList(growable: false);
+    if (selectedProjects.length < 2) {
       return;
     }
 
-    final String? suggestedStackId = targetProject.stackId ?? sourceProject.stackId;
+    final String? suggestedStackId = selectedProjects
+        .map((ProjectItem project) => project.stackId)
+        .whereType<String>()
+        .cast<String?>()
+        .firstWhere((String? value) => value != null, orElse: () => null);
     final ProjectStackSelection initialSelection = suggestedStackId == null
         ? const ProjectStackSelection.createNew(stackName: '')
         : ProjectStackSelection.existing(stackId: suggestedStackId);
@@ -1028,6 +1304,8 @@ class _TaskPageState extends State<TaskPage>
 
     final List<ProjectItem> projects = _cloneProjects(_projects);
     final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final List<ProjectTypeConfig> projectTypes =
+        _cloneProjectTypes(_projectTypes);
     final String? stackId = _resolveStackIdForSelection(
       selection: selection,
       projectStacks: projectStacks,
@@ -1039,14 +1317,15 @@ class _TaskPageState extends State<TaskPage>
     setState(() {
       for (int index = 0; index < projects.length; index += 1) {
         final ProjectItem project = projects[index];
-        if (project.id != sourceProjectId && project.id != targetProjectId) {
+        if (!combinedIds.contains(project.id)) {
           continue;
         }
         projects[index] = project.copyWith(stackId: stackId);
       }
-      _replaceProjectsAndStacks(
+      _replaceProjectData(
         projects: projects,
         projectStacks: projectStacks,
+        projectTypes: projectTypes,
       );
     });
     _persistState();
@@ -1059,15 +1338,17 @@ class _TaskPageState extends State<TaskPage>
         builder: (_) => ProjectDetailPage(
           projectId: projectId,
           initialProjects: projectsSnapshot,
+          projectTypes: _cloneProjectTypes(_projectTypes),
           colorLabels: _colorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,
           onProjectsChanged: (List<ProjectItem> updatedProjects) {
             final List<ProjectItem> projectsCopy =
                 _cloneProjects(updatedProjects);
             setState(() {
-              _replaceProjectsAndStacks(
+              _replaceProjectData(
                 projects: projectsCopy,
                 projectStacks: _cloneProjectStacks(_projectStacks),
+                projectTypes: _cloneProjectTypes(_projectTypes),
               );
             });
             _persistState();
@@ -1090,9 +1371,10 @@ class _TaskPageState extends State<TaskPage>
           ..clear()
           ..addAll(persistedState.incomingTasks)
           ..addAll(persistedState.favoriteTasks);
-        _replaceProjectsAndStacks(
+        _replaceProjectData(
           projects: persistedState.projects,
           projectStacks: persistedState.projectStacks,
+          projectTypes: persistedState.projectTypes,
         );
         _colorLabels
           ..clear()
@@ -1170,6 +1452,9 @@ class _TaskPageState extends State<TaskPage>
       projectStacks: _projectStacks
           .map((ProjectStack stack) => stack.clone())
           .toList(),
+      projectTypes: _projectTypes
+          .map((ProjectTypeConfig type) => type.clone())
+          .toList(),
       colorLabels: Map<int, String>.from(_colorLabels),
       hideCompletedProjectItems: _hideCompletedProjectItems,
     );
@@ -1191,6 +1476,17 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
+  void _updateProjectTypes(List<ProjectTypeConfig> projectTypes) {
+    setState(() {
+      _replaceProjectData(
+        projects: _cloneProjects(_projects),
+        projectStacks: _cloneProjectStacks(_projectStacks),
+        projectTypes: _cloneProjectTypes(projectTypes),
+      );
+    });
+    _persistState();
+  }
+
   Future<String?> _importData(String rawJson) async {
     try {
       final TaskBoardState importedState = _taskStorage.import(rawJson);
@@ -1202,12 +1498,15 @@ class _TaskPageState extends State<TaskPage>
                 .map((TaskItem task) => task.clone())
                 .toList(),
           );
-        _replaceProjectsAndStacks(
+        _replaceProjectData(
           projects: importedState.projects
               .map((ProjectItem project) => project.clone())
               .toList(),
           projectStacks: importedState.projectStacks
               .map((ProjectStack stack) => stack.clone())
+              .toList(),
+          projectTypes: importedState.projectTypes
+              .map((ProjectTypeConfig type) => type.clone())
               .toList(),
         );
         _colorLabels
@@ -1231,6 +1530,8 @@ class _TaskPageState extends State<TaskPage>
           exportPlainText: () =>
               _taskStorage.exportPlainText(_createSnapshot()),
           onImportData: _importData,
+          projectTypes: _projectTypes,
+          onProjectTypesChanged: _updateProjectTypes,
           colorLabels: _colorLabels,
           onColorLabelsChanged: _updateColorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,
@@ -1297,20 +1598,23 @@ class _TaskPageState extends State<TaskPage>
           ProjectListView(
             projects: _projects,
             projectStacks: _projectStacks,
+            projectTypes: _projectTypes,
             isReorderMode: _isReorderMode,
-            onReorder: _reorderProjects,
+            onVisibleProjectOrderChanged: _reorderVisibleProjects,
             onProjectTap: (String projectId) async =>
                 _openProjectDetail(projectId),
+            onProjectArchive: _archiveProject,
+            onProjectRestore: _restoreProject,
             onProjectRemove: _deleteProject,
             onProjectLongPress: _openProjectMenu,
             onProjectOptionsTap: _openProjectMenu,
             onProjectStackDrop: (
-              String sourceProjectId,
-              String targetProjectId,
+              List<String> sourceProjectIds,
+              List<String> targetProjectIds,
             ) =>
-                _stackProjectsTogether(
-              sourceProjectId: sourceProjectId,
-              targetProjectId: targetProjectId,
+                _stackProjectGroupsTogether(
+              sourceProjectIds: sourceProjectIds,
+              targetProjectIds: targetProjectIds,
             ),
           ),
         ],

@@ -9,6 +9,8 @@ class ModelIds {
 
   static String newProjectStackId() => _newId('stack');
 
+  static String newProjectTypeId() => _newId('project-type');
+
   static String _newId(String prefix) {
     final int micros = DateTime.now().microsecondsSinceEpoch;
     _counter += 1;
@@ -137,6 +139,7 @@ class TaskItem {
     String? body,
     this.colorValue,
     TaskItemType? type,
+    this.isArchived = false,
     this.iconKey,
     List<SubTaskItem>? subtasks,
   })  : id = id ?? ModelIds.newTaskId(),
@@ -149,6 +152,7 @@ class TaskItem {
   final String body;
   final int? colorValue;
   final TaskItemType type;
+  final bool isArchived;
   final String? iconKey;
   final List<SubTaskItem> subtasks;
 
@@ -159,6 +163,7 @@ class TaskItem {
       body: body,
       colorValue: colorValue,
       type: type,
+      isArchived: isArchived,
       iconKey: iconKey,
       subtasks: subtasks.map((SubTaskItem item) => item.clone()).toList(),
     );
@@ -171,6 +176,7 @@ class TaskItem {
     int? colorValue,
     bool clearColor = false,
     TaskItemType? type,
+    bool? isArchived,
     String? iconKey,
     bool clearIcon = false,
     List<SubTaskItem>? subtasks,
@@ -181,6 +187,7 @@ class TaskItem {
       body: body ?? this.body,
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       type: type ?? this.type,
+      isArchived: isArchived ?? this.isArchived,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
       subtasks: subtasks ??
           this.subtasks.map((SubTaskItem item) => item.clone()).toList(),
@@ -194,6 +201,7 @@ class TaskItem {
       'body': body,
       'color': colorValue,
       'type': type.name,
+      'archived': isArchived,
       'icon': iconKey,
       'subtasks': subtasks.map((SubTaskItem item) => item.toJson()).toList(),
     };
@@ -205,6 +213,7 @@ class TaskItem {
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
     final TaskItemType type = TaskItemType.fromJsonValue(json['type']);
+    final bool isArchived = _readOptionalBool(json, 'archived');
     final String? iconKey = _readOptionalTrimmedString(json, 'icon');
     final List<dynamic> subtaskJson = _readOptionalList(json, 'subtasks');
 
@@ -214,6 +223,7 @@ class TaskItem {
       body: body ?? '',
       colorValue: colorValue,
       type: type,
+      isArchived: isArchived,
       iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
       subtasks: subtaskJson
           .map(
@@ -236,7 +246,9 @@ class ProjectItem {
     String? body,
     this.colorValue,
     this.iconKey,
+    this.isArchived = false,
     this.stackId,
+    this.projectTypeId,
     List<TaskItem>? tasks,
   })  : id = id ?? ModelIds.newProjectId(),
         body = body ?? '',
@@ -247,7 +259,9 @@ class ProjectItem {
   final String body;
   final int? colorValue;
   final String? iconKey;
+  final bool isArchived;
   final String? stackId;
+  final String? projectTypeId;
   final List<TaskItem> tasks;
 
   ProjectItem clone() {
@@ -257,7 +271,9 @@ class ProjectItem {
       body: body,
       colorValue: colorValue,
       iconKey: iconKey,
+      isArchived: isArchived,
       stackId: stackId,
+      projectTypeId: projectTypeId,
       tasks: tasks.map((TaskItem item) => item.clone()).toList(),
     );
   }
@@ -270,8 +286,11 @@ class ProjectItem {
     bool clearColor = false,
     String? iconKey,
     bool clearIcon = false,
+    bool? isArchived,
     String? stackId,
     bool clearStack = false,
+    String? projectTypeId,
+    bool clearProjectType = false,
     List<TaskItem>? tasks,
   }) {
     return ProjectItem(
@@ -280,7 +299,10 @@ class ProjectItem {
       body: body ?? this.body,
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      isArchived: isArchived ?? this.isArchived,
       stackId: clearStack ? null : (stackId ?? this.stackId),
+      projectTypeId:
+          clearProjectType ? null : (projectTypeId ?? this.projectTypeId),
       tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
     );
   }
@@ -292,7 +314,9 @@ class ProjectItem {
       'body': body,
       'color': colorValue,
       'icon': iconKey,
+      'archived': isArchived,
       'stackId': stackId,
+      'projectTypeId': projectTypeId,
       'tasks': tasks.map((TaskItem item) => item.toJson()).toList(),
     };
   }
@@ -303,7 +327,10 @@ class ProjectItem {
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
     final String? iconKey = _readOptionalTrimmedString(json, 'icon');
+    final bool isArchived = _readOptionalBool(json, 'archived');
     final String? stackId = _readOptionalTrimmedString(json, 'stackId');
+    final String? projectTypeId =
+        _readOptionalTrimmedString(json, 'projectTypeId');
     final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
 
     return ProjectItem(
@@ -312,7 +339,11 @@ class ProjectItem {
       body: body ?? '',
       colorValue: colorValue,
       iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
+      isArchived: isArchived,
       stackId: stackId == null || stackId.isEmpty ? null : stackId,
+      projectTypeId: projectTypeId == null || projectTypeId.isEmpty
+          ? null
+          : projectTypeId,
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(
@@ -371,12 +402,121 @@ class ProjectStack {
   }
 }
 
+class ProjectTypeDefaults {
+  static const String blankId = 'project-type-blank';
+  static const String projectId = 'project-type-project';
+  static const String ideasId = 'project-type-ideas';
+  static const String knowledgeId = 'project-type-knowledge';
+}
+
+class ProjectTypeConfig {
+  const ProjectTypeConfig({
+    required this.id,
+    required this.name,
+    this.iconKey,
+    required this.showsPlanningTasks,
+    required this.showsIdeas,
+  });
+
+  final String id;
+  final String name;
+  final String? iconKey;
+  final bool showsPlanningTasks;
+  final bool showsIdeas;
+
+  ProjectTypeConfig clone() {
+    return ProjectTypeConfig(
+      id: id,
+      name: name,
+      iconKey: iconKey,
+      showsPlanningTasks: showsPlanningTasks,
+      showsIdeas: showsIdeas,
+    );
+  }
+
+  ProjectTypeConfig copyWith({
+    String? id,
+    String? name,
+    String? iconKey,
+    bool clearIcon = false,
+    bool? showsPlanningTasks,
+    bool? showsIdeas,
+  }) {
+    return ProjectTypeConfig(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      showsPlanningTasks: showsPlanningTasks ?? this.showsPlanningTasks,
+      showsIdeas: showsIdeas ?? this.showsIdeas,
+    );
+  }
+
+  bool get supportsAnyTasks => showsPlanningTasks || showsIdeas;
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'name': name,
+      'icon': iconKey,
+      'showsPlanningTasks': showsPlanningTasks,
+      'showsIdeas': showsIdeas,
+    };
+  }
+
+  factory ProjectTypeConfig.fromJson(Map<String, dynamic> json) {
+    final String id = _readRequiredString(json, 'id');
+    final String name = _readRequiredString(json, 'name');
+    final String? iconKey = _readOptionalTrimmedString(json, 'icon');
+
+    return ProjectTypeConfig(
+      id: id,
+      name: name,
+      iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
+      showsPlanningTasks: _readOptionalBool(json, 'showsPlanningTasks'),
+      showsIdeas: _readOptionalBool(json, 'showsIdeas'),
+    );
+  }
+
+  static List<ProjectTypeConfig> defaults() {
+    return const <ProjectTypeConfig>[
+      ProjectTypeConfig(
+        id: ProjectTypeDefaults.blankId,
+        name: 'Blank',
+        showsPlanningTasks: false,
+        showsIdeas: false,
+      ),
+      ProjectTypeConfig(
+        id: ProjectTypeDefaults.projectId,
+        name: 'Project',
+        iconKey: 'folder-open',
+        showsPlanningTasks: true,
+        showsIdeas: true,
+      ),
+      ProjectTypeConfig(
+        id: ProjectTypeDefaults.ideasId,
+        name: 'Ideas',
+        iconKey: 'lightbulb',
+        showsPlanningTasks: false,
+        showsIdeas: true,
+      ),
+      ProjectTypeConfig(
+        id: ProjectTypeDefaults.knowledgeId,
+        name: 'Knowledge',
+        iconKey: 'book-open',
+        showsPlanningTasks: false,
+        showsIdeas: true,
+      ),
+    ];
+  }
+}
+
 class TaskBoardState {
   const TaskBoardState({
     required this.incomingTasks,
     required this.favoriteTasks,
     required this.projects,
     required this.projectStacks,
+    required this.projectTypes,
     required this.colorLabels,
     required this.hideCompletedProjectItems,
   });
@@ -385,6 +525,7 @@ class TaskBoardState {
   final List<TaskItem> favoriteTasks;
   final List<ProjectItem> projects;
   final List<ProjectStack> projectStacks;
+  final List<ProjectTypeConfig> projectTypes;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
 
@@ -397,6 +538,8 @@ class TaskBoardState {
       projects: projects.map((ProjectItem project) => project.clone()).toList(),
       projectStacks:
           projectStacks.map((ProjectStack stack) => stack.clone()).toList(),
+      projectTypes:
+          projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
       colorLabels: Map<int, String>.from(colorLabels),
       hideCompletedProjectItems: hideCompletedProjectItems,
     );
@@ -416,6 +559,7 @@ class TaskBoardState {
       projects: <ProjectItem>[
         ProjectItem(
           name: 'Morning Routine',
+          projectTypeId: ProjectTypeDefaults.projectId,
           body: 'A lightweight weekday reset that gets the day started before messages and meetings take over.',
           iconKey: 'sun',
           tasks: <TaskItem>[
@@ -475,6 +619,7 @@ class TaskBoardState {
         ),
         ProjectItem(
           name: 'Stress Reset',
+          projectTypeId: ProjectTypeDefaults.projectId,
           body: 'A toolkit for catching overload earlier and responding before it spills into the rest of the day.',
           iconKey: 'heart',
           tasks: <TaskItem>[
@@ -539,6 +684,7 @@ class TaskBoardState {
         ),
         ProjectItem(
           name: 'Sleep Wind-Down',
+          projectTypeId: ProjectTypeDefaults.projectId,
           body: 'Reduce late-evening stimulation and make sleep onset more predictable.',
           iconKey: 'moon',
           tasks: <TaskItem>[
@@ -598,6 +744,7 @@ class TaskBoardState {
         ),
       ],
       projectStacks: <ProjectStack>[],
+      projectTypes: ProjectTypeConfig.defaults(),
       colorLabels: <int, String>{},
       hideCompletedProjectItems: false,
     );
@@ -613,6 +760,8 @@ class TaskBoardState {
           projects.map((ProjectItem project) => project.toJson()).toList(),
       'projectStacks':
           projectStacks.map((ProjectStack stack) => stack.toJson()).toList(),
+      'projectTypes':
+          projectTypes.map((ProjectTypeConfig type) => type.toJson()).toList(),
       'colorLabels': colorLabels.map(
         (int colorValue, String label) =>
             MapEntry<String, String>(colorValue.toString(), label),
@@ -627,6 +776,8 @@ class TaskBoardState {
     final List<dynamic> projectJson = _readOptionalList(json, 'projects');
     final List<dynamic> projectStackJson =
         _readOptionalList(json, 'projectStacks');
+    final List<dynamic> projectTypeJson =
+        _readOptionalList(json, 'projectTypes');
     final Map<int, String> colorLabels = _readColorLabelMap(
       json,
       'colorLabels',
@@ -669,6 +820,16 @@ class TaskBoardState {
               _mapFromDynamic(
                 item: item,
                 fieldPath: 'projectStacks[]',
+              ),
+            ),
+          )
+          .toList(),
+      projectTypes: projectTypeJson
+          .map(
+            (dynamic item) => ProjectTypeConfig.fromJson(
+              _mapFromDynamic(
+                item: item,
+                fieldPath: 'projectTypes[]',
               ),
             ),
           )

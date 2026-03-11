@@ -1,22 +1,38 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import 'item_icon_picker_sheet.dart';
 
 class MoveProjectTaskSheet extends StatelessWidget {
   const MoveProjectTaskSheet({
     super.key,
     required this.projects,
+    required this.projectTypes,
     required this.currentProjectId,
   });
 
   final List<ProjectItem> projects;
+  final List<ProjectTypeConfig> projectTypes;
   final String currentProjectId;
+
+  ProjectTypeConfig _projectTypeFor(ProjectItem project) {
+    final String targetId =
+        project.projectTypeId ?? ProjectTypeDefaults.blankId;
+    for (final ProjectTypeConfig type in projectTypes) {
+      if (type.id == targetId) {
+        return type;
+      }
+    }
+    return ProjectTypeConfig.defaults().first;
+  }
 
   @override
   Widget build(BuildContext context) {
     final List<ProjectItem> targetProjects = <ProjectItem>[
       for (final ProjectItem project in projects)
-        if (project.id != currentProjectId) project,
+        if (project.id != currentProjectId &&
+            _projectTypeFor(project).supportsAnyTasks)
+          project,
     ];
 
     if (targetProjects.isEmpty) {
@@ -41,7 +57,11 @@ class MoveProjectTaskSheet extends StatelessWidget {
           const Divider(height: 1),
           for (final ProjectItem targetProject in targetProjects)
             ListTile(
-              leading: const Icon(Icons.folder_outlined),
+              leading: Icon(
+                iconDataForKey(targetProject.iconKey) ??
+                    iconDataForKey(_projectTypeFor(targetProject).iconKey) ??
+                    Icons.folder_outlined,
+              ),
               title: Text(targetProject.name),
               subtitle: Text(
                 '${targetProject.tasks.length} task${targetProject.tasks.length == 1 ? '' : 's'}',

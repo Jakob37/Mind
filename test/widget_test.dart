@@ -43,6 +43,10 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Breathwork');
+    await tester.tap(find.text('Type: Blank'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Project'));
+    await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
     await tester.pumpAndSettle();
     expect(find.text('Breathwork'), findsOneWidget);
@@ -191,8 +195,9 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('10'), findsWidgets);
+    expect(find.textContaining('12'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
+    expect(find.text('Save JSON to Folder'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
   });
 
@@ -245,6 +250,48 @@ void main() {
     expect(find.text('Focus Stack'), findsOneWidget);
     expect(find.text('Studio'), findsOneWidget);
     expect(find.text('Research'), findsOneWidget);
+
+    await tester.tap(find.text('Focus Stack'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Studio'), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Research'), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Focus Stack'), findsOneWidget);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Archive');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Archive'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Enter drag mode'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Focus Stack'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Archive'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Studio'), findsNothing);
+    expect(find.widgetWithText(ListTile, 'Research'), findsNothing);
+    await tester.tap(find.byTooltip('Done reordering'));
+    await tester.pumpAndSettle();
+
+    final Finder collapsedStackTile = find.widgetWithText(ListTile, 'Focus Stack');
+    final Finder archiveTile = find.widgetWithText(ListTile, 'Archive');
+    final TestGesture stackGesture =
+        await tester.startGesture(tester.getCenter(collapsedStackTile));
+    await tester.pump(kLongPressTimeout);
+    await stackGesture.moveTo(tester.getCenter(archiveTile));
+    await tester.pump();
+    await stackGesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create or Select Stack'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Group Projects'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Focus Stack'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'Studio'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Research'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Archive'), findsOneWidget);
   });
 
   testWidgets('uses custom color labels from settings in color picker',
@@ -252,6 +299,8 @@ void main() {
     await tester.pumpWidget(const MindApp());
 
     await tester.tap(find.byTooltip('Open settings'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).first, const Offset(0, -300));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ListTile, 'Coral'));
     await tester.pumpAndSettle();
@@ -509,6 +558,59 @@ void main() {
     expect(find.text('Sit for 10 minutes in silence'), findsOneWidget);
   });
 
+  testWidgets('swipe right archives and restores project tasks and projects',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Shape a calm start sequence'),
+      const Offset(600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Shape a calm start sequence'), findsNothing);
+    expect(find.text('Archived'), findsOneWidget);
+
+    await tester.tap(find.text('Archived'));
+    await tester.pumpAndSettle();
+    expect(find.text('Shape a calm start sequence'), findsOneWidget);
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Shape a calm start sequence'),
+      const Offset(600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Shape a calm start sequence'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Morning Routine'),
+      const Offset(600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Archived projects'), findsOneWidget);
+    expect(find.text('Morning Routine'), findsNothing);
+
+    await tester.tap(find.text('Archived projects'));
+    await tester.pumpAndSettle();
+    expect(find.text('Morning Routine'), findsOneWidget);
+
+    await tester.ensureVisible(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+    await tester.drag(
+      find.widgetWithText(ListTile, 'Morning Routine'),
+      const Offset(600, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Morning Routine'), findsOneWidget);
+  });
+
   testWidgets('deletes projects and sets colors from context menu',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
@@ -528,6 +630,8 @@ void main() {
         matching: find.byTooltip('Project options'),
       ),
     );
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).last, const Offset(0, -200));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove project'));
     await tester.pumpAndSettle();
@@ -586,6 +690,38 @@ void main() {
     expect(taskCard.color, const Color(0xFFFFCDD2));
   });
 
+  testWidgets('project types can be configured and change new project behavior',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.byTooltip('Open settings'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Blank'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Show tasks section'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Project Type'));
+    await tester.pumpAndSettle();
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Reference');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Reference'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Planning (action items)'), findsOneWidget);
+    expect(find.text('Thinking (ideas)'), findsNothing);
+    expect(find.byTooltip('Add project task'), findsOneWidget);
+  });
+
   testWidgets('migrates versioned v2 payload and adds stable IDs',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
@@ -621,7 +757,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('10'), findsWidgets);
+    expect(find.textContaining('12'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -669,7 +805,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('10'), findsWidgets);
+    expect(find.textContaining('12'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });
