@@ -7,6 +7,8 @@ class ModelIds {
 
   static String newProjectId() => _newId('project');
 
+  static String newProjectStackId() => _newId('stack');
+
   static String _newId(String prefix) {
     final int micros = DateTime.now().microsecondsSinceEpoch;
     _counter += 1;
@@ -234,6 +236,7 @@ class ProjectItem {
     String? body,
     this.colorValue,
     this.iconKey,
+    this.stackId,
     List<TaskItem>? tasks,
   })  : id = id ?? ModelIds.newProjectId(),
         body = body ?? '',
@@ -244,6 +247,7 @@ class ProjectItem {
   final String body;
   final int? colorValue;
   final String? iconKey;
+  final String? stackId;
   final List<TaskItem> tasks;
 
   ProjectItem clone() {
@@ -253,6 +257,7 @@ class ProjectItem {
       body: body,
       colorValue: colorValue,
       iconKey: iconKey,
+      stackId: stackId,
       tasks: tasks.map((TaskItem item) => item.clone()).toList(),
     );
   }
@@ -265,6 +270,8 @@ class ProjectItem {
     bool clearColor = false,
     String? iconKey,
     bool clearIcon = false,
+    String? stackId,
+    bool clearStack = false,
     List<TaskItem>? tasks,
   }) {
     return ProjectItem(
@@ -273,6 +280,7 @@ class ProjectItem {
       body: body ?? this.body,
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      stackId: clearStack ? null : (stackId ?? this.stackId),
       tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
     );
   }
@@ -284,6 +292,7 @@ class ProjectItem {
       'body': body,
       'color': colorValue,
       'icon': iconKey,
+      'stackId': stackId,
       'tasks': tasks.map((TaskItem item) => item.toJson()).toList(),
     };
   }
@@ -294,6 +303,7 @@ class ProjectItem {
     final String? body = _readOptionalTrimmedString(json, 'body');
     final int? colorValue = _readOptionalInt(json, 'color');
     final String? iconKey = _readOptionalTrimmedString(json, 'icon');
+    final String? stackId = _readOptionalTrimmedString(json, 'stackId');
     final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
 
     return ProjectItem(
@@ -302,6 +312,7 @@ class ProjectItem {
       body: body ?? '',
       colorValue: colorValue,
       iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
+      stackId: stackId == null || stackId.isEmpty ? null : stackId,
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(
@@ -316,11 +327,56 @@ class ProjectItem {
   }
 }
 
+class ProjectStack {
+  ProjectStack({
+    String? id,
+    required this.name,
+  }) : id = id ?? ModelIds.newProjectStackId();
+
+  final String id;
+  final String name;
+
+  ProjectStack clone() {
+    return ProjectStack(
+      id: id,
+      name: name,
+    );
+  }
+
+  ProjectStack copyWith({
+    String? id,
+    String? name,
+  }) {
+    return ProjectStack(
+      id: id ?? this.id,
+      name: name ?? this.name,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'name': name,
+    };
+  }
+
+  factory ProjectStack.fromJson(Map<String, dynamic> json) {
+    final String name = _readRequiredString(json, 'name');
+    final String? id = _readOptionalTrimmedString(json, 'id');
+
+    return ProjectStack(
+      id: id == null || id.isEmpty ? null : id,
+      name: name,
+    );
+  }
+}
+
 class TaskBoardState {
   const TaskBoardState({
     required this.incomingTasks,
     required this.favoriteTasks,
     required this.projects,
+    required this.projectStacks,
     required this.colorLabels,
     required this.hideCompletedProjectItems,
   });
@@ -328,6 +384,7 @@ class TaskBoardState {
   final List<TaskItem> incomingTasks;
   final List<TaskItem> favoriteTasks;
   final List<ProjectItem> projects;
+  final List<ProjectStack> projectStacks;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
 
@@ -338,6 +395,8 @@ class TaskBoardState {
       favoriteTasks:
           favoriteTasks.map((TaskItem task) => task.clone()).toList(),
       projects: projects.map((ProjectItem project) => project.clone()).toList(),
+      projectStacks:
+          projectStacks.map((ProjectStack stack) => stack.clone()).toList(),
       colorLabels: Map<int, String>.from(colorLabels),
       hideCompletedProjectItems: hideCompletedProjectItems,
     );
@@ -538,6 +597,7 @@ class TaskBoardState {
           ],
         ),
       ],
+      projectStacks: <ProjectStack>[],
       colorLabels: <int, String>{},
       hideCompletedProjectItems: false,
     );
@@ -551,6 +611,8 @@ class TaskBoardState {
           favoriteTasks.map((TaskItem task) => task.toJson()).toList(),
       'projects':
           projects.map((ProjectItem project) => project.toJson()).toList(),
+      'projectStacks':
+          projectStacks.map((ProjectStack stack) => stack.toJson()).toList(),
       'colorLabels': colorLabels.map(
         (int colorValue, String label) =>
             MapEntry<String, String>(colorValue.toString(), label),
@@ -563,6 +625,8 @@ class TaskBoardState {
     final List<dynamic> incomingJson = _readOptionalList(json, 'incomingTasks');
     final List<dynamic> favoriteJson = _readOptionalList(json, 'favoriteTasks');
     final List<dynamic> projectJson = _readOptionalList(json, 'projects');
+    final List<dynamic> projectStackJson =
+        _readOptionalList(json, 'projectStacks');
     final Map<int, String> colorLabels = _readColorLabelMap(
       json,
       'colorLabels',
@@ -595,6 +659,16 @@ class TaskBoardState {
               _mapFromDynamic(
                 item: item,
                 fieldPath: 'projects[]',
+              ),
+            ),
+          )
+          .toList(),
+      projectStacks: projectStackJson
+          .map(
+            (dynamic item) => ProjectStack.fromJson(
+              _mapFromDynamic(
+                item: item,
+                fieldPath: 'projectStacks[]',
               ),
             ),
           )

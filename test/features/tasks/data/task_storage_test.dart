@@ -143,6 +143,7 @@ void main() {
       ],
       favoriteTasks: const <TaskItem>[],
       projects: const <ProjectItem>[],
+      projectStacks: const <ProjectStack>[],
       colorLabels: const <int, String>{
         4294951112: 'Warm',
       },
@@ -157,7 +158,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 9);
+    expect(decoded['version'], 10);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -183,6 +184,7 @@ void main() {
       ],
       favoriteTasks: const <TaskItem>[],
       projects: const <ProjectItem>[],
+      projectStacks: const <ProjectStack>[],
       colorLabels: const <int, String>{},
       hideCompletedProjectItems: false,
     );
@@ -195,8 +197,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 9,'), isTrue);
-    expect(decoded['version'], 9);
+    expect(exported.contains('\n  "version": 10,'), isTrue);
+    expect(decoded['version'], 10);
     expect(firstIncoming['type'], 'planning');
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));
@@ -219,6 +221,7 @@ void main() {
         ProjectItem(
           id: 'project-1',
           name: 'Imported project',
+          stackId: 'stack-1',
           tasks: <TaskItem>[
             TaskItem(
               id: 'task-2',
@@ -234,6 +237,12 @@ void main() {
           ],
         ),
       ],
+      projectStacks: <ProjectStack>[
+        ProjectStack(
+          id: 'stack-1',
+          name: 'Imported stack',
+        ),
+      ],
       colorLabels: const <int, String>{4294951112: 'Warm'},
       hideCompletedProjectItems: true,
     );
@@ -244,6 +253,8 @@ void main() {
     expect(imported.incomingTasks.single.title, 'Imported incoming');
     expect(imported.incomingTasks.single.type, TaskItemType.thinking);
     expect(imported.projects.single.name, 'Imported project');
+    expect(imported.projects.single.stackId, 'stack-1');
+    expect(imported.projectStacks.single.name, 'Imported stack');
     expect(
       imported.projects.single.tasks.single.subtasks.single.title,
       'Imported child',

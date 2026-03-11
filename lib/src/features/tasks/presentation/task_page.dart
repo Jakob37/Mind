@@ -16,11 +16,13 @@ import 'widgets/item_icon_picker_sheet.dart';
 import 'widgets/item_color_picker_sheet.dart';
 import 'widgets/move_project_task_sheet.dart';
 import 'widgets/project_list_view.dart';
+import 'widgets/select_project_stack_sheet.dart';
 import 'widgets/task_list_view.dart';
 
 enum _ProjectMenuAction {
   open,
   edit,
+  setStack,
   setIcon,
   setColor,
   remove,
@@ -53,6 +55,7 @@ class _TaskPageState extends State<TaskPage>
 
   late final List<TaskItem> _incomingTasks;
   late final List<ProjectItem> _projects;
+  late final List<ProjectStack> _projectStacks;
   final Map<int, String> _colorLabels = <int, String>{};
 
   late final TabController _tabController;
@@ -68,6 +71,7 @@ class _TaskPageState extends State<TaskPage>
     super.initState();
     _incomingTasks = List<TaskItem>.from(_defaultState.incomingTasks);
     _projects = List<ProjectItem>.from(_defaultState.projects);
+    _projectStacks = List<ProjectStack>.from(_defaultState.projectStacks);
 
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
@@ -102,7 +106,115 @@ class _TaskPageState extends State<TaskPage>
   List<ProjectItem> _cloneProjects(List<ProjectItem> projects) {
     return projects
         .map((ProjectItem project) => project.clone())
+        .toList();
+  }
+
+  List<ProjectStack> _cloneProjectStacks(List<ProjectStack> projectStacks) {
+    return projectStacks
+        .map((ProjectStack stack) => stack.clone())
+        .toList();
+  }
+
+  ({List<ProjectItem> projects, List<ProjectStack> projectStacks})
+      _normalizeProjectsAndStacks({
+    required List<ProjectItem> projects,
+    required List<ProjectStack> projectStacks,
+  }) {
+    final Set<String> validStackIds = projectStacks
+        .map((ProjectStack stack) => stack.id)
+        .toSet();
+    final List<ProjectItem> normalizedProjects = projects
+        .map((ProjectItem project) {
+          if (project.stackId == null || validStackIds.contains(project.stackId)) {
+            return project.clone();
+          }
+          return project.copyWith(clearStack: true);
+        })
         .toList(growable: false);
+
+    final Set<String> referencedStackIds = normalizedProjects
+        .map((ProjectItem project) => project.stackId)
+        .whereType<String>()
+        .toSet();
+    final List<ProjectStack> normalizedStacks = projectStacks
+        .where((ProjectStack stack) => referencedStackIds.contains(stack.id))
+        .map((ProjectStack stack) => stack.clone())
+        .toList(growable: false);
+
+    return (
+      projects: normalizedProjects,
+      projectStacks: normalizedStacks,
+    );
+  }
+
+  void _replaceProjectsAndStacks({
+    required List<ProjectItem> projects,
+    required List<ProjectStack> projectStacks,
+  }) {
+    final ({List<ProjectItem> projects, List<ProjectStack> projectStacks})
+        normalized = _normalizeProjectsAndStacks(
+      projects: projects,
+      projectStacks: projectStacks,
+    );
+    _projects
+      ..clear()
+      ..addAll(normalized.projects);
+    _projectStacks
+      ..clear()
+      ..addAll(normalized.projectStacks);
+  }
+
+  ProjectItem? _projectById(String projectId) {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return null;
+    }
+    return _projects[projectIndex];
+  }
+
+  ProjectStack? _projectStackByName(
+    List<ProjectStack> projectStacks,
+    String stackName,
+  ) {
+    final String normalizedName = stackName.trim().toLowerCase();
+    if (normalizedName.isEmpty) {
+      return null;
+    }
+
+    for (final ProjectStack stack in projectStacks) {
+      if (stack.name.trim().toLowerCase() == normalizedName) {
+        return stack;
+      }
+    }
+    return null;
+  }
+
+  String? _resolveStackIdForSelection({
+    required ProjectStackSelection selection,
+    required List<ProjectStack> projectStacks,
+  }) {
+    if (selection.mode == ProjectStackSelectionMode.none) {
+      return null;
+    }
+    if (selection.mode == ProjectStackSelectionMode.existing) {
+      return selection.stackId;
+    }
+
+    final String stackName = selection.stackName?.trim() ?? '';
+    if (stackName.isEmpty) {
+      return null;
+    }
+    final ProjectStack? existingStack = _projectStackByName(
+      projectStacks,
+      stackName,
+    );
+    if (existingStack != null) {
+      return existingStack.id;
+    }
+
+    final ProjectStack newStack = ProjectStack(name: stackName);
+    projectStacks.insert(0, newStack);
+    return newStack.id;
   }
 
   void _enterReorderMode() {
@@ -549,6 +661,12 @@ class _TaskPageState extends State<TaskPage>
                 onTap: () => Navigator.of(context).pop(_ProjectMenuAction.edit),
               ),
               ListTile(
+                leading: const Icon(Icons.layers_outlined),
+                title: const Text('Set stack'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setStack),
+              ),
+              ListTile(
                 leading: const Icon(Icons.palette_outlined),
                 title: const Text('Set color'),
                 onTap: () =>
@@ -581,6 +699,10 @@ class _TaskPageState extends State<TaskPage>
     }
     if (action == _ProjectMenuAction.edit) {
       await _editProject(projectId);
+      return;
+    }
+    if (action == _ProjectMenuAction.setStack) {
+      await _setProjectStack(projectId);
       return;
     }
     if (action == _ProjectMenuAction.setIcon) {
@@ -685,6 +807,51 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
+  Future<void> _setProjectStack(String projectId) async {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return;
+    }
+
+    final ProjectItem project = _projects[projectIndex];
+    final ProjectStackSelection initialSelection = project.stackId == null
+        ? const ProjectStackSelection.none()
+        : ProjectStackSelection.existing(stackId: project.stackId!);
+    final ProjectStackSelection? selection =
+        await showModalBottomSheet<ProjectStackSelection>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SelectProjectStackSheet(
+        projectStacks: _projectStacks,
+        initialSelection: initialSelection,
+      ),
+    );
+
+    if (!mounted || selection == null) {
+      return;
+    }
+
+    final List<ProjectItem> projects = _cloneProjects(_projects);
+    final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final String? stackId = _resolveStackIdForSelection(
+      selection: selection,
+      projectStacks: projectStacks,
+    );
+
+    projects[projectIndex] = project.copyWith(
+      stackId: stackId,
+      clearStack: stackId == null,
+    );
+
+    setState(() {
+      _replaceProjectsAndStacks(
+        projects: projects,
+        projectStacks: projectStacks,
+      );
+    });
+    _persistState();
+  }
+
   void _deleteProject(String projectId) {
     final int projectIndex = _indexOfProjectById(projectId);
     if (projectIndex < 0) {
@@ -692,7 +859,12 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      _projects.removeAt(projectIndex);
+      final List<ProjectItem> projects = _cloneProjects(_projects)
+        ..removeAt(projectIndex);
+      _replaceProjectsAndStacks(
+        projects: projects,
+        projectStacks: _cloneProjectStacks(_projectStacks),
+      );
     });
     _persistState();
   }
@@ -784,18 +956,98 @@ class _TaskPageState extends State<TaskPage>
   }
 
   Future<void> _openAddProjectWidget() async {
-    final String? newProjectName = await showModalBottomSheet<String>(
+    final AddProjectResult? result = await showModalBottomSheet<AddProjectResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const AddProjectSheet(),
+      builder: (_) => AddProjectSheet(
+        projectStacks: _projectStacks,
+      ),
     );
 
-    if (newProjectName == null) {
+    if (result == null) {
+      return;
+    }
+
+    final List<ProjectItem> projects = _cloneProjects(_projects);
+    final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final String? stackId = _resolveStackIdForSelection(
+      selection: result.stackSelection,
+      projectStacks: projectStacks,
+    );
+
+    setState(() {
+      projects.insert(
+        0,
+        ProjectItem(
+          name: result.name,
+          stackId: stackId,
+        ),
+      );
+      _replaceProjectsAndStacks(
+        projects: projects,
+        projectStacks: projectStacks,
+      );
+    });
+    _persistState();
+  }
+
+  Future<void> _stackProjectsTogether({
+    required String sourceProjectId,
+    required String targetProjectId,
+  }) async {
+    if (sourceProjectId == targetProjectId) {
+      return;
+    }
+
+    final ProjectItem? sourceProject = _projectById(sourceProjectId);
+    final ProjectItem? targetProject = _projectById(targetProjectId);
+    if (sourceProject == null || targetProject == null) {
+      return;
+    }
+
+    final String? suggestedStackId = targetProject.stackId ?? sourceProject.stackId;
+    final ProjectStackSelection initialSelection = suggestedStackId == null
+        ? const ProjectStackSelection.createNew(stackName: '')
+        : ProjectStackSelection.existing(stackId: suggestedStackId);
+    final ProjectStackSelection? selection =
+        await showModalBottomSheet<ProjectStackSelection>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SelectProjectStackSheet(
+        projectStacks: _projectStacks,
+        initialSelection: initialSelection,
+        allowNoStack: false,
+        title: 'Create or Select Stack',
+        confirmLabel: 'Group Projects',
+      ),
+    );
+
+    if (!mounted || selection == null) {
+      return;
+    }
+
+    final List<ProjectItem> projects = _cloneProjects(_projects);
+    final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final String? stackId = _resolveStackIdForSelection(
+      selection: selection,
+      projectStacks: projectStacks,
+    );
+    if (stackId == null) {
       return;
     }
 
     setState(() {
-      _projects.insert(0, ProjectItem(name: newProjectName));
+      for (int index = 0; index < projects.length; index += 1) {
+        final ProjectItem project = projects[index];
+        if (project.id != sourceProjectId && project.id != targetProjectId) {
+          continue;
+        }
+        projects[index] = project.copyWith(stackId: stackId);
+      }
+      _replaceProjectsAndStacks(
+        projects: projects,
+        projectStacks: projectStacks,
+      );
     });
     _persistState();
   }
@@ -813,9 +1065,10 @@ class _TaskPageState extends State<TaskPage>
             final List<ProjectItem> projectsCopy =
                 _cloneProjects(updatedProjects);
             setState(() {
-              _projects
-                ..clear()
-                ..addAll(projectsCopy);
+              _replaceProjectsAndStacks(
+                projects: projectsCopy,
+                projectStacks: _cloneProjectStacks(_projectStacks),
+              );
             });
             _persistState();
           },
@@ -837,9 +1090,10 @@ class _TaskPageState extends State<TaskPage>
           ..clear()
           ..addAll(persistedState.incomingTasks)
           ..addAll(persistedState.favoriteTasks);
-        _projects
-          ..clear()
-          ..addAll(persistedState.projects);
+        _replaceProjectsAndStacks(
+          projects: persistedState.projects,
+          projectStacks: persistedState.projectStacks,
+        );
         _colorLabels
           ..clear()
           ..addAll(persistedState.colorLabels);
@@ -913,6 +1167,9 @@ class _TaskPageState extends State<TaskPage>
       favoriteTasks: const <TaskItem>[],
       projects:
           _projects.map((ProjectItem project) => project.clone()).toList(),
+      projectStacks: _projectStacks
+          .map((ProjectStack stack) => stack.clone())
+          .toList(),
       colorLabels: Map<int, String>.from(_colorLabels),
       hideCompletedProjectItems: _hideCompletedProjectItems,
     );
@@ -945,13 +1202,14 @@ class _TaskPageState extends State<TaskPage>
                 .map((TaskItem task) => task.clone())
                 .toList(),
           );
-        _projects
-          ..clear()
-          ..addAll(
-            importedState.projects
-                .map((ProjectItem project) => project.clone())
-                .toList(),
-          );
+        _replaceProjectsAndStacks(
+          projects: importedState.projects
+              .map((ProjectItem project) => project.clone())
+              .toList(),
+          projectStacks: importedState.projectStacks
+              .map((ProjectStack stack) => stack.clone())
+              .toList(),
+        );
         _colorLabels
           ..clear()
           ..addAll(importedState.colorLabels);
@@ -1038,6 +1296,7 @@ class _TaskPageState extends State<TaskPage>
           ),
           ProjectListView(
             projects: _projects,
+            projectStacks: _projectStacks,
             isReorderMode: _isReorderMode,
             onReorder: _reorderProjects,
             onProjectTap: (String projectId) async =>
@@ -1045,6 +1304,14 @@ class _TaskPageState extends State<TaskPage>
             onProjectRemove: _deleteProject,
             onProjectLongPress: _openProjectMenu,
             onProjectOptionsTap: _openProjectMenu,
+            onProjectStackDrop: (
+              String sourceProjectId,
+              String targetProjectId,
+            ) =>
+                _stackProjectsTogether(
+              sourceProjectId: sourceProjectId,
+              targetProjectId: targetProjectId,
+            ),
           ),
         ],
       ),

@@ -47,7 +47,7 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 9;
+  static const int _currentSchemaVersion = 10;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
@@ -58,6 +58,7 @@ class TaskStorage {
     6: _migrateV6ToV7,
     7: _migrateV7ToV8,
     8: _migrateV8ToV9,
+    9: _migrateV9ToV10,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
@@ -105,6 +106,7 @@ class TaskStorage {
       buffer: buffer,
       title: 'Projects',
       projects: state.projects,
+      projectStacks: state.projectStacks,
     );
 
     return buffer.toString().trimRight();
@@ -258,6 +260,30 @@ class TaskStorage {
       'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
       'favoriteTasks': _upgradeTaskShape(payload['favoriteTasks']),
       'projects': _upgradeProjectShape(payload['projects']),
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
+    };
+  }
+
+  static Map<String, dynamic> _migrateV9ToV10(Map<String, dynamic> payload) {
+    final List<Map<String, dynamic>> projectStacks = _upgradeProjectStackShape(
+      payload['projectStacks'],
+    );
+    final Set<String> stackIds = projectStacks
+        .map((Map<String, dynamic> stack) => stack['id'])
+        .whereType<String>()
+        .toSet();
+
+    return <String, dynamic>{
+      'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
+      'favoriteTasks': _upgradeTaskShape(payload['favoriteTasks']),
+      'projects': _upgradeProjectShape(
+        payload['projects'],
+        validStackIds: stackIds,
+      ),
+      'projectStacks': projectStacks,
       'colorLabels': _normalizeColorLabels(payload['colorLabels']),
       'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
           ? payload['hideCompletedProjectItems']
@@ -633,7 +659,10 @@ class TaskStorage {
     return tasks;
   }
 
-  static List<Map<String, dynamic>> _upgradeProjectShape(Object? rawProjects) {
+  static List<Map<String, dynamic>> _upgradeProjectShape(
+    Object? rawProjects, {
+    Set<String>? validStackIds,
+  }) {
     if (rawProjects is! List<dynamic>) {
       return <Map<String, dynamic>>[];
     }
@@ -656,10 +685,46 @@ class TaskStorage {
               (project['icon'] as String).trim().isNotEmpty
           ? (project['icon'] as String).trim()
           : null;
+      final String? stackId = project['stackId'] is String &&
+              (project['stackId'] as String).trim().isNotEmpty
+          ? (project['stackId'] as String).trim()
+          : null;
+      project['stackId'] = validStackIds == null ||
+              stackId == null ||
+              validStackIds.contains(stackId)
+          ? stackId
+          : null;
       project['tasks'] = _upgradeTaskShape(project['tasks']);
       projects.add(project);
     }
     return projects;
+  }
+
+  static List<Map<String, dynamic>> _upgradeProjectStackShape(
+    Object? rawProjectStacks,
+  ) {
+    if (rawProjectStacks is! List<dynamic>) {
+      return <Map<String, dynamic>>[];
+    }
+
+    final List<Map<String, dynamic>> projectStacks = <Map<String, dynamic>>[];
+    for (final dynamic rawProjectStack in rawProjectStacks) {
+      if (rawProjectStack is! Map<dynamic, dynamic>) {
+        continue;
+      }
+      final Map<String, dynamic> projectStack =
+          Map<String, dynamic>.from(rawProjectStack);
+      final String? name = (projectStack['name'] as String?)?.trim();
+      if (name == null || name.isEmpty) {
+        continue;
+      }
+      projectStack['name'] = name;
+      final String? id = (projectStack['id'] as String?)?.trim();
+      projectStack['id'] =
+          id == null || id.isEmpty ? ModelIds.newProjectStackId() : id;
+      projectStacks.add(projectStack);
+    }
+    return projectStacks;
   }
 
   static List<Map<String, dynamic>> _upgradeSubtaskShape(Object? rawSubtasks) {
@@ -739,6 +804,7 @@ class TaskStorage {
     required StringBuffer buffer,
     required String title,
     required List<ProjectItem> projects,
+    required List<ProjectStack> projectStacks,
   }) {
     buffer.writeln(title);
     if (projects.isEmpty) {
@@ -746,32 +812,59 @@ class TaskStorage {
       return;
     }
 
-    for (final ProjectItem project in projects) {
-      buffer.writeln('- ${project.name}');
-      if (project.body.isNotEmpty) {
-        buffer.writeln('  ${project.body}');
-      }
-
-      final List<TaskItem> thinking = project.tasks
-          .where((TaskItem task) => task.type == TaskItemType.thinking)
+    final Set<String> handledProjectIds = <String>{};
+    for (final ProjectStack stack in projectStacks) {
+      final List<ProjectItem> stackProjects = projects
+          .where((ProjectItem project) => project.stackId == stack.id)
           .toList(growable: false);
-      final List<TaskItem> planning = project.tasks
-          .where((TaskItem task) => task.type == TaskItemType.planning)
-          .toList(growable: false);
-
-      if (thinking.isNotEmpty) {
-        buffer.writeln('  Ideas');
-        for (final TaskItem task in thinking) {
-          buffer.writeln('  ${_taskLine(task)}');
-          _writeSubtasks(buffer, task.subtasks, 2);
-        }
+      if (stackProjects.isEmpty) {
+        continue;
       }
-      if (planning.isNotEmpty) {
-        buffer.writeln('  Action items');
-        for (final TaskItem task in planning) {
-          buffer.writeln('  ${_taskLine(task)}');
-          _writeSubtasks(buffer, task.subtasks, 2);
-        }
+      buffer.writeln('- Stack: ${stack.name}');
+      for (final ProjectItem project in stackProjects) {
+        handledProjectIds.add(project.id);
+        _writeProject(buffer, project, 1);
+      }
+    }
+
+    final List<ProjectItem> unstackedProjects = projects
+        .where((ProjectItem project) => !handledProjectIds.contains(project.id))
+        .toList(growable: false);
+    for (final ProjectItem project in unstackedProjects) {
+      _writeProject(buffer, project, 0);
+    }
+  }
+
+  static void _writeProject(
+    StringBuffer buffer,
+    ProjectItem project,
+    int depth,
+  ) {
+    final String indent = '  ' * depth;
+    buffer.writeln('$indent- ${project.name}');
+    if (project.body.isNotEmpty) {
+      buffer.writeln('$indent  ${project.body}');
+    }
+
+    final List<TaskItem> thinking = project.tasks
+        .where((TaskItem task) => task.type == TaskItemType.thinking)
+        .toList(growable: false);
+    final List<TaskItem> planning = project.tasks
+        .where((TaskItem task) => task.type == TaskItemType.planning)
+        .toList(growable: false);
+
+    if (thinking.isNotEmpty) {
+      buffer.writeln('$indent  Ideas');
+      for (final TaskItem task in thinking) {
+        buffer.writeln('$indent  ${_taskLine(task)}');
+        _writeSubtasks(buffer, task.subtasks, depth + 2);
+      }
+    }
+    if (planning.isNotEmpty) {
+      buffer.writeln('$indent  Action items');
+      for (final TaskItem task in planning) {
+        buffer.writeln('$indent  ${_taskLine(task)}');
+        _writeSubtasks(buffer, task.subtasks, depth + 2);
       }
     }
   }

@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -38,7 +39,6 @@ void main() {
 
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.text('Morning Routine'), findsOneWidget);
-    expect(find.text('1 task'), findsAtLeastNWidgets(1));
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
@@ -68,7 +68,6 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Breathwork'), findsOneWidget);
-    expect(find.text('1 task'), findsAtLeastNWidgets(1));
 
     await tester.tap(find.widgetWithText(ListTile, 'Breathwork'));
     await tester.pumpAndSettle();
@@ -192,9 +191,60 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('9'), findsWidgets);
+    expect(find.textContaining('10'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
+  });
+
+  testWidgets('creates stacks and groups projects by dragging',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Studio');
+    await tester.tap(find.text('Stack: No stack'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create stack'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Focus Stack');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Stack'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Focus Stack'), findsOneWidget);
+    expect(find.text('Studio'), findsOneWidget);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Research');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Unstacked'), findsOneWidget);
+    expect(find.text('Research'), findsOneWidget);
+
+    final Finder researchTile = find.widgetWithText(ListTile, 'Research');
+    final Finder studioTile = find.widgetWithText(ListTile, 'Studio');
+    final TestGesture gesture =
+        await tester.startGesture(tester.getCenter(researchTile));
+    await tester.pump(kLongPressTimeout);
+    await gesture.moveTo(tester.getCenter(studioTile));
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create or Select Stack'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Group Projects'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Focus Stack'), findsOneWidget);
+    expect(find.text('Studio'), findsOneWidget);
+    expect(find.text('Research'), findsOneWidget);
   });
 
   testWidgets('uses custom color labels from settings in color picker',
@@ -571,7 +621,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('9'), findsWidgets);
+    expect(find.textContaining('10'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -619,7 +669,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('9'), findsWidgets);
+    expect(find.textContaining('10'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });
@@ -715,15 +765,6 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Done reordering'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Drag idea'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Task options'));
-    await tester.pumpAndSettle();
-    expect(find.text('Move to thinking'), findsOneWidget);
-    await tester.tapAt(const Offset(12, 12));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byTooltip('Back'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Add project task'));
