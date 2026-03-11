@@ -147,36 +147,34 @@ class _ProjectListViewState extends State<ProjectListView> {
 
   List<_ProjectGroup> _buildGroups(List<ProjectItem> sourceProjects) {
     final List<_ProjectGroup> groups = <_ProjectGroup>[];
-    final Set<String> handledProjectIds = <String>{};
+    final Set<String> handledStackIds = <String>{};
 
-    for (final ProjectStack stack in widget.projectStacks) {
-      final List<ProjectItem> stackProjects = sourceProjects
-          .where((ProjectItem project) => project.stackId == stack.id)
-          .toList(growable: false);
-      if (stackProjects.isEmpty) {
+    for (final ProjectItem project in sourceProjects) {
+      final String? stackId = project.stackId;
+      if (stackId == null || stackId.isEmpty) {
+        groups.add(
+          _ProjectGroup(
+            label: project.name,
+            projects: <ProjectItem>[project],
+            isStack: false,
+          ),
+        );
         continue;
       }
-      handledProjectIds
-          .addAll(stackProjects.map((ProjectItem project) => project.id));
+
+      if (!handledStackIds.add(stackId)) {
+        continue;
+      }
+
+      final List<ProjectItem> stackProjects = sourceProjects
+          .where((ProjectItem item) => item.stackId == stackId)
+          .toList(growable: false);
       groups.add(
         _ProjectGroup(
-          label: stack.name,
+          label: _stackNameForProject(project) ?? project.name,
           projects: stackProjects,
           isStack: true,
-          stackId: stack.id,
-        ),
-      );
-    }
-
-    final List<ProjectItem> unstackedProjects = sourceProjects
-        .where((ProjectItem project) => !handledProjectIds.contains(project.id))
-        .toList(growable: false);
-    if (unstackedProjects.isNotEmpty) {
-      groups.add(
-        _ProjectGroup(
-          label: 'Unstacked',
-          projects: unstackedProjects,
-          isStack: false,
+          stackId: stackId,
         ),
       );
     }
@@ -283,22 +281,6 @@ class _ProjectListViewState extends State<ProjectListView> {
     return entries;
   }
 
-  Widget _buildGroupHeader(
-    BuildContext context,
-    _ProjectGroup group,
-  ) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 8, 4, 10),
-      child: Text(
-        group.label,
-        style: Theme.of(context).textTheme.titleSmall?.copyWith(
-              color: Theme.of(context).colorScheme.primary,
-              fontWeight: FontWeight.w700,
-            ),
-      ),
-    );
-  }
-
   Widget _buildSubtitle(
     BuildContext context,
     ProjectItem project, {
@@ -328,8 +310,6 @@ class _ProjectListViewState extends State<ProjectListView> {
     ProjectItem project, {
     required bool showStackLabel,
     required VoidCallback onTap,
-    required VoidCallback onOptionsTap,
-    VoidCallback? onLongPress,
     bool isDropTarget = false,
     bool isArchivedView = false,
   }) {
@@ -366,13 +346,7 @@ class _ProjectListViewState extends State<ProjectListView> {
             ),
             isThreeLine:
                 showStackLabel || project.body.isNotEmpty || project.isArchived,
-            trailing: IconButton(
-              onPressed: onOptionsTap,
-              tooltip: 'Project options',
-              icon: const Icon(Icons.settings_outlined),
-            ),
             onTap: onTap,
-            onLongPress: onLongPress,
           ),
         ),
       ),
@@ -478,11 +452,6 @@ class _ProjectListViewState extends State<ProjectListView> {
           showStackLabel: false,
         ),
         isThreeLine: project.body.isNotEmpty || project.isArchived,
-        trailing: IconButton(
-          onPressed: () async => widget.onProjectOptionsTap(project.id),
-          tooltip: 'Project options',
-          icon: const Icon(Icons.settings_outlined),
-        ),
         onTap: () async => widget.onProjectTap(project.id),
       ),
     );
@@ -545,11 +514,6 @@ class _ProjectListViewState extends State<ProjectListView> {
               showStackLabel: false,
             ),
             isThreeLine: project.body.isNotEmpty,
-            trailing: IconButton(
-              onPressed: () async => widget.onProjectOptionsTap(project.id),
-              tooltip: 'Project options',
-              icon: const Icon(Icons.settings_outlined),
-            ),
             onTap: () async => widget.onProjectTap(project.id),
           ),
         );
@@ -782,7 +746,6 @@ class _ProjectListViewState extends State<ProjectListView> {
       project,
       showStackLabel: false,
       onTap: () async => widget.onProjectTap(project.id),
-      onOptionsTap: () async => widget.onProjectOptionsTap(project.id),
       isDropTarget: isDropTarget,
       isArchivedView: isArchivedView,
     );
@@ -904,12 +867,7 @@ class _ProjectListViewState extends State<ProjectListView> {
                     if (group.isStack)
                       _buildStackCard(context, group)
                     else
-                      _buildGroupHeader(context, group),
-                    if (!group.isStack)
-                      ...group.projects.map(
-                        (ProjectItem project) =>
-                            _buildGroupedProjectItem(context, project),
-                      ),
+                      _buildGroupedProjectItem(context, group.projects.single),
                   ];
                 }).toList(growable: false),
               ),
@@ -977,11 +935,7 @@ class _ProjectListViewState extends State<ProjectListView> {
             if (group.isStack)
               _buildStackCard(context, group)
             else
-              _buildGroupHeader(context, group),
-            if (!group.isStack)
-              ...group.projects.map(
-                (ProjectItem project) => _buildGroupedProjectItem(context, project),
-              ),
+              _buildGroupedProjectItem(context, group.projects.single),
           ];
         }),
         if (archivedGroups.isNotEmpty)

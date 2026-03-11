@@ -47,7 +47,7 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 12;
+  static const int _currentSchemaVersion = 15;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
@@ -61,6 +61,9 @@ class TaskStorage {
     9: _migrateV9ToV10,
     10: _migrateV10ToV11,
     11: _migrateV11ToV12,
+    12: _migrateV12ToV13,
+    13: _migrateV13ToV14,
+    14: _migrateV14ToV15,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
@@ -360,6 +363,116 @@ class TaskStorage {
     };
   }
 
+  static Map<String, dynamic> _migrateV12ToV13(Map<String, dynamic> payload) {
+    final List<Map<String, dynamic>> projectTypes = _upgradeProjectTypeShape(
+      payload['projectTypes'],
+    );
+    final Set<String> typeIds = projectTypes
+        .map((Map<String, dynamic> type) => type['id'])
+        .whereType<String>()
+        .toSet();
+    final List<Map<String, dynamic>> projectStacks = _upgradeProjectStackShape(
+      payload['projectStacks'],
+    );
+    final Set<String> stackIds = projectStacks
+        .map((Map<String, dynamic> stack) => stack['id'])
+        .whereType<String>()
+        .toSet();
+
+    return <String, dynamic>{
+      'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
+      'favoriteTasks': _upgradeTaskShape(payload['favoriteTasks']),
+      'projects': _upgradeProjectShape(
+        payload['projects'],
+        validStackIds: stackIds,
+        validProjectTypeIds: typeIds,
+        fallbackProjectTypeId: ProjectTypeDefaults.projectId,
+      ),
+      'projectStacks': projectStacks,
+      'projectTypes': projectTypes,
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
+    };
+  }
+
+  static Map<String, dynamic> _migrateV13ToV14(Map<String, dynamic> payload) {
+    final List<Map<String, dynamic>> projectTypes = _upgradeProjectTypeShape(
+      payload['projectTypes'],
+    );
+    final Set<String> typeIds = projectTypes
+        .map((Map<String, dynamic> type) => type['id'])
+        .whereType<String>()
+        .toSet();
+    final List<Map<String, dynamic>> projectStacks = _upgradeProjectStackShape(
+      payload['projectStacks'],
+    );
+    final Set<String> stackIds = projectStacks
+        .map((Map<String, dynamic> stack) => stack['id'])
+        .whereType<String>()
+        .toSet();
+
+    return <String, dynamic>{
+      'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
+      'favoriteTasks': _upgradeTaskShape(payload['favoriteTasks']),
+      'projects': _upgradeProjectShape(
+        payload['projects'],
+        validStackIds: stackIds,
+        validProjectTypeIds: typeIds,
+        fallbackProjectTypeId: ProjectTypeDefaults.projectId,
+      ),
+      'projectStacks': projectStacks,
+      'projectTypes': projectTypes,
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
+    };
+  }
+
+  static Map<String, dynamic> _migrateV14ToV15(Map<String, dynamic> payload) {
+    final List<Map<String, dynamic>> incomingTasks = _upgradeTaskShape(
+      payload['incomingTasks'],
+    );
+    final List<Map<String, dynamic>> favoriteTasks = _upgradeTaskShape(
+      payload['favoriteTasks'],
+    );
+    final List<Map<String, dynamic>> projectTypes = _upgradeProjectTypeShape(
+      payload['projectTypes'],
+    );
+    final Set<String> typeIds = projectTypes
+        .map((Map<String, dynamic> type) => type['id'])
+        .whereType<String>()
+        .toSet();
+    final List<Map<String, dynamic>> projectStacks = _upgradeProjectStackShape(
+      payload['projectStacks'],
+    );
+    final Set<String> stackIds = projectStacks
+        .map((Map<String, dynamic> stack) => stack['id'])
+        .whereType<String>()
+        .toSet();
+
+    return <String, dynamic>{
+      'incomingTasks': _mergeTaskLists(
+        primaryTasks: incomingTasks,
+        additionalTasks: favoriteTasks,
+      ),
+      'projects': _upgradeProjectShape(
+        payload['projects'],
+        validStackIds: stackIds,
+        validProjectTypeIds: typeIds,
+        fallbackProjectTypeId: ProjectTypeDefaults.projectId,
+      ),
+      'projectStacks': projectStacks,
+      'projectTypes': projectTypes,
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
+    };
+  }
+
   static List<Map<String, dynamic>> _normalizeTaskList(Object? rawTasks) {
     if (rawTasks is! List<dynamic>) {
       return <Map<String, dynamic>>[];
@@ -389,6 +502,16 @@ class TaskStorage {
     }
 
     return tasks;
+  }
+
+  static List<Map<String, dynamic>> _mergeTaskLists({
+    required List<Map<String, dynamic>> primaryTasks,
+    required List<Map<String, dynamic>> additionalTasks,
+  }) {
+    return <Map<String, dynamic>>[
+      ...primaryTasks.map(Map<String, dynamic>.from),
+      ...additionalTasks.map(Map<String, dynamic>.from),
+    ];
   }
 
   static List<Map<String, dynamic>> _normalizeProjectList(Object? rawProjects) {
@@ -713,11 +836,17 @@ class TaskStorage {
       }
       task['body'] =
           task['body'] is String ? (task['body'] as String).trim() : '';
+      task['prompt'] =
+          task['prompt'] is String ? (task['prompt'] as String).trim() : '';
       task['color'] = task['color'] is int ? task['color'] : null;
       task['type'] =
           task['type'] is String && (task['type'] as String).trim().isNotEmpty
               ? (task['type'] as String).trim().toLowerCase()
               : TaskItemType.planning.name;
+      task['entryType'] = task['entryType'] is String &&
+              (task['entryType'] as String).trim().isNotEmpty
+          ? (task['entryType'] as String).trim().toLowerCase()
+          : TaskEntryType.note.name;
       task['archived'] = task['archived'] is bool ? task['archived'] : false;
       task['icon'] =
           task['icon'] is String && (task['icon'] as String).trim().isNotEmpty
@@ -752,6 +881,9 @@ class TaskStorage {
       }
       project['body'] =
           project['body'] is String ? (project['body'] as String).trim() : '';
+      project['prompt'] = project['prompt'] is String
+          ? (project['prompt'] as String).trim()
+          : '';
       project['color'] = project['color'] is int ? project['color'] : null;
       project['icon'] = project['icon'] is String &&
               (project['icon'] as String).trim().isNotEmpty
@@ -774,7 +906,8 @@ class TaskStorage {
           : null;
       project['projectTypeId'] = validProjectTypeIds == null
           ? projectTypeId
-          : (projectTypeId != null && validProjectTypeIds.contains(projectTypeId)
+          : (projectTypeId != null &&
+                  validProjectTypeIds.contains(projectTypeId)
               ? projectTypeId
               : fallbackProjectTypeId);
       project['tasks'] = _upgradeTaskShape(project['tasks']);
@@ -853,7 +986,8 @@ class TaskStorage {
 
     final List<Map<String, dynamic>> normalized = <Map<String, dynamic>>[];
     for (final ProjectTypeConfig defaultType in defaultProjectTypes) {
-      final Map<String, dynamic>? existing = normalizedById.remove(defaultType.id);
+      final Map<String, dynamic>? existing =
+          normalizedById.remove(defaultType.id);
       normalized.add(existing ?? defaultType.toJson());
     }
     normalized.addAll(normalizedById.values);

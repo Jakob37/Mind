@@ -637,6 +637,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   @override
   Widget build(BuildContext context) {
     final bool hasBody = _task.body.trim().isNotEmpty;
+    final bool hasPrompt = _task.prompt.trim().isNotEmpty;
     final String sectionLabel =
         _usesChecklistStyle ? 'Nested checklist' : 'Nested ideas';
 
@@ -678,6 +679,18 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               'No details added yet.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
+          if (hasPrompt) ...<Widget>[
+            const SizedBox(height: 16),
+            Text(
+              'Prompt',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            SelectableText(
+              _task.prompt,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ],
           const SizedBox(height: 20),
           Text(
             '$sectionLabel (${_task.subtasks.length})',

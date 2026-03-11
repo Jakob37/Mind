@@ -110,29 +110,24 @@ class _TaskPageState extends State<TaskPage>
   }
 
   List<ProjectItem> _cloneProjects(List<ProjectItem> projects) {
-    return projects
-        .map((ProjectItem project) => project.clone())
-        .toList();
+    return projects.map((ProjectItem project) => project.clone()).toList();
   }
 
   List<ProjectStack> _cloneProjectStacks(List<ProjectStack> projectStacks) {
-    return projectStacks
-        .map((ProjectStack stack) => stack.clone())
-        .toList();
+    return projectStacks.map((ProjectStack stack) => stack.clone()).toList();
   }
 
   List<ProjectTypeConfig> _cloneProjectTypes(
     List<ProjectTypeConfig> projectTypes,
   ) {
-    return projectTypes
-        .map((ProjectTypeConfig type) => type.clone())
-        .toList();
+    return projectTypes.map((ProjectTypeConfig type) => type.clone()).toList();
   }
 
   List<ProjectTypeConfig> _normalizeProjectTypes(
     List<ProjectTypeConfig> projectTypes,
   ) {
-    final Map<String, ProjectTypeConfig> providedById = <String, ProjectTypeConfig>{
+    final Map<String, ProjectTypeConfig> providedById =
+        <String, ProjectTypeConfig>{
       for (final ProjectTypeConfig type in projectTypes) type.id: type.clone(),
     };
     final List<ProjectTypeConfig> normalized = <ProjectTypeConfig>[];
@@ -154,34 +149,31 @@ class _TaskPageState extends State<TaskPage>
   }) {
     final List<ProjectTypeConfig> normalizedProjectTypes =
         _normalizeProjectTypes(projectTypes);
-    final Set<String> validStackIds = projectStacks
-        .map((ProjectStack stack) => stack.id)
-        .toSet();
-    final Set<String> validProjectTypeIds = normalizedProjectTypes
-        .map((ProjectTypeConfig type) => type.id)
-        .toSet();
-    final List<ProjectItem> normalizedProjects = projects
-        .map((ProjectItem project) {
-          final String? normalizedStackId =
-              project.stackId == null || validStackIds.contains(project.stackId)
-                  ? project.stackId
-                  : null;
-          final String? normalizedProjectTypeId = project.projectTypeId == null ||
-                  validProjectTypeIds.contains(project.projectTypeId)
-              ? project.projectTypeId
-              : ProjectTypeDefaults.blankId;
-          if (normalizedStackId == project.stackId &&
-              normalizedProjectTypeId == project.projectTypeId) {
-            return project.clone();
-          }
-          return project.copyWith(
-            stackId: normalizedStackId,
-            clearStack: normalizedStackId == null,
-            projectTypeId: normalizedProjectTypeId,
-            clearProjectType: normalizedProjectTypeId == null,
-          );
-        })
-        .toList(growable: false);
+    final Set<String> validStackIds =
+        projectStacks.map((ProjectStack stack) => stack.id).toSet();
+    final Set<String> validProjectTypeIds =
+        normalizedProjectTypes.map((ProjectTypeConfig type) => type.id).toSet();
+    final List<ProjectItem> normalizedProjects =
+        projects.map((ProjectItem project) {
+      final String? normalizedStackId =
+          project.stackId == null || validStackIds.contains(project.stackId)
+              ? project.stackId
+              : null;
+      final String? normalizedProjectTypeId = project.projectTypeId == null ||
+              validProjectTypeIds.contains(project.projectTypeId)
+          ? project.projectTypeId
+          : ProjectTypeDefaults.blankId;
+      if (normalizedStackId == project.stackId &&
+          normalizedProjectTypeId == project.projectTypeId) {
+        return project.clone();
+      }
+      return project.copyWith(
+        stackId: normalizedStackId,
+        clearStack: normalizedStackId == null,
+        projectTypeId: normalizedProjectTypeId,
+        clearProjectType: normalizedProjectTypeId == null,
+      );
+    }).toList(growable: false);
 
     final Set<String> referencedStackIds = normalizedProjects
         .map((ProjectItem project) => project.stackId)
@@ -273,6 +265,17 @@ class _TaskPageState extends State<TaskPage>
       project.projectTypeId,
       projectTypes: projectTypes,
     );
+  }
+
+  bool _projectUsesPromptFields(
+    ProjectItem project, {
+    List<ProjectTypeConfig>? projectTypes,
+  }) {
+    return _projectTypeForProject(
+          project,
+          projectTypes: projectTypes,
+        ).id ==
+        ProjectTypeDefaults.llmId;
   }
 
   List<ProjectItem> _taskCompatibleProjects({
@@ -517,6 +520,7 @@ class _TaskPageState extends State<TaskPage>
       builder: (_) => EditTaskSheet(
         initialTitle: existingTask.title,
         initialBody: existingTask.body,
+        initialPrompt: existingTask.prompt,
       ),
     );
 
@@ -528,6 +532,7 @@ class _TaskPageState extends State<TaskPage>
       sourceTasks[sourceTaskIndex] = existingTask.copyWith(
         title: result.title,
         body: result.body,
+        prompt: result.prompt,
       );
     });
     _persistState();
@@ -670,11 +675,29 @@ class _TaskPageState extends State<TaskPage>
       return;
     }
 
-    ScaffoldMessenger.of(context)
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Row(
+            children: <Widget>[
+              IconButton(
+                onPressed: messenger.hideCurrentSnackBar,
+                tooltip: 'Dismiss',
+                icon: const Icon(Icons.close),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 32,
+                  height: 32,
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(message)),
+            ],
+          ),
           action: SnackBarAction(
             label: 'Revert?',
             onPressed: onUndo,
@@ -813,7 +836,8 @@ class _TaskPageState extends State<TaskPage>
               ListTile(
                 leading: const Icon(Icons.label_outline),
                 title: const Text('Set project type'),
-                onTap: () => Navigator.of(context).pop(_ProjectMenuAction.setType),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setType),
               ),
               ListTile(
                 leading: const Icon(Icons.layers_outlined),
@@ -917,6 +941,8 @@ class _TaskPageState extends State<TaskPage>
       builder: (_) => EditProjectSheet(
         initialName: project.name,
         initialBody: project.body,
+        initialPrompt: project.prompt,
+        showPromptField: _projectUsesPromptFields(project),
       ),
     );
 
@@ -928,6 +954,7 @@ class _TaskPageState extends State<TaskPage>
       _projects[projectIndex] = project.copyWith(
         name: result.name,
         body: result.body,
+        prompt: result.prompt,
       );
     });
     _persistState();
@@ -1039,7 +1066,8 @@ class _TaskPageState extends State<TaskPage>
     }
 
     final List<ProjectItem> projects = _cloneProjects(_projects);
-    final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final List<ProjectStack> projectStacks =
+        _cloneProjectStacks(_projectStacks);
     final List<ProjectTypeConfig> projectTypes =
         _cloneProjectTypes(_projectTypes);
     final String? stackId = _resolveStackIdForSelection(
@@ -1217,7 +1245,8 @@ class _TaskPageState extends State<TaskPage>
   }
 
   Future<void> _openAddProjectWidget() async {
-    final AddProjectResult? result = await showModalBottomSheet<AddProjectResult>(
+    final AddProjectResult? result =
+        await showModalBottomSheet<AddProjectResult>(
       context: context,
       isScrollControlled: true,
       builder: (_) => AddProjectSheet(
@@ -1231,7 +1260,8 @@ class _TaskPageState extends State<TaskPage>
     }
 
     final List<ProjectItem> projects = _cloneProjects(_projects);
-    final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final List<ProjectStack> projectStacks =
+        _cloneProjectStacks(_projectStacks);
     final List<ProjectTypeConfig> projectTypes =
         _cloneProjectTypes(_projectTypes);
     final String? stackId = _resolveStackIdForSelection(
@@ -1303,7 +1333,8 @@ class _TaskPageState extends State<TaskPage>
     }
 
     final List<ProjectItem> projects = _cloneProjects(_projects);
-    final List<ProjectStack> projectStacks = _cloneProjectStacks(_projectStacks);
+    final List<ProjectStack> projectStacks =
+        _cloneProjectStacks(_projectStacks);
     final List<ProjectTypeConfig> projectTypes =
         _cloneProjectTypes(_projectTypes);
     final String? stackId = _resolveStackIdForSelection(
@@ -1338,16 +1369,22 @@ class _TaskPageState extends State<TaskPage>
         builder: (_) => ProjectDetailPage(
           projectId: projectId,
           initialProjects: projectsSnapshot,
+          projectStacks: _cloneProjectStacks(_projectStacks),
           projectTypes: _cloneProjectTypes(_projectTypes),
           colorLabels: _colorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,
-          onProjectsChanged: (List<ProjectItem> updatedProjects) {
+          onProjectDataChanged: (
+            List<ProjectItem> updatedProjects,
+            List<ProjectStack> updatedProjectStacks,
+          ) {
             final List<ProjectItem> projectsCopy =
                 _cloneProjects(updatedProjects);
+            final List<ProjectStack> projectStacksCopy =
+                _cloneProjectStacks(updatedProjectStacks);
             setState(() {
               _replaceProjectData(
                 projects: projectsCopy,
-                projectStacks: _cloneProjectStacks(_projectStacks),
+                projectStacks: projectStacksCopy,
                 projectTypes: _cloneProjectTypes(_projectTypes),
               );
             });
@@ -1369,8 +1406,7 @@ class _TaskPageState extends State<TaskPage>
       setState(() {
         _incomingTasks
           ..clear()
-          ..addAll(persistedState.incomingTasks)
-          ..addAll(persistedState.favoriteTasks);
+          ..addAll(persistedState.incomingTasks);
         _replaceProjectData(
           projects: persistedState.projects,
           projectStacks: persistedState.projectStacks,
@@ -1446,15 +1482,12 @@ class _TaskPageState extends State<TaskPage>
     return TaskBoardState(
       incomingTasks:
           _incomingTasks.map((TaskItem task) => task.clone()).toList(),
-      favoriteTasks: const <TaskItem>[],
       projects:
           _projects.map((ProjectItem project) => project.clone()).toList(),
-      projectStacks: _projectStacks
-          .map((ProjectStack stack) => stack.clone())
-          .toList(),
-      projectTypes: _projectTypes
-          .map((ProjectTypeConfig type) => type.clone())
-          .toList(),
+      projectStacks:
+          _projectStacks.map((ProjectStack stack) => stack.clone()).toList(),
+      projectTypes:
+          _projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
       colorLabels: Map<int, String>.from(_colorLabels),
       hideCompletedProjectItems: _hideCompletedProjectItems,
     );

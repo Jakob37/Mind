@@ -195,7 +195,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('12'), findsWidgets);
+    expect(find.textContaining('15'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON to Folder'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
@@ -230,7 +230,7 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Unstacked'), findsOneWidget);
+    expect(find.text('Unstacked'), findsNothing);
     expect(find.text('Research'), findsOneWidget);
 
     final Finder researchTile = find.widgetWithText(ListTile, 'Research');
@@ -273,7 +273,8 @@ void main() {
     await tester.tap(find.byTooltip('Done reordering'));
     await tester.pumpAndSettle();
 
-    final Finder collapsedStackTile = find.widgetWithText(ListTile, 'Focus Stack');
+    final Finder collapsedStackTile =
+        find.widgetWithText(ListTile, 'Focus Stack');
     final Finder archiveTile = find.widgetWithText(ListTile, 'Archive');
     final TestGesture stackGesture =
         await tester.startGesture(tester.getCenter(collapsedStackTile));
@@ -300,9 +301,13 @@ void main() {
 
     await tester.tap(find.byTooltip('Open settings'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).first, const Offset(0, -300));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, 'Coral'));
+    final Finder coralTile = find.widgetWithText(ListTile, 'Coral');
+    await tester.scrollUntilVisible(
+      coralTile,
+      100,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(coralTile);
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField), 'Urgent');
@@ -346,20 +351,11 @@ void main() {
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
-    final Finder morningRoutineCard = find
-        .ancestor(
-          of: find.text('Morning Routine'),
-          matching: find.byType(Card),
-        )
-        .first;
-    await tester.tap(
-      find.descendant(
-        of: morningRoutineCard,
-        matching: find.byTooltip('Project options'),
-      ),
-    );
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
-    expect(find.text('Project options'), findsOneWidget);
+    await tester.tap(find.byTooltip('Project settings'));
+    await tester.pumpAndSettle();
+    expect(find.text('Project settings'), findsOneWidget);
     await tester.tap(find.text('Edit project'));
     await tester.pumpAndSettle();
 
@@ -368,6 +364,8 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Save Project'));
     await tester.pumpAndSettle();
 
+    await tester.pageBack();
+    await tester.pumpAndSettle();
     expect(find.text('Morning Focus'), findsOneWidget);
     expect(find.textContaining('Project body text'), findsOneWidget);
   });
@@ -574,6 +572,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Shape a calm start sequence'), findsNothing);
     expect(find.text('Archived'), findsOneWidget);
+    await tester.tap(find.byTooltip('Dismiss').first);
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Archived'));
     await tester.pumpAndSettle();
@@ -601,7 +601,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Morning Routine'), findsOneWidget);
 
-    await tester.ensureVisible(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester
+        .ensureVisible(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
     await tester.drag(
       find.widgetWithText(ListTile, 'Morning Routine'),
@@ -618,20 +619,11 @@ void main() {
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
 
-    final Finder morningRoutineCard = find
-        .ancestor(
-          of: find.text('Morning Routine'),
-          matching: find.byType(Card),
-        )
-        .first;
-    await tester.tap(
-      find.descendant(
-        of: morningRoutineCard,
-        matching: find.byTooltip('Project options'),
-      ),
-    );
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
-    await tester.drag(find.byType(ListView).last, const Offset(0, -200));
+    await tester.tap(find.byTooltip('Project settings'));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(ListView).last, const Offset(0, -300));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Remove project'));
     await tester.pumpAndSettle();
@@ -639,22 +631,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Morning Routine'), findsNothing);
 
-    final Finder stressResetCard = find
-        .ancestor(
-          of: find.text('Stress Reset'),
-          matching: find.byType(Card),
-        )
-        .first;
-    await tester.tap(
-      find.descendant(
-        of: stressResetCard,
-        matching: find.byTooltip('Project options'),
-      ),
-    );
+    await tester.tap(find.widgetWithText(ListTile, 'Stress Reset'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Project settings'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Set color'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Coral'));
+    await tester.pumpAndSettle();
+    await tester.pageBack();
     await tester.pumpAndSettle();
 
     final Card projectCard = tester.widget<Card>(
@@ -722,6 +707,54 @@ void main() {
     expect(find.byTooltip('Add project task'), findsOneWidget);
   });
 
+  testWidgets('knowledge projects support sessions and quick capture',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Knowledge Hub');
+    await tester.tap(find.text('Type: Blank'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Knowledge'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Knowledge Hub'));
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Quick capture'), findsOneWidget);
+    expect(find.byTooltip('New session'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Quick capture'));
+    await tester.pumpAndSettle();
+    expect(find.text('Create a session first to use quick capture.'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('New session'));
+    await tester.pumpAndSettle();
+    expect(find.text('New Session'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'Podcast: Deep Dive');
+    await tester.enterText(find.byType(TextField).last, 'Episode on learning');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Session'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Podcast: Deep Dive'), findsOneWidget);
+    expect(find.text('Session'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Quick capture'));
+    await tester.pumpAndSettle();
+    expect(find.text('Quick Capture'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'Analogies improve recall');
+    await tester.enterText(find.byType(TextField).last, 'Speaker used concrete examples.');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Capture'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Analogies improve recall'), findsOneWidget);
+  });
+
   testWidgets('migrates versioned v2 payload and adds stable IDs',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
@@ -757,7 +790,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('12'), findsWidgets);
+    expect(find.textContaining('15'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -805,7 +838,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('12'), findsWidgets);
+    expect(find.textContaining('15'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

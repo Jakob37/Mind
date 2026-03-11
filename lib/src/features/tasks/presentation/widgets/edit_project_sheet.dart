@@ -4,10 +4,12 @@ class ProjectEditResult {
   const ProjectEditResult({
     required this.name,
     required this.body,
+    required this.prompt,
   });
 
   final String name;
   final String body;
+  final String prompt;
 }
 
 class EditProjectSheet extends StatefulWidget {
@@ -15,10 +17,14 @@ class EditProjectSheet extends StatefulWidget {
     super.key,
     required this.initialName,
     required this.initialBody,
+    this.initialPrompt = '',
+    this.showPromptField = false,
   });
 
   final String initialName;
   final String initialBody;
+  final String initialPrompt;
+  final bool showPromptField;
 
   @override
   State<EditProjectSheet> createState() => _EditProjectSheetState();
@@ -27,18 +33,21 @@ class EditProjectSheet extends StatefulWidget {
 class _EditProjectSheetState extends State<EditProjectSheet> {
   late final TextEditingController _nameController;
   late final TextEditingController _bodyController;
+  late final TextEditingController _promptController;
 
   @override
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.initialName);
     _bodyController = TextEditingController(text: widget.initialBody);
+    _promptController = TextEditingController(text: widget.initialPrompt);
   }
 
   @override
   void dispose() {
     _nameController.dispose();
     _bodyController.dispose();
+    _promptController.dispose();
     super.dispose();
   }
 
@@ -51,6 +60,7 @@ class _EditProjectSheetState extends State<EditProjectSheet> {
       ProjectEditResult(
         name: name,
         body: _bodyController.text.trim(),
+        prompt: _promptController.text.trim(),
       ),
     );
   }
@@ -85,11 +95,23 @@ class _EditProjectSheetState extends State<EditProjectSheet> {
             controller: _bodyController,
             minLines: 3,
             maxLines: 6,
-            decoration: const InputDecoration(
-              labelText: 'Body',
+            decoration: InputDecoration(
+              labelText: widget.showPromptField ? 'Description' : 'Body',
               alignLabelWithHint: true,
             ),
           ),
+          if (widget.showPromptField) ...<Widget>[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _promptController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Prompt',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _save,

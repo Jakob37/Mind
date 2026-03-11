@@ -44,8 +44,15 @@ void main() {
 
     expect(result.isSuccess, isTrue);
     final TaskBoardState state = result.state!;
-    expect(state.incomingTasks.single.type, TaskItemType.planning);
-    expect(state.favoriteTasks.single.type, TaskItemType.planning);
+    expect(state.incomingTasks, hasLength(2));
+    expect(state.incomingTasks.first.title, 'Incoming task');
+    expect(state.incomingTasks.last.title, 'Favorite task');
+    expect(
+      state.incomingTasks.every(
+        (TaskItem task) => task.type == TaskItemType.planning,
+      ),
+      isTrue,
+    );
     expect(state.projects.single.tasks.single.type, TaskItemType.planning);
     expect(state.colorLabels[4294951112], 'Warm');
   });
@@ -123,7 +130,7 @@ void main() {
     expect(result.isSuccess, isTrue);
     final TaskBoardState state = result.state!;
     expect(state.incomingTasks.first.title, 'Legacy incoming');
-    expect(state.favoriteTasks.first.title, 'Legacy favorite');
+    expect(state.incomingTasks.last.title, 'Legacy favorite');
     expect(state.projects.first.name, 'Legacy project');
     expect(state.projects.first.tasks.first.title, 'Legacy project task');
   });
@@ -141,7 +148,6 @@ void main() {
           type: TaskItemType.thinking,
         ),
       ],
-      favoriteTasks: const <TaskItem>[],
       projects: const <ProjectItem>[],
       projectStacks: const <ProjectStack>[],
       projectTypes: const <ProjectTypeConfig>[],
@@ -159,11 +165,15 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 12);
+    expect(decoded['version'], 15);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
     expect((incoming.first as Map<String, dynamic>)['type'], 'thinking');
+    expect(
+      (decoded['data'] as Map<String, dynamic>).containsKey('favoriteTasks'),
+      isFalse,
+    );
     expect(prefs.getString('task_board_state_v1'), isNull);
   });
 
@@ -183,7 +193,6 @@ void main() {
           ],
         ),
       ],
-      favoriteTasks: const <TaskItem>[],
       projects: const <ProjectItem>[],
       projectStacks: const <ProjectStack>[],
       projectTypes: const <ProjectTypeConfig>[],
@@ -199,10 +208,13 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 12,'), isTrue);
-    expect(decoded['version'], 12);
+    expect(exported.contains('\n  "version": 15,'), isTrue);
+    expect(decoded['version'], 15);
+    expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
+    expect(firstIncoming['entryType'], 'note');
     expect(firstIncoming['archived'], isFalse);
+    expect(firstIncoming['prompt'], '');
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));
     final Map<String, dynamic> firstSubtask =
@@ -219,18 +231,20 @@ void main() {
           type: TaskItemType.thinking,
         ),
       ],
-      favoriteTasks: const <TaskItem>[],
       projects: <ProjectItem>[
         ProjectItem(
           id: 'project-1',
           name: 'Imported project',
+          prompt: 'Project level prompt',
           isArchived: true,
           stackId: 'stack-1',
           tasks: <TaskItem>[
             TaskItem(
               id: 'task-2',
               title: 'Imported project task',
+              prompt: 'Task level prompt',
               type: TaskItemType.planning,
+              entryType: TaskEntryType.session,
               isArchived: true,
               subtasks: <SubTaskItem>[
                 SubTaskItem(
@@ -267,10 +281,13 @@ void main() {
     expect(imported.incomingTasks.single.title, 'Imported incoming');
     expect(imported.incomingTasks.single.type, TaskItemType.thinking);
     expect(imported.projects.single.name, 'Imported project');
+    expect(imported.projects.single.prompt, 'Project level prompt');
     expect(imported.projects.single.isArchived, isTrue);
     expect(imported.projects.single.stackId, 'stack-1');
     expect(imported.projectStacks.single.name, 'Imported stack');
     expect(imported.projects.single.tasks.single.isArchived, isTrue);
+    expect(imported.projects.single.tasks.single.prompt, 'Task level prompt');
+    expect(imported.projects.single.tasks.single.entryType, TaskEntryType.session);
     expect(
       imported.projects.single.tasks.single.subtasks.single.title,
       'Imported child',
@@ -330,5 +347,149 @@ void main() {
     expect(state.incomingTasks.single.isArchived, isFalse);
     expect(state.projects.single.isArchived, isFalse);
     expect(state.projects.single.tasks.single.isArchived, isFalse);
+    expect(state.projects.single.prompt, isEmpty);
+    expect(state.projects.single.tasks.single.prompt, isEmpty);
+  });
+
+  test('load migrates v12 payload and adds empty prompt fields', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 12,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'incoming-1',
+              'title': 'Incoming task',
+              'type': 'planning',
+            },
+          ],
+          'favoriteTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-1',
+              'name': 'Project one',
+              'projectTypeId': ProjectTypeDefaults.llmId,
+              'tasks': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 'task-1',
+                  'title': 'Project task',
+                  'type': 'thinking',
+                },
+              ],
+            },
+          ],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': ProjectTypeConfig.defaults()
+              .map((ProjectTypeConfig type) => type.toJson())
+              .toList(),
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    expect(state.projects.single.prompt, isEmpty);
+    expect(state.projects.single.tasks.single.prompt, isEmpty);
+  });
+
+  test('load migrates v13 payload and adds default entry types', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 13,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'incoming-1',
+              'title': 'Incoming task',
+              'type': 'planning',
+              'prompt': '',
+              'archived': false,
+            },
+          ],
+          'favoriteTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-1',
+              'name': 'Project one',
+              'projectTypeId': ProjectTypeDefaults.knowledgeId,
+              'prompt': '',
+              'archived': false,
+              'tasks': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 'task-1',
+                  'title': 'Project task',
+                  'type': 'thinking',
+                  'prompt': '',
+                  'archived': false,
+                },
+              ],
+            },
+          ],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': ProjectTypeConfig.defaults()
+              .map((ProjectTypeConfig type) => type.toJson())
+              .toList(),
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    expect(state.incomingTasks.single.entryType, TaskEntryType.note);
+    expect(state.projects.single.tasks.single.entryType, TaskEntryType.note);
+  });
+
+  test('load migrates v14 payload and folds favorites into incoming', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 14,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'incoming-1',
+              'title': 'Incoming task',
+              'type': 'planning',
+              'prompt': '',
+              'entryType': 'note',
+              'archived': false,
+            },
+          ],
+          'favoriteTasks': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'favorite-1',
+              'title': 'Favorite task',
+              'type': 'thinking',
+              'prompt': '',
+              'entryType': 'session',
+              'archived': false,
+            },
+          ],
+          'projects': <Map<String, dynamic>>[],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': ProjectTypeConfig.defaults()
+              .map((ProjectTypeConfig type) => type.toJson())
+              .toList(),
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    expect(state.incomingTasks, hasLength(2));
+    expect(state.incomingTasks.first.title, 'Incoming task');
+    expect(state.incomingTasks.last.title, 'Favorite task');
+    expect(state.incomingTasks.last.entryType, TaskEntryType.session);
   });
 }

@@ -4,10 +4,12 @@ class TaskEditResult {
   const TaskEditResult({
     required this.title,
     required this.body,
+    required this.prompt,
   });
 
   final String title;
   final String body;
+  final String prompt;
 }
 
 class EditTaskSheet extends StatefulWidget {
@@ -15,10 +17,14 @@ class EditTaskSheet extends StatefulWidget {
     super.key,
     required this.initialTitle,
     required this.initialBody,
+    this.initialPrompt = '',
+    this.showPromptField = false,
   });
 
   final String initialTitle;
   final String initialBody;
+  final String initialPrompt;
+  final bool showPromptField;
 
   @override
   State<EditTaskSheet> createState() => _EditTaskSheetState();
@@ -27,18 +33,21 @@ class EditTaskSheet extends StatefulWidget {
 class _EditTaskSheetState extends State<EditTaskSheet> {
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
+  late final TextEditingController _promptController;
 
   @override
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle);
     _bodyController = TextEditingController(text: widget.initialBody);
+    _promptController = TextEditingController(text: widget.initialPrompt);
   }
 
   @override
   void dispose() {
     _titleController.dispose();
     _bodyController.dispose();
+    _promptController.dispose();
     super.dispose();
   }
 
@@ -51,6 +60,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
       TaskEditResult(
         title: title,
         body: _bodyController.text.trim(),
+        prompt: _promptController.text.trim(),
       ),
     );
   }
@@ -93,6 +103,18 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
               alignLabelWithHint: true,
             ),
           ),
+          if (widget.showPromptField) ...<Widget>[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _promptController,
+              minLines: 4,
+              maxLines: 8,
+              decoration: const InputDecoration(
+                labelText: 'Prompt',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _save,

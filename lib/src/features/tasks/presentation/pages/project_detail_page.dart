@@ -1,11 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 
 import '../../domain/task_models.dart';
+import '../widgets/add_session_sheet.dart';
 import '../widgets/add_task_sheet.dart';
+import '../widgets/edit_project_sheet.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
 import '../widgets/move_project_task_sheet.dart';
+import '../widgets/quick_capture_sheet.dart';
+import '../widgets/select_project_stack_sheet.dart';
+import '../widgets/select_project_type_sheet.dart';
 import 'task_detail_page.dart';
 
 class _TaskSectionDragPayload {
@@ -28,23 +35,44 @@ enum _ProjectTaskMenuAction {
   remove,
 }
 
+enum _ProjectMenuAction {
+  edit,
+  setType,
+  setStack,
+  setIcon,
+  setColor,
+  archive,
+  restore,
+  remove,
+}
+
+enum _GeneratePromptAction {
+  allTasks,
+  filterByColor,
+}
+
 class ProjectDetailPage extends StatefulWidget {
   const ProjectDetailPage({
     super.key,
     required this.projectId,
     required this.initialProjects,
+    required this.projectStacks,
     required this.projectTypes,
     required this.colorLabels,
     required this.hideCompletedProjectItems,
-    required this.onProjectsChanged,
+    required this.onProjectDataChanged,
   });
 
   final String projectId;
   final List<ProjectItem> initialProjects;
+  final List<ProjectStack> projectStacks;
   final List<ProjectTypeConfig> projectTypes;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
-  final ValueChanged<List<ProjectItem>> onProjectsChanged;
+  final void Function(
+    List<ProjectItem> projects,
+    List<ProjectStack> projectStacks,
+  ) onProjectDataChanged;
 
   @override
   State<ProjectDetailPage> createState() => _ProjectDetailPageState();
@@ -52,6 +80,7 @@ class ProjectDetailPage extends StatefulWidget {
 
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
   late final List<ProjectItem> _projects;
+  late final List<ProjectStack> _projectStacks;
   bool _isReorderMode = false;
   bool _showArchivedTasks = false;
   final Set<String> _expandedProjectTaskIds = <String>{};
@@ -61,16 +90,26 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   void initState() {
     super.initState();
     _projects = _cloneProjects(widget.initialProjects);
+    _projectStacks = _cloneProjectStacks(widget.projectStacks);
   }
 
   List<ProjectItem> _cloneProjects(List<ProjectItem> projects) {
     return projects
         .map((ProjectItem project) => project.clone())
-        .toList(growable: false);
+        .toList(growable: true);
   }
 
-  void _notifyProjectsChanged() {
-    widget.onProjectsChanged(_cloneProjects(_projects));
+  List<ProjectStack> _cloneProjectStacks(List<ProjectStack> projectStacks) {
+    return projectStacks
+        .map((ProjectStack stack) => stack.clone())
+        .toList(growable: true);
+  }
+
+  void _notifyProjectDataChanged() {
+    widget.onProjectDataChanged(
+      _cloneProjects(_projects),
+      _cloneProjectStacks(_projectStacks),
+    );
   }
 
   ProjectItem? _findProject() {
@@ -89,8 +128,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }) {
     return project.tasks
         .where(
-          (TaskItem task) => task.type == type &&
-              (includeArchived || !task.isArchived),
+          (TaskItem task) =>
+              task.type == type && (includeArchived || !task.isArchived),
         )
         .toList(growable: false);
   }
@@ -127,6 +166,93 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return ProjectTypeConfig.defaults().first;
   }
 
+  bool _isLlmProject(ProjectItem project) {
+    return _projectTypeFor(project).id == ProjectTypeDefaults.llmId;
+  }
+
+  bool _isKnowledgeProject(ProjectItem project) {
+    return _projectTypeFor(project).id == ProjectTypeDefaults.knowledgeId;
+  }
+
+  List<TaskItem> _sessionTasks(ProjectItem project) {
+    return project.tasks
+        .where(
+          (TaskItem task) =>
+              !task.isArchived &&
+              task.type == TaskItemType.thinking &&
+              task.entryType == TaskEntryType.session,
+        )
+        .toList(growable: false);
+  }
+
+  List<TaskItem> _promptEligibleTasks(ProjectItem project) {
+    return project.tasks
+        .where(
+          (TaskItem task) => !task.isArchived && task.prompt.trim().isNotEmpty,
+        )
+        .toList(growable: false);
+  }
+
+  List<int> _availablePromptTaskColors(ProjectItem project) {
+    final Set<int> seenColors = <int>{};
+    final List<int> colors = <int>[];
+    for (final TaskItem task in _promptEligibleTasks(project)) {
+      final int? colorValue = task.colorValue;
+      if (colorValue == null || !seenColors.add(colorValue)) {
+        continue;
+      }
+      colors.add(colorValue);
+    }
+    return colors;
+  }
+
+  String _colorLabel(int colorValue) {
+    final String? customLabel = widget.colorLabels[colorValue];
+    if (customLabel != null && customLabel.trim().isNotEmpty) {
+      return customLabel.trim();
+    }
+
+    final String hexValue =
+        colorValue.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+    return '#$hexValue';
+  }
+
+  ProjectStack? _projectStackByName(String stackName) {
+    final String normalizedName = stackName.trim().toLowerCase();
+    if (normalizedName.isEmpty) {
+      return null;
+    }
+
+    for (final ProjectStack stack in _projectStacks) {
+      if (stack.name.trim().toLowerCase() == normalizedName) {
+        return stack;
+      }
+    }
+    return null;
+  }
+
+  String? _resolveStackIdForSelection(ProjectStackSelection selection) {
+    if (selection.mode == ProjectStackSelectionMode.none) {
+      return null;
+    }
+    if (selection.mode == ProjectStackSelectionMode.existing) {
+      return selection.stackId;
+    }
+
+    final String stackName = selection.stackName?.trim() ?? '';
+    if (stackName.isEmpty) {
+      return null;
+    }
+    final ProjectStack? existingStack = _projectStackByName(stackName);
+    if (existingStack != null) {
+      return existingStack.id;
+    }
+
+    final ProjectStack newStack = ProjectStack(name: stackName);
+    _projectStacks.insert(0, newStack);
+    return newStack.id;
+  }
+
   bool _showsIdeasSection(ProjectItem project) {
     final ProjectTypeConfig projectType = _projectTypeFor(project);
     return projectType.showsIdeas ||
@@ -147,6 +273,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     TaskItem task,
     ProjectTypeConfig projectType,
   ) {
+    if (task.entryType == TaskEntryType.session) {
+      return task.copyWith(type: TaskItemType.thinking);
+    }
     if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
       return task.type == TaskItemType.thinking
           ? task
@@ -206,6 +335,442 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     });
   }
 
+  void _showMessage(String message) {
+    if (!mounted) {
+      return;
+    }
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _createSession() async {
+    final ProjectItem? project = _findProject();
+    if (project == null || !_isKnowledgeProject(project)) {
+      return;
+    }
+
+    final AddSessionResult? result =
+        await showModalBottomSheet<AddSessionResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AddSessionSheet(),
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    final List<TaskItem> thinkingTasks = _tasksByType(
+      project,
+      TaskItemType.thinking,
+      includeArchived: true,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _tasksByType(
+      project,
+      TaskItemType.planning,
+      includeArchived: true,
+    ).toList(growable: true);
+
+    final TaskItem sessionTask = TaskItem(
+      title: result.title,
+      body: result.body,
+      type: TaskItemType.thinking,
+      entryType: TaskEntryType.session,
+      iconKey: 'book-open',
+    );
+
+    if (result.insertAtTop) {
+      thinkingTasks.insert(0, sessionTask);
+    } else {
+      thinkingTasks.add(sessionTask);
+    }
+
+    setState(() {
+      _replaceProjectTasksBySections(
+        project: project,
+        thinkingTasks: thinkingTasks,
+        planningTasks: planningTasks,
+      );
+      _expandedProjectTaskIds.add(sessionTask.id);
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<void> _quickCaptureToLatestSession() async {
+    final ProjectItem? project = _findProject();
+    if (project == null || !_isKnowledgeProject(project)) {
+      return;
+    }
+
+    final List<TaskItem> sessions = _sessionTasks(project);
+    if (sessions.isEmpty) {
+      _showMessage('Create a session first to use quick capture.');
+      return;
+    }
+
+    final TaskItem targetSession = sessions.first;
+    final QuickCaptureResult? result =
+        await showModalBottomSheet<QuickCaptureResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => QuickCaptureSheet(
+        sessionTitle: targetSession.title,
+      ),
+    );
+
+    if (!mounted || result == null) {
+      return;
+    }
+
+    final int sessionIndex = _findTaskIndex(project, targetSession.id);
+    if (sessionIndex < 0) {
+      return;
+    }
+
+    setState(() {
+      final TaskItem sessionTask = project.tasks[sessionIndex];
+      project.tasks[sessionIndex] = sessionTask.copyWith(
+        subtasks: <SubTaskItem>[
+          SubTaskItem(
+            title: result.title,
+            body: result.body,
+          ),
+          ...sessionTask.subtasks.map((SubTaskItem item) => item.clone()),
+        ],
+      );
+      _expandedProjectTaskIds.add(targetSession.id);
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<_GeneratePromptAction?> _showGeneratePromptMenu() {
+    return showModalBottomSheet<_GeneratePromptAction>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              const ListTile(
+                leading: Icon(Icons.memory_outlined),
+                title: Text(
+                  'Generate Prompt',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.memory_outlined),
+                title: const Text('Use all prompt tasks'),
+                subtitle: const Text(
+                    'Include every non-archived task with a prompt.'),
+                onTap: () => Navigator.of(context).pop(
+                  _GeneratePromptAction.allTasks,
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Filter by colors'),
+                subtitle: const Text(
+                    'Generate from prompt tasks matching selected card colors.'),
+                onTap: () => Navigator.of(context).pop(
+                  _GeneratePromptAction.filterByColor,
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<Set<int>?> _selectPromptColors(ProjectItem project) async {
+    final List<int> availableColors = _availablePromptTaskColors(project);
+    if (availableColors.isEmpty) {
+      _showMessage(
+          'No colored tasks with prompts are available for this project.');
+      return null;
+    }
+
+    final Set<int> initialSelection = availableColors.toSet();
+    return showModalBottomSheet<Set<int>>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        final Set<int> selectedColors = <int>{...initialSelection};
+        return StatefulBuilder(
+          builder: (BuildContext context,
+              void Function(void Function()) setModalState) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const Row(
+                      children: <Widget>[
+                        Icon(Icons.memory_outlined),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Filter Prompt Tasks',
+                            style: TextStyle(fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: <Widget>[
+                          for (final int colorValue in availableColors)
+                            CheckboxListTile(
+                              value: selectedColors.contains(colorValue),
+                              contentPadding: EdgeInsets.zero,
+                              secondary: CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Color(colorValue),
+                              ),
+                              title: Text(_colorLabel(colorValue)),
+                              onChanged: (bool? value) {
+                                setModalState(() {
+                                  if (value ?? false) {
+                                    selectedColors.add(colorValue);
+                                  } else {
+                                    selectedColors.remove(colorValue);
+                                  }
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: selectedColors.isEmpty
+                          ? null
+                          : () => Navigator.of(context).pop(
+                                <int>{...selectedColors},
+                              ),
+                      icon: const Icon(Icons.memory_outlined),
+                      label: const Text('Generate Prompt'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  String _buildGeneratedPrompt({
+    required ProjectItem project,
+    required List<TaskItem> tasks,
+    Set<int>? selectedColors,
+  }) {
+    final StringBuffer buffer = StringBuffer()
+      ..writeln('Project: ${project.name}')
+      ..writeln();
+
+    final String projectBody = project.body.trim();
+    final String projectPrompt = project.prompt.trim();
+    if (projectBody.isNotEmpty) {
+      buffer
+        ..writeln('Project description:')
+        ..writeln(projectBody)
+        ..writeln();
+    }
+    if (projectPrompt.isNotEmpty) {
+      buffer
+        ..writeln('Project prompt:')
+        ..writeln(projectPrompt)
+        ..writeln();
+    }
+    if (selectedColors != null && selectedColors.isNotEmpty) {
+      final List<String> labels =
+          selectedColors.map(_colorLabel).toList(growable: false);
+      buffer
+        ..writeln('Selected colors: ${labels.join(', ')}')
+        ..writeln();
+    }
+
+    buffer.writeln('Selected tasks:');
+    for (int index = 0; index < tasks.length; index += 1) {
+      final TaskItem task = tasks[index];
+      buffer.writeln('${index + 1}. ${task.title}');
+      final String taskBody = task.body.trim();
+      if (taskBody.isNotEmpty) {
+        buffer
+          ..writeln('Body:')
+          ..writeln(taskBody)
+          ..writeln();
+      }
+      buffer
+        ..writeln('Prompt:')
+        ..writeln(task.prompt.trim());
+      if (index < tasks.length - 1) {
+        buffer.writeln();
+      }
+    }
+
+    buffer
+      ..writeln()
+      ..writeln(
+        'Using the project context and selected tasks above, generate a clear '
+        'implementation prompt for building this feature. Include scope, '
+        'constraints, edge cases, suggested steps, and expected output.',
+      );
+
+    return buffer.toString().trimRight();
+  }
+
+  Future<void> _showGeneratedPromptSheet(String generatedPrompt) async {
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (BuildContext context) {
+        return FractionallySizedBox(
+          heightFactor: 0.9,
+          child: SafeArea(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                16 + MediaQuery.of(context).viewInsets.bottom,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: <Widget>[
+                  const Row(
+                    children: <Widget>[
+                      Icon(Icons.memory_outlined),
+                      SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Generated Prompt',
+                          style: TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Expanded(
+                    child: SingleChildScrollView(
+                      child: SelectableText(generatedPrompt),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: <Widget>[
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          onPressed: () async {
+                            await Clipboard.setData(
+                              ClipboardData(text: generatedPrompt),
+                            );
+                            if (!context.mounted) {
+                              return;
+                            }
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Prompt copied to clipboard.'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.copy_outlined),
+                          label: const Text('Copy'),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          onPressed: () async {
+                            await SharePlus.instance.share(
+                              ShareParams(
+                                text: generatedPrompt,
+                                subject: 'Generated prompt',
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.share_outlined),
+                          label: const Text('Share'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openGeneratePromptFlow() async {
+    final ProjectItem? project = _findProject();
+    if (project == null || !_isLlmProject(project)) {
+      return;
+    }
+
+    final _GeneratePromptAction? action = await _showGeneratePromptMenu();
+    if (!mounted || action == null) {
+      return;
+    }
+
+    final List<TaskItem> promptTasks = _promptEligibleTasks(project);
+    if (promptTasks.isEmpty) {
+      _showMessage('No tasks with prompts are available for this project.');
+      return;
+    }
+
+    if (action == _GeneratePromptAction.allTasks) {
+      await _showGeneratedPromptSheet(
+        _buildGeneratedPrompt(
+          project: project,
+          tasks: promptTasks,
+        ),
+      );
+      return;
+    }
+
+    final Set<int>? selectedColors = await _selectPromptColors(project);
+    if (!mounted || selectedColors == null) {
+      return;
+    }
+
+    final List<TaskItem> filteredTasks = promptTasks
+        .where(
+          (TaskItem task) =>
+              task.colorValue != null &&
+              selectedColors.contains(task.colorValue),
+        )
+        .toList(growable: false);
+    if (filteredTasks.isEmpty) {
+      _showMessage('No tasks with prompts match the selected colors.');
+      return;
+    }
+
+    await _showGeneratedPromptSheet(
+      _buildGeneratedPrompt(
+        project: project,
+        tasks: filteredTasks,
+        selectedColors: selectedColors,
+      ),
+    );
+  }
+
   Future<void> _openTaskView(String taskId) async {
     final ProjectItem? project = _findProject();
     if (project == null) {
@@ -219,6 +784,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final TaskItem task = project.tasks[taskIndex];
     final bool canMoveBetweenSections =
+        task.entryType != TaskEntryType.session &&
         _projectTypeFor(project).showsIdeas &&
         _projectTypeFor(project).showsPlanningTasks;
     final TaskDetailAction? action = await Navigator.of(
@@ -240,7 +806,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             setState(() {
               activeProject.tasks[sourceTaskIndex] = updatedTask.clone();
             });
-            _notifyProjectsChanged();
+            _notifyProjectDataChanged();
           },
           menuItems: <TaskDetailMenuItem>[
             const TaskDetailMenuItem(
@@ -321,6 +887,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Future<_ProjectTaskMenuAction?> _showTaskMenu(TaskItem task) {
     final ProjectItem? project = _findProject();
     final bool canMoveToOtherSection = project != null &&
+        task.entryType != TaskEntryType.session &&
         _projectTypeFor(project).showsIdeas &&
         _projectTypeFor(project).showsPlanningTasks;
     return showModalBottomSheet<_ProjectTaskMenuAction>(
@@ -487,6 +1054,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       builder: (_) => EditTaskSheet(
         initialTitle: task.title,
         initialBody: task.body,
+        initialPrompt: task.prompt,
+        showPromptField: _isLlmProject(project),
       ),
     );
 
@@ -498,9 +1067,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       project.tasks[taskIndex] = task.copyWith(
         title: result.title,
         body: result.body,
+        prompt: result.prompt,
       );
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   Future<void> _setTaskIcon(String taskId) async {
@@ -535,7 +1105,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         clearIcon: iconKey == null,
       );
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   Future<void> _setTaskColor(String taskId) async {
@@ -567,7 +1137,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       project.tasks[taskIndex] =
           task.copyWith(colorValue: selection.colorValue);
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   void _setTaskType(String taskId, TaskItemType type) {
@@ -585,11 +1155,15 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     if (task.type == type) {
       return;
     }
+    if (task.entryType == TaskEntryType.session &&
+        type != TaskItemType.thinking) {
+      return;
+    }
 
     setState(() {
       project.tasks[taskIndex] = task.copyWith(type: type);
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   void _moveTaskToPosition({
@@ -631,23 +1205,33 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final List<TaskItem> destinationTasks =
-        targetType == TaskItemType.thinking ? thinkingTasks : planningTasks;
+    final TaskItemType effectiveTargetType =
+        sourceTask.entryType == TaskEntryType.session
+            ? TaskItemType.thinking
+            : targetType;
+    final List<TaskItem> destinationTasks = effectiveTargetType ==
+            TaskItemType.thinking
+        ? thinkingTasks
+        : planningTasks;
 
     int insertionIndex = targetIndex;
-    if (sourceType == targetType && sourceIndex < insertionIndex) {
+    if (sourceType == effectiveTargetType && sourceIndex < insertionIndex) {
       insertionIndex -= 1;
     }
     insertionIndex = insertionIndex.clamp(0, destinationTasks.length);
 
-    final TaskItem movedTask = sourceTask.type == targetType
+    final TaskItem movedTask = sourceTask.type == effectiveTargetType
         ? sourceTask
         : TaskItem(
             id: sourceTask.id,
             title: sourceTask.title,
             body: sourceTask.body,
+            prompt: sourceTask.prompt,
             colorValue: sourceTask.colorValue,
-            type: targetType,
+            type: effectiveTargetType,
+            entryType: sourceTask.entryType,
+            isArchived: sourceTask.isArchived,
+            iconKey: sourceTask.iconKey,
             subtasks: sourceTask.subtasks
                 .map((SubTaskItem subtask) => subtask.clone())
                 .toList(),
@@ -662,7 +1246,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         planningTasks: planningTasks,
       );
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   void _nestTaskUnderTask({
@@ -707,7 +1291,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         ],
       );
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   void _deleteTask(String taskId) {
@@ -738,10 +1322,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               : activeProject.tasks.length;
           activeProject.tasks.insert(insertIndex, removedTask);
         });
-        _notifyProjectsChanged();
+        _notifyProjectDataChanged();
       },
     );
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   void _archiveTask(String taskId) {
@@ -764,7 +1348,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       project.tasks[taskIndex] = task.copyWith(isArchived: true);
       _isReorderMode = false;
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
     _showUndoTaskDeletion(
       message: 'Task archived.',
       onUndo: () {
@@ -777,10 +1361,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           return;
         }
         setState(() {
-          activeProject.tasks[currentIndex] = activeProject.tasks[currentIndex]
-              .copyWith(isArchived: false);
+          activeProject.tasks[currentIndex] =
+              activeProject.tasks[currentIndex].copyWith(isArchived: false);
         });
-        _notifyProjectsChanged();
+        _notifyProjectDataChanged();
       },
     );
   }
@@ -804,7 +1388,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     setState(() {
       project.tasks[taskIndex] = task.copyWith(isArchived: false);
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   void _toggleProjectArchived() {
@@ -825,7 +1409,328 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _isReorderMode = false;
       }
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
+  }
+
+  Future<_ProjectMenuAction?> _showProjectMenu(ProjectItem project) {
+    return showModalBottomSheet<_ProjectMenuAction>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              ListTile(
+                title: Text(
+                  project.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Project settings'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Edit project'),
+                onTap: () => Navigator.of(context).pop(_ProjectMenuAction.edit),
+              ),
+              ListTile(
+                leading: const Icon(Icons.label_outline),
+                title: const Text('Set project type'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setType),
+              ),
+              ListTile(
+                leading: const Icon(Icons.layers_outlined),
+                title: const Text('Set stack'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setStack),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_reaction_outlined),
+                title: const Text('Set icon'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setIcon),
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Set color'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setColor),
+              ),
+              ListTile(
+                leading: Icon(
+                  project.isArchived
+                      ? Icons.unarchive_outlined
+                      : Icons.archive_outlined,
+                ),
+                title: Text(
+                  project.isArchived ? 'Restore project' : 'Archive project',
+                ),
+                onTap: () => Navigator.of(context).pop(
+                  project.isArchived
+                      ? _ProjectMenuAction.restore
+                      : _ProjectMenuAction.archive,
+                ),
+              ),
+              ListTile(
+                leading: const Icon(Icons.delete_outline),
+                title: const Text('Remove project'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.remove),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openProjectSettings() async {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final _ProjectMenuAction? action = await _showProjectMenu(project);
+    if (!mounted || action == null) {
+      return;
+    }
+
+    if (action == _ProjectMenuAction.edit) {
+      await _editProject();
+      return;
+    }
+    if (action == _ProjectMenuAction.setType) {
+      await _setProjectType();
+      return;
+    }
+    if (action == _ProjectMenuAction.setStack) {
+      await _setProjectStack();
+      return;
+    }
+    if (action == _ProjectMenuAction.setIcon) {
+      await _setProjectIcon();
+      return;
+    }
+    if (action == _ProjectMenuAction.setColor) {
+      await _setProjectColor();
+      return;
+    }
+    if (action == _ProjectMenuAction.archive ||
+        action == _ProjectMenuAction.restore) {
+      _toggleProjectArchived();
+      return;
+    }
+    if (action == _ProjectMenuAction.remove) {
+      final bool shouldRemove = await _confirmProjectRemoval();
+      if (shouldRemove) {
+        _removeProject();
+      }
+    }
+  }
+
+  Future<void> _editProject() async {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final ProjectEditResult? result =
+        await showModalBottomSheet<ProjectEditResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditProjectSheet(
+        initialName: project.name,
+        initialBody: project.body,
+        initialPrompt: project.prompt,
+        showPromptField: _isLlmProject(project),
+      ),
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    setState(() {
+      final int projectIndex =
+          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      if (projectIndex < 0) {
+        return;
+      }
+      _projects[projectIndex] = project.copyWith(
+        name: result.name,
+        body: result.body,
+        prompt: result.prompt,
+      );
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<void> _setProjectIcon() async {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final String? iconKey = await showModalBottomSheet<String?>(
+      context: context,
+      builder: (_) => ItemIconPickerSheet(
+        currentIconKey: project.iconKey,
+      ),
+    );
+
+    if (!mounted || iconKey == project.iconKey) {
+      return;
+    }
+
+    setState(() {
+      final int projectIndex =
+          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      if (projectIndex < 0) {
+        return;
+      }
+      _projects[projectIndex] = project.copyWith(
+        iconKey: iconKey,
+        clearIcon: iconKey == null,
+      );
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<void> _setProjectColor() async {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final ColorSelection? selection =
+        await showModalBottomSheet<ColorSelection>(
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: project.colorValue,
+        customLabels: widget.colorLabels,
+      ),
+    );
+
+    if (selection == null) {
+      return;
+    }
+
+    setState(() {
+      final int projectIndex =
+          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      if (projectIndex < 0) {
+        return;
+      }
+      _projects[projectIndex] =
+          project.copyWith(colorValue: selection.colorValue);
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<void> _setProjectType() async {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final String? projectTypeId = await showModalBottomSheet<String>(
+      context: context,
+      builder: (_) => SelectProjectTypeSheet(
+        projectTypes: widget.projectTypes,
+        currentProjectTypeId:
+            project.projectTypeId ?? ProjectTypeDefaults.blankId,
+      ),
+    );
+
+    if (!mounted || projectTypeId == null) {
+      return;
+    }
+
+    setState(() {
+      final int projectIndex =
+          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      if (projectIndex < 0) {
+        return;
+      }
+      _projects[projectIndex] = project.copyWith(projectTypeId: projectTypeId);
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<void> _setProjectStack() async {
+    final ProjectItem? project = _findProject();
+    if (project == null) {
+      return;
+    }
+
+    final ProjectStackSelection initialSelection = project.stackId == null
+        ? const ProjectStackSelection.none()
+        : ProjectStackSelection.existing(stackId: project.stackId!);
+    final ProjectStackSelection? selection =
+        await showModalBottomSheet<ProjectStackSelection>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SelectProjectStackSheet(
+        projectStacks: _projectStacks,
+        initialSelection: initialSelection,
+      ),
+    );
+
+    if (!mounted || selection == null) {
+      return;
+    }
+
+    final String? stackId = _resolveStackIdForSelection(selection);
+    setState(() {
+      final int projectIndex =
+          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      if (projectIndex < 0) {
+        return;
+      }
+      _projects[projectIndex] = project.copyWith(
+        stackId: stackId,
+        clearStack: stackId == null,
+      );
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<bool> _confirmProjectRemoval() async {
+    final bool? shouldRemove = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Remove project?'),
+          content: const Text('Projects always require confirmation.'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Remove'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldRemove ?? false;
+  }
+
+  void _removeProject() {
+    final int projectIndex = _projects
+        .indexWhere((ProjectItem project) => project.id == widget.projectId);
+    if (projectIndex < 0) {
+      return;
+    }
+
+    setState(() {
+      _projects.removeAt(projectIndex);
+    });
+    _notifyProjectDataChanged();
+    Navigator.of(context).pop();
   }
 
   void _showUndoTaskDeletion({
@@ -836,11 +1741,29 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    ScaffoldMessenger.of(context)
+    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
+
+    messenger
       ..hideCurrentSnackBar()
       ..showSnackBar(
         SnackBar(
-          content: Text(message),
+          content: Row(
+            children: <Widget>[
+              IconButton(
+                onPressed: messenger.hideCurrentSnackBar,
+                tooltip: 'Dismiss',
+                icon: const Icon(Icons.close),
+                padding: EdgeInsets.zero,
+                constraints: const BoxConstraints.tightFor(
+                  width: 32,
+                  height: 32,
+                ),
+                visualDensity: VisualDensity.compact,
+              ),
+              const SizedBox(width: 8),
+              Expanded(child: Text(message)),
+            ],
+          ),
           action: SnackBarAction(
             label: 'Revert?',
             onPressed: onUndo,
@@ -897,7 +1820,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       );
       _projects[targetProjectIndex].tasks.insert(0, adjustedTask);
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   Future<TaskItemType?> _chooseTaskTypeForCreate() {
@@ -988,8 +1911,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       id: createdTask.task.id,
       title: createdTask.task.title,
       body: createdTask.task.body,
+      prompt: createdTask.task.prompt,
       colorValue: createdTask.task.colorValue,
       type: selectedType,
+      entryType: createdTask.task.entryType,
       iconKey: createdTask.task.iconKey,
       subtasks: createdTask.task.subtasks
           .map((SubTaskItem subtask) => subtask.clone())
@@ -1017,7 +1942,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         planningTasks: planningTasks,
       );
     });
-    _notifyProjectsChanged();
+    _notifyProjectDataChanged();
   }
 
   Widget _buildTaskCard({
@@ -1028,10 +1953,28 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     Widget? trailing,
     double bottomPadding = 4,
   }) {
-    final IconData? iconData = iconDataForKey(task.iconKey);
+    final IconData? iconData = iconDataForKey(task.iconKey) ??
+        (task.entryType == TaskEntryType.session
+            ? Icons.headset_outlined
+            : null);
     final bool hasNestedItems = task.subtasks.isNotEmpty;
     final bool isExpanded = _expandedProjectTaskIds.contains(task.id);
     final List<Widget> trailingParts = <Widget>[
+      if (task.entryType == TaskEntryType.session)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.tertiaryContainer,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            'Session',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onTertiaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
+          ),
+        ),
       if (showNestedPreview && hasNestedItems)
         IconButton(
           onPressed: () => _toggleProjectTaskExpanded(task.id),
@@ -1067,6 +2010,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           message: 'Has text content',
           child: Icon(
             Icons.notes_outlined,
+            size: 18,
+          ),
+        ),
+      if (task.prompt.isNotEmpty)
+        const Tooltip(
+          message: 'Has prompt',
+          child: Icon(
+            Icons.memory_outlined,
             size: 18,
           ),
         ),
@@ -1170,9 +2121,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ),
               leading: hasChildren
                   ? IconButton(
-                      onPressed: () => _togglePreviewSubtaskExpanded(subTask.id),
-                      tooltip:
-                          isExpanded ? 'Collapse nested ideas' : 'Expand nested ideas',
+                      onPressed: () =>
+                          _togglePreviewSubtaskExpanded(subTask.id),
+                      tooltip: isExpanded
+                          ? 'Collapse nested ideas'
+                          : 'Expand nested ideas',
                       icon: Icon(
                         isExpanded
                             ? Icons.expand_more_outlined
@@ -1200,7 +2153,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   : Row(
                       mainAxisSize: MainAxisSize.min,
                       children: <Widget>[
-                        for (int i = 0; i < trailingParts.length; i++) ...<Widget>[
+                        for (int i = 0;
+                            i < trailingParts.length;
+                            i++) ...<Widget>[
                           if (i > 0) const SizedBox(width: 8),
                           trailingParts[i],
                         ],
@@ -1549,9 +2504,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final bool showsIdeasSection = _showsIdeasSection(project);
     final bool showsPlanningSection = _showsPlanningSection(project);
     final bool canCreateTasks = _canCreateTasks(project);
+    final ProjectTypeConfig projectType = _projectTypeFor(project);
+    final bool isLlmProject = projectType.id == ProjectTypeDefaults.llmId;
+    final bool isKnowledgeProject =
+        projectType.id == ProjectTypeDefaults.knowledgeId;
     final IconData? projectIconData =
-        iconDataForKey(project.iconKey) ??
-        iconDataForKey(_projectTypeFor(project).iconKey);
+        iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
 
     return Scaffold(
       appBar: AppBar(
@@ -1565,6 +2523,24 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           ],
         ),
         actions: <Widget>[
+          if (isLlmProject)
+            IconButton(
+              onPressed: _openGeneratePromptFlow,
+              tooltip: 'Generate prompt',
+              icon: const Icon(Icons.memory_outlined),
+            ),
+          if (isKnowledgeProject && !project.isArchived)
+            IconButton(
+              onPressed: _quickCaptureToLatestSession,
+              tooltip: 'Quick capture',
+              icon: const Icon(Icons.flash_on_outlined),
+            ),
+          if (isKnowledgeProject && !project.isArchived)
+            IconButton(
+              onPressed: _createSession,
+              tooltip: 'New session',
+              icon: const Icon(Icons.add_box_outlined),
+            ),
           if (!_isReorderMode)
             IconButton(
               onPressed: _enterReorderMode,
@@ -1578,14 +2554,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               icon: const Icon(Icons.check),
             ),
           IconButton(
-            onPressed: _toggleProjectArchived,
-            tooltip:
-                project.isArchived ? 'Restore project' : 'Archive project',
-            icon: Icon(
-              project.isArchived
-                  ? Icons.unarchive_outlined
-                  : Icons.archive_outlined,
-            ),
+            onPressed: _openProjectSettings,
+            tooltip: 'Project settings',
+            icon: const Icon(Icons.settings_outlined),
           ),
         ],
       ),
@@ -1600,21 +2571,61 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 style: Theme.of(context).textTheme.bodyMedium,
               ),
             ),
+          if (project.body.isNotEmpty ||
+              (isLlmProject && project.prompt.isNotEmpty))
+            Card(
+              margin: const EdgeInsets.only(bottom: 12),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    if (project.body.isNotEmpty) ...<Widget>[
+                      Text(
+                        project.body,
+                        style: Theme.of(context).textTheme.bodyLarge,
+                      ),
+                    ],
+                    if (project.body.isNotEmpty &&
+                        isLlmProject &&
+                        project.prompt.isNotEmpty)
+                      const SizedBox(height: 16),
+                    if (isLlmProject && project.prompt.isNotEmpty) ...<Widget>[
+                      Text(
+                        'Prompt',
+                        style: Theme.of(context).textTheme.titleSmall,
+                      ),
+                      const SizedBox(height: 8),
+                      SelectableText(
+                        project.prompt,
+                        style: Theme.of(context).textTheme.bodyMedium,
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
           if (showsIdeasSection && _isReorderMode)
             _buildReorderTaskSection(
-              title: 'Thinking (ideas)',
-              emptyLabel: 'Drop ideas here.',
+              title:
+                  isKnowledgeProject ? 'Knowledge notes' : 'Thinking (ideas)',
+              emptyLabel:
+                  isKnowledgeProject ? 'Drop notes here.' : 'Drop ideas here.',
               tasks: thinkingTasks,
               sectionType: TaskItemType.thinking,
             )
           else if (showsIdeasSection)
             _buildTaskSection(
-              title: 'Thinking (ideas)',
-              emptyLabel: 'No ideas in this project yet.',
+              title:
+                  isKnowledgeProject ? 'Knowledge notes' : 'Thinking (ideas)',
+              emptyLabel: isKnowledgeProject
+                  ? 'No knowledge captured yet.'
+                  : 'No ideas in this project yet.',
               tasks: thinkingTasks,
               showNestedPreview: true,
             ),
-          if (showsIdeasSection && showsPlanningSection) const SizedBox(height: 8),
+          if (showsIdeasSection && showsPlanningSection)
+            const SizedBox(height: 8),
           if (showsPlanningSection && _isReorderMode)
             _buildReorderTaskSection(
               title: 'Planning (action items)',
@@ -1633,16 +2644,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               'This project type is blank. Enable ideas or tasks in project type settings to add sections.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
-          if (archivedTasks.isNotEmpty) _buildArchivedTaskSection(archivedTasks),
+          if (archivedTasks.isNotEmpty)
+            _buildArchivedTaskSection(archivedTasks),
         ],
       ),
-      floatingActionButton: _isReorderMode || !canCreateTasks || project.isArchived
-          ? null
-          : FloatingActionButton(
-              onPressed: _addTaskToProject,
-              tooltip: 'Add project task',
-              child: const Icon(Icons.add),
-            ),
+      floatingActionButton:
+          _isReorderMode || !canCreateTasks || project.isArchived
+              ? null
+              : FloatingActionButton(
+                  onPressed: _addTaskToProject,
+                  tooltip: isKnowledgeProject
+                      ? 'Add knowledge note'
+                      : 'Add project task',
+                  child: const Icon(Icons.add),
+                ),
     );
   }
 }
