@@ -565,6 +565,10 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
 
+    await tester.ensureVisible(
+      find.widgetWithText(ListTile, 'Shape a calm start sequence'),
+    );
+    await tester.pumpAndSettle();
     await tester.drag(
       find.widgetWithText(ListTile, 'Shape a calm start sequence'),
       const Offset(600, 0),
@@ -579,6 +583,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Shape a calm start sequence'), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.widgetWithText(ListTile, 'Shape a calm start sequence'),
+    );
+    await tester.pumpAndSettle();
     await tester.drag(
       find.widgetWithText(ListTile, 'Shape a calm start sequence'),
       const Offset(600, 0),
