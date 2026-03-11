@@ -406,25 +406,31 @@ class ProjectStack {
   ProjectStack({
     String? id,
     required this.name,
+    this.colorValue,
   }) : id = id ?? ModelIds.newProjectStackId();
 
   final String id;
   final String name;
+  final int? colorValue;
 
   ProjectStack clone() {
     return ProjectStack(
       id: id,
       name: name,
+      colorValue: colorValue,
     );
   }
 
   ProjectStack copyWith({
     String? id,
     String? name,
+    int? colorValue,
+    bool clearColor = false,
   }) {
     return ProjectStack(
       id: id ?? this.id,
       name: name ?? this.name,
+      colorValue: clearColor ? null : (colorValue ?? this.colorValue),
     );
   }
 
@@ -432,16 +438,19 @@ class ProjectStack {
     return <String, dynamic>{
       'id': id,
       'name': name,
+      'color': colorValue,
     };
   }
 
   factory ProjectStack.fromJson(Map<String, dynamic> json) {
     final String name = _readRequiredString(json, 'name');
     final String? id = _readOptionalTrimmedString(json, 'id');
+    final int? colorValue = _readOptionalInt(json, 'color');
 
     return ProjectStack(
       id: id == null || id.isEmpty ? null : id,
       name: name,
+      colorValue: colorValue,
     );
   }
 }

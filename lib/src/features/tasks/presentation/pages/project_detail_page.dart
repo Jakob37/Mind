@@ -785,8 +785,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final TaskItem task = project.tasks[taskIndex];
     final bool canMoveBetweenSections =
         task.entryType != TaskEntryType.session &&
-        _projectTypeFor(project).showsIdeas &&
-        _projectTypeFor(project).showsPlanningTasks;
+            _projectTypeFor(project).showsIdeas &&
+            _projectTypeFor(project).showsPlanningTasks;
     final TaskDetailAction? action = await Navigator.of(
       context,
     ).push<TaskDetailAction>(
@@ -1134,8 +1134,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     setState(() {
-      project.tasks[taskIndex] =
-          task.copyWith(colorValue: selection.colorValue);
+      project.tasks[taskIndex] = task.copyWith(
+        colorValue: selection.colorValue,
+        clearColor: selection.colorValue == null,
+      );
     });
     _notifyProjectDataChanged();
   }
@@ -1209,10 +1211,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         sourceTask.entryType == TaskEntryType.session
             ? TaskItemType.thinking
             : targetType;
-    final List<TaskItem> destinationTasks = effectiveTargetType ==
-            TaskItemType.thinking
-        ? thinkingTasks
-        : planningTasks;
+    final List<TaskItem> destinationTasks =
+        effectiveTargetType == TaskItemType.thinking
+            ? thinkingTasks
+            : planningTasks;
 
     int insertionIndex = targetIndex;
     if (sourceType == effectiveTargetType && sourceIndex < insertionIndex) {
@@ -1622,8 +1624,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       if (projectIndex < 0) {
         return;
       }
-      _projects[projectIndex] =
-          project.copyWith(colorValue: selection.colorValue);
+      _projects[projectIndex] = project.copyWith(
+        colorValue: selection.colorValue,
+        clearColor: selection.colorValue == null,
+      );
     });
     _notifyProjectDataChanged();
   }

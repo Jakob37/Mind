@@ -11,6 +11,7 @@ import 'pages/task_detail_page.dart';
 import 'widgets/add_project_sheet.dart';
 import 'widgets/add_task_sheet.dart';
 import 'widgets/edit_project_sheet.dart';
+import 'widgets/edit_project_stack_sheet.dart';
 import 'widgets/edit_task_sheet.dart';
 import 'widgets/item_icon_picker_sheet.dart';
 import 'widgets/item_color_picker_sheet.dart';
@@ -39,6 +40,11 @@ enum _IncomingTaskMenuAction {
   setColor,
   moveToProject,
   remove,
+}
+
+enum _ProjectStackMenuAction {
+  rename,
+  setColor,
 }
 
 class TaskPage extends StatefulWidget {
@@ -107,6 +113,11 @@ class _TaskPageState extends State<TaskPage>
   int _indexOfProjectById(String projectId) {
     return _projects
         .indexWhere((ProjectItem project) => project.id == projectId);
+  }
+
+  int _indexOfProjectStackById(String stackId) {
+    return _projectStacks
+        .indexWhere((ProjectStack stack) => stack.id == stackId);
   }
 
   List<ProjectItem> _cloneProjects(List<ProjectItem> projects) {
@@ -224,6 +235,14 @@ class _TaskPageState extends State<TaskPage>
     return _projects[projectIndex];
   }
 
+  ProjectStack? _projectStackById(String stackId) {
+    final int stackIndex = _indexOfProjectStackById(stackId);
+    if (stackIndex < 0) {
+      return null;
+    }
+    return _projectStacks[stackIndex];
+  }
+
   ProjectStack? _projectStackByName(
     List<ProjectStack> projectStacks,
     String stackName,
@@ -239,6 +258,135 @@ class _TaskPageState extends State<TaskPage>
       }
     }
     return null;
+  }
+
+  Future<_ProjectStackMenuAction?> _showProjectStackMenu(
+    ProjectStack stack,
+  ) {
+    return showModalBottomSheet<_ProjectStackMenuAction>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              ListTile(
+                title: Text(
+                  stack.name,
+                  style: const TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: const Text('Stack settings'),
+              ),
+              const Divider(height: 1),
+              ListTile(
+                leading: const Icon(Icons.edit_outlined),
+                title: const Text('Rename stack'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectStackMenuAction.rename),
+              ),
+              ListTile(
+                leading: const Icon(Icons.palette_outlined),
+                title: const Text('Set color'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectStackMenuAction.setColor),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _openProjectStackMenu(String stackId) async {
+    final ProjectStack? stack = _projectStackById(stackId);
+    if (stack == null) {
+      return;
+    }
+
+    final _ProjectStackMenuAction? action = await _showProjectStackMenu(stack);
+    if (!mounted || action == null) {
+      return;
+    }
+
+    if (action == _ProjectStackMenuAction.rename) {
+      await _renameProjectStack(stackId);
+      return;
+    }
+    if (action == _ProjectStackMenuAction.setColor) {
+      await _setProjectStackColor(stackId);
+    }
+  }
+
+  Future<void> _renameProjectStack(String stackId) async {
+    final int stackIndex = _indexOfProjectStackById(stackId);
+    if (stackIndex < 0) {
+      return;
+    }
+
+    final ProjectStack stack = _projectStacks[stackIndex];
+    final String? updatedName = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditProjectStackSheet(initialName: stack.name),
+    );
+
+    if (!mounted || updatedName == null) {
+      return;
+    }
+
+    final String normalizedName = updatedName.trim();
+    if (normalizedName.isEmpty || normalizedName == stack.name) {
+      return;
+    }
+
+    final ProjectStack? existingStack = _projectStackByName(
+      _projectStacks,
+      normalizedName,
+    );
+    if (existingStack != null && existingStack.id != stackId) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          const SnackBar(
+            content: Text('A stack with that name already exists.'),
+          ),
+        );
+      return;
+    }
+
+    setState(() {
+      _projectStacks[stackIndex] = stack.copyWith(name: normalizedName);
+    });
+    _persistState();
+  }
+
+  Future<void> _setProjectStackColor(String stackId) async {
+    final int stackIndex = _indexOfProjectStackById(stackId);
+    if (stackIndex < 0) {
+      return;
+    }
+
+    final ProjectStack stack = _projectStacks[stackIndex];
+    final ColorSelection? selection =
+        await showModalBottomSheet<ColorSelection>(
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: stack.colorValue,
+        customLabels: _colorLabels,
+      ),
+    );
+
+    if (selection == null) {
+      return;
+    }
+
+    setState(() {
+      _projectStacks[stackIndex] = stack.copyWith(
+        colorValue: selection.colorValue,
+        clearColor: selection.colorValue == null,
+      );
+    });
+    _persistState();
   }
 
   ProjectTypeConfig _projectTypeById(
@@ -562,8 +710,10 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      sourceTasks[sourceTaskIndex] =
-          task.copyWith(colorValue: selection.colorValue);
+      sourceTasks[sourceTaskIndex] = task.copyWith(
+        colorValue: selection.colorValue,
+        clearColor: selection.colorValue == null,
+      );
     });
     _persistState();
   }
@@ -1010,8 +1160,10 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      _projects[projectIndex] =
-          project.copyWith(colorValue: selection.colorValue);
+      _projects[projectIndex] = project.copyWith(
+        colorValue: selection.colorValue,
+        clearColor: selection.colorValue == null,
+      );
     });
     _persistState();
   }
@@ -1641,6 +1793,7 @@ class _TaskPageState extends State<TaskPage>
             onProjectRemove: _deleteProject,
             onProjectLongPress: _openProjectMenu,
             onProjectOptionsTap: _openProjectMenu,
+            onProjectStackOptionsTap: _openProjectStackMenu,
             onProjectStackDrop: (
               List<String> sourceProjectIds,
               List<String> targetProjectIds,

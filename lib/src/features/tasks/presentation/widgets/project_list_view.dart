@@ -57,6 +57,7 @@ class ProjectListView extends StatefulWidget {
     required this.onProjectRemove,
     required this.onProjectLongPress,
     required this.onProjectOptionsTap,
+    required this.onProjectStackOptionsTap,
     required this.onProjectStackDrop,
   });
 
@@ -71,20 +72,19 @@ class ProjectListView extends StatefulWidget {
   final void Function(String) onProjectRemove;
   final Future<void> Function(String) onProjectLongPress;
   final Future<void> Function(String) onProjectOptionsTap;
+  final Future<void> Function(String) onProjectStackOptionsTap;
   final Future<void> Function(
     List<String> sourceProjectIds,
     List<String> targetProjectIds,
-  )
-      onProjectStackDrop;
+  ) onProjectStackDrop;
 
   @override
   State<ProjectListView> createState() => _ProjectListViewState();
 }
 
 class _ProjectListViewState extends State<ProjectListView> {
-  late final Set<String> _collapsedStackIds = widget.projectStacks
-      .map((ProjectStack stack) => stack.id)
-      .toSet();
+  late final Set<String> _collapsedStackIds =
+      widget.projectStacks.map((ProjectStack stack) => stack.id).toSet();
   bool _showArchivedProjects = false;
 
   @override
@@ -112,7 +112,8 @@ class _ProjectListViewState extends State<ProjectListView> {
   }
 
   ProjectTypeConfig _projectTypeFor(ProjectItem project) {
-    final String targetId = project.projectTypeId ?? ProjectTypeDefaults.blankId;
+    final String targetId =
+        project.projectTypeId ?? ProjectTypeDefaults.blankId;
     for (final ProjectTypeConfig type in widget.projectTypes) {
       if (type.id == targetId) {
         return type;
@@ -130,6 +131,15 @@ class _ProjectListViewState extends State<ProjectListView> {
     for (final ProjectStack stack in widget.projectStacks) {
       if (stack.id == stackId) {
         return stack.name;
+      }
+    }
+    return null;
+  }
+
+  ProjectStack? _projectStackById(String stackId) {
+    for (final ProjectStack stack in widget.projectStacks) {
+      if (stack.id == stackId) {
+        return stack;
       }
     }
     return null;
@@ -288,8 +298,7 @@ class _ProjectListViewState extends State<ProjectListView> {
   }) {
     final int taskCount =
         project.isArchived ? project.tasks.length : _visibleTaskCount(project);
-    final String taskCountLabel =
-        '$taskCount task${taskCount == 1 ? '' : 's'}';
+    final String taskCountLabel = '$taskCount task${taskCount == 1 ? '' : 's'}';
     final String? stackName =
         showStackLabel ? _stackNameForProject(project) : null;
     final List<String> lines = <String>[
@@ -399,7 +408,8 @@ class _ProjectListViewState extends State<ProjectListView> {
     required Widget child,
   }) {
     return Dismissible(
-      key: ValueKey<String>('project-swipe-${project.id}-${project.isArchived}'),
+      key:
+          ValueKey<String>('project-swipe-${project.id}-${project.isArchived}'),
       direction: DismissDirection.horizontal,
       confirmDismiss: (DismissDirection direction) async {
         if (direction == DismissDirection.startToEnd) {
@@ -550,6 +560,7 @@ class _ProjectListViewState extends State<ProjectListView> {
     _ProjectGroup group,
   ) {
     final String stackId = group.stackId!;
+    final ProjectStack? stack = _projectStackById(stackId);
     final bool isCollapsed = _collapsedStackIds.contains(stackId);
     final bool isArchivedView =
         group.projects.every((ProjectItem project) => project.isArchived);
@@ -561,36 +572,49 @@ class _ProjectListViewState extends State<ProjectListView> {
 
     final Widget stackCard = Card(
       margin: EdgeInsets.zero,
+      color: stack?.colorValue == null ? null : Color(stack!.colorValue!),
       child: Opacity(
         opacity: isArchivedView ? 0.82 : 1,
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            InkWell(
+            ListTile(
               onTap: () => _toggleStack(stackId),
-              child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
-                leading: isCollapsed
-                    ? const Icon(Icons.folder_copy_outlined)
-                    : const SizedBox.square(dimension: 24),
-                title: Text(
-                  group.label,
-                  style: Theme.of(context).textTheme.titleMedium,
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 4),
-                  child: Text(countLabel),
-                ),
-                trailing: Icon(
-                  isCollapsed
-                      ? Icons.chevron_right_outlined
-                      : Icons.expand_more_outlined,
-                ),
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 12,
+                vertical: 6,
+              ),
+              leading: Icon(
+                isCollapsed
+                    ? Icons.folder_copy_outlined
+                    : Icons.folder_open_outlined,
+              ),
+              title: Text(
+                group.label,
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              subtitle: Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text(countLabel),
+              ),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  IconButton(
+                    tooltip: 'Stack settings',
+                    onPressed: () async =>
+                        widget.onProjectStackOptionsTap(stackId),
+                    icon: const Icon(Icons.more_horiz),
+                  ),
+                  Icon(
+                    isCollapsed
+                        ? Icons.chevron_right_outlined
+                        : Icons.expand_more_outlined,
+                  ),
+                ],
               ),
             ),
+            if (!isCollapsed) const Divider(height: 1),
             if (!isCollapsed)
               for (final ProjectItem project in group.projects)
                 _buildStackProjectRow(context, project),
@@ -612,7 +636,8 @@ class _ProjectListViewState extends State<ProjectListView> {
               onAcceptWithDetails: (
                 DragTargetDetails<_ProjectDragPayload> details,
               ) async {
-                await widget.onProjectStackDrop(details.data.projectIds, projectIds);
+                await widget.onProjectStackDrop(
+                    details.data.projectIds, projectIds);
               },
               builder: (
                 BuildContext context,

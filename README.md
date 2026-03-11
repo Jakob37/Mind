@@ -13,6 +13,9 @@ A Flutter task board app focused on quickly moving ideas into projects.
   - set card color
   - move tasks to a project
   - open/remove projects
+- Stack header settings:
+  - rename stack
+  - set stack color
 - Project detail view with two task lanes:
   - `Thinking (ideas)`
   - `Planning (action items)`
@@ -29,10 +32,10 @@ A Flutter task board app focused on quickly moving ideas into projects.
 ## Persistence and data schema
 
 - Local persistence uses `shared_preferences`.
-- Current schema version is `7`.
+- Current schema version is `16`.
 - Migration pipeline supports legacy payloads:
   - unversioned legacy key: `task_board_state_v1`
-  - versioned payloads: v1 -> v7
+  - versioned payloads: v1 -> v16
 - If persisted data is corrupted, autosave is paused to avoid overwriting potentially recoverable data.
 
 ## Project structure

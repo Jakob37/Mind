@@ -165,7 +165,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 15);
+    expect(decoded['version'], 16);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -208,8 +208,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 15,'), isTrue);
-    expect(decoded['version'], 15);
+    expect(exported.contains('\n  "version": 16,'), isTrue);
+    expect(decoded['version'], 16);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -260,6 +260,7 @@ void main() {
         ProjectStack(
           id: 'stack-1',
           name: 'Imported stack',
+          colorValue: 0xFFFFCDD2,
         ),
       ],
       projectTypes: <ProjectTypeConfig>[
@@ -285,9 +286,11 @@ void main() {
     expect(imported.projects.single.isArchived, isTrue);
     expect(imported.projects.single.stackId, 'stack-1');
     expect(imported.projectStacks.single.name, 'Imported stack');
+    expect(imported.projectStacks.single.colorValue, 0xFFFFCDD2);
     expect(imported.projects.single.tasks.single.isArchived, isTrue);
     expect(imported.projects.single.tasks.single.prompt, 'Task level prompt');
-    expect(imported.projects.single.tasks.single.entryType, TaskEntryType.session);
+    expect(
+        imported.projects.single.tasks.single.entryType, TaskEntryType.session);
     expect(
       imported.projects.single.tasks.single.subtasks.single.title,
       'Imported child',
@@ -491,5 +494,46 @@ void main() {
     expect(state.incomingTasks.first.title, 'Incoming task');
     expect(state.incomingTasks.last.title, 'Favorite task');
     expect(state.incomingTasks.last.entryType, TaskEntryType.session);
+  });
+
+  test('load migrates v15 payload and preserves stack entries', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 15,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-1',
+              'name': 'Project one',
+              'projectTypeId': ProjectTypeDefaults.projectId,
+              'stackId': 'stack-1',
+              'prompt': '',
+              'archived': false,
+              'tasks': <Map<String, dynamic>>[],
+            },
+          ],
+          'projectStacks': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'stack-1',
+              'name': 'Focus',
+            },
+          ],
+          'projectTypes': ProjectTypeConfig.defaults()
+              .map((ProjectTypeConfig type) => type.toJson())
+              .toList(),
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    expect(state.projectStacks.single.name, 'Focus');
+    expect(state.projectStacks.single.colorValue, isNull);
+    expect(state.projects.single.stackId, 'stack-1');
   });
 }

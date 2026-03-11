@@ -195,7 +195,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('15'), findsWidgets);
+    expect(find.textContaining('16'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON to Folder'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
@@ -739,7 +739,8 @@ void main() {
 
     await tester.tap(find.byTooltip('Quick capture'));
     await tester.pumpAndSettle();
-    expect(find.text('Create a session first to use quick capture.'), findsOneWidget);
+    expect(find.text('Create a session first to use quick capture.'),
+        findsOneWidget);
 
     await tester.tap(find.byTooltip('New session'));
     await tester.pumpAndSettle();
@@ -755,8 +756,10 @@ void main() {
     await tester.tap(find.byTooltip('Quick capture'));
     await tester.pumpAndSettle();
     expect(find.text('Quick Capture'), findsOneWidget);
-    await tester.enterText(find.byType(TextField).first, 'Analogies improve recall');
-    await tester.enterText(find.byType(TextField).last, 'Speaker used concrete examples.');
+    await tester.enterText(
+        find.byType(TextField).first, 'Analogies improve recall');
+    await tester.enterText(
+        find.byType(TextField).last, 'Speaker used concrete examples.');
     await tester.tap(find.widgetWithText(FilledButton, 'Save Capture'));
     await tester.pumpAndSettle();
 
@@ -798,7 +801,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('15'), findsWidgets);
+    expect(find.textContaining('16'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -846,7 +849,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('15'), findsWidgets);
+    expect(find.textContaining('16'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

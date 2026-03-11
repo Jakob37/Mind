@@ -307,7 +307,10 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     final List<SubTaskItem> updatedSubtasks = _updateSubtaskTree(
       _task.subtasks,
       subTaskId,
-      (SubTaskItem item) => item.copyWith(colorValue: selection.colorValue),
+      (SubTaskItem item) => item.copyWith(
+        colorValue: selection.colorValue,
+        clearColor: selection.colorValue == null,
+      ),
     );
     _applyUpdatedTask(_copyTaskWithSubtasks(updatedSubtasks));
   }
