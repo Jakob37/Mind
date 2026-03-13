@@ -166,7 +166,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 17);
+    expect(decoded['version'], 18);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -210,8 +210,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 17,'), isTrue);
-    expect(decoded['version'], 17);
+    expect(exported.contains('\n  "version": 18,'), isTrue);
+    expect(decoded['version'], 18);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -239,6 +239,7 @@ void main() {
           name: 'Imported project',
           prompt: 'Project level prompt',
           isArchived: true,
+          isPinned: true,
           stackId: 'stack-1',
           tasks: <TaskItem>[
             TaskItem(
@@ -287,6 +288,7 @@ void main() {
     expect(imported.projects.single.name, 'Imported project');
     expect(imported.projects.single.prompt, 'Project level prompt');
     expect(imported.projects.single.isArchived, isTrue);
+    expect(imported.projects.single.isPinned, isTrue);
     expect(imported.projects.single.stackId, 'stack-1');
     expect(imported.projectStacks.single.name, 'Imported stack');
     expect(imported.projectStacks.single.colorValue, 0xFFFFCDD2);
@@ -308,6 +310,40 @@ void main() {
       () => storage.import('["not-a-map"]'),
       throwsA(isA<FormatException>()),
     );
+  });
+
+  test('load migrates v17 payload and adds default pinned flags', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 17,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-1',
+              'name': 'Project one',
+              'projectTypeId': ProjectTypeDefaults.projectId,
+              'prompt': '',
+              'archived': false,
+              'tasks': <Map<String, dynamic>>[],
+            },
+          ],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': ProjectTypeConfig.defaults()
+              .map((ProjectTypeConfig type) => type.toJson())
+              .toList(),
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+          'cardLayoutPreset': 'standard',
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    expect(state.projects.single.isPinned, isFalse);
   });
 
   test('load migrates v11 payload and adds archived flags', () async {

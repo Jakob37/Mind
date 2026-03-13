@@ -2581,6 +2581,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               emptyLabel: 'No action items in this project yet.',
               tasks: planningTasks,
               sectionType: TaskItemType.planning,
+              showNestedPreview: true,
             ),
           if (!showsIdeasSection && !showsPlanningSection)
             Text(

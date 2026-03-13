@@ -10,6 +10,7 @@ import 'pages/settings_page.dart';
 import 'pages/task_detail_page.dart';
 import 'widgets/add_project_sheet.dart';
 import 'widgets/add_task_sheet.dart';
+import 'widgets/card_layout.dart';
 import 'widgets/edit_project_sheet.dart';
 import 'widgets/edit_project_stack_sheet.dart';
 import 'widgets/edit_task_sheet.dart';
@@ -28,6 +29,7 @@ enum _ProjectMenuAction {
   setStack,
   setIcon,
   setColor,
+  togglePinned,
   archive,
   restore,
   remove,
@@ -241,6 +243,14 @@ class _TaskPageState extends State<TaskPage>
       return null;
     }
     return _projectStacks[stackIndex];
+  }
+
+  String? _stackNameForProject(ProjectItem project) {
+    final String? stackId = project.stackId;
+    if (stackId == null || stackId.isEmpty) {
+      return null;
+    }
+    return _projectStackById(stackId)?.name;
   }
 
   ProjectStack? _projectStackByName(
@@ -1024,6 +1034,17 @@ class _TaskPageState extends State<TaskPage>
                 onTap: () =>
                     Navigator.of(context).pop(_ProjectMenuAction.setColor),
               ),
+              if (!project.isArchived)
+                ListTile(
+                  leading: Icon(
+                    project.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
+                  ),
+                  title: Text(
+                    project.isPinned ? 'Unpin project' : 'Pin project',
+                  ),
+                  onTap: () => Navigator.of(context)
+                      .pop(_ProjectMenuAction.togglePinned),
+                ),
               ListTile(
                 leading: Icon(
                   project.isArchived
@@ -1082,6 +1103,10 @@ class _TaskPageState extends State<TaskPage>
     }
     if (action == _ProjectMenuAction.setColor) {
       await _setProjectColor(projectId);
+      return;
+    }
+    if (action == _ProjectMenuAction.togglePinned) {
+      _toggleProjectPinned(projectId);
       return;
     }
     if (action == _ProjectMenuAction.archive) {
@@ -1261,6 +1286,19 @@ class _TaskPageState extends State<TaskPage>
         projectStacks: projectStacks,
         projectTypes: projectTypes,
       );
+    });
+    _persistState();
+  }
+
+  void _toggleProjectPinned(String projectId) {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return;
+    }
+
+    final ProjectItem project = _projects[projectIndex];
+    setState(() {
+      _projects[projectIndex] = project.copyWith(isPinned: !project.isPinned);
     });
     _persistState();
   }
@@ -1574,6 +1612,106 @@ class _TaskPageState extends State<TaskPage>
     );
   }
 
+  List<ProjectItem> _visiblePinnedProjects() {
+    return _projects
+        .where(
+          (ProjectItem project) => project.isPinned && !project.isArchived,
+        )
+        .toList(growable: false);
+  }
+
+  IconData _incomingPinnedProjectIcon(ProjectItem project) {
+    final IconData? explicitIcon = iconDataForKey(project.iconKey);
+    if (explicitIcon != null) {
+      return explicitIcon;
+    }
+    final IconData? typeIcon =
+        iconDataForKey(_projectTypeForProject(project).iconKey);
+    return typeIcon ?? Icons.folder_outlined;
+  }
+
+  int _visibleProjectTaskCount(ProjectItem project) {
+    return project.tasks.where((TaskItem task) => !task.isArchived).length;
+  }
+
+  Widget _buildPinnedProjectsSection() {
+    final List<ProjectItem> pinnedProjects = _visiblePinnedProjects();
+    if (pinnedProjects.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    final CardLayoutSpec layout = cardLayoutSpecForPreset(_cardLayoutPreset);
+    final TextStyle? titleStyle = Theme.of(context).textTheme.titleMedium;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: <Widget>[
+              const Icon(Icons.push_pin_outlined, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Pinned projects',
+                style: titleStyle,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final ProjectItem project in pinnedProjects) ...<Widget>[
+          Builder(
+            builder: (BuildContext context) {
+              final int visibleTaskCount = _visibleProjectTaskCount(project);
+              return Card(
+                color: project.colorValue == null
+                    ? null
+                    : Color(project.colorValue!),
+                child: ListTile(
+                  contentPadding: layout.contentPadding,
+                  leading: Icon(_incomingPinnedProjectIcon(project)),
+                  title: Text(
+                    project.name,
+                    maxLines: null,
+                    style: titleStyle?.copyWith(
+                      fontSize: (titleStyle.fontSize ?? 16) * layout.titleScale,
+                    ),
+                  ),
+                  subtitle: Text(
+                    <String>[
+                      if (_stackNameForProject(project)
+                          case final String stackName)
+                        'Stack: $stackName',
+                      if (project.body.isNotEmpty) project.body,
+                      '$visibleTaskCount active task'
+                          '${visibleTaskCount == 1 ? '' : 's'}',
+                    ].join('\n'),
+                  ),
+                  isThreeLine: project.body.isNotEmpty ||
+                      _stackNameForProject(project) != null,
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      const Icon(Icons.push_pin_outlined, size: 18),
+                      IconButton(
+                        tooltip: 'Project options',
+                        onPressed: () => _openProjectMenu(project.id),
+                        icon: const Icon(Icons.more_vert),
+                      ),
+                    ],
+                  ),
+                  onTap: () => _openProjectDetail(project.id),
+                ),
+              );
+            },
+          ),
+          SizedBox(height: layout.listBottomSpacing),
+        ],
+      ],
+    );
+  }
+
   Future<void> _loadPersistedState() async {
     final TaskLoadResult loadResult = await _taskStorage.load();
     if (!mounted) {
@@ -1795,6 +1933,9 @@ class _TaskPageState extends State<TaskPage>
         controller: _tabController,
         children: <Widget>[
           TaskListView(
+            header: _visiblePinnedProjects().isEmpty
+                ? null
+                : _buildPinnedProjectsSection(),
             tasks: _incomingTasks,
             emptyLabel: 'No incoming tasks yet.',
             cardLayoutPreset: _cardLayoutPreset,

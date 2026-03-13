@@ -195,10 +195,34 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('17'), findsWidgets);
+    expect(find.textContaining('18'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
-    expect(find.text('Save JSON to Folder'), findsOneWidget);
+    expect(find.text('Save JSON File'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
+  });
+
+  testWidgets('pinned projects appear at the top of Incoming',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Project options').first);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Pin project'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Pin project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Incoming'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pinned projects'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Morning Routine'), findsOneWidget);
   });
 
   testWidgets('creates stacks and groups projects by dragging',
@@ -776,7 +800,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('17'), findsWidgets);
+    expect(find.textContaining('18'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -824,7 +848,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('17'), findsWidgets);
+    expect(find.textContaining('18'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

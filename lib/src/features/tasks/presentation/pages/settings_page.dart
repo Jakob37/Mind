@@ -95,14 +95,6 @@ class _SettingsPageState extends State<SettingsPage> {
     return '$prefix-$sanitizedTimestamp.$extension';
   }
 
-  String _appendFileName(String directoryPath, String fileName) {
-    if (directoryPath.endsWith('/') || directoryPath.endsWith(r'\')) {
-      return '$directoryPath$fileName';
-    }
-    final String separator = directoryPath.contains(r'\') ? r'\' : '/';
-    return '$directoryPath$separator$fileName';
-  }
-
   Future<void> _exportTextFile({
     required BuildContext context,
     required String contents,
@@ -159,25 +151,24 @@ class _SettingsPageState extends State<SettingsPage> {
     String exportJson,
   ) async {
     try {
-      final String? directoryPath = await getDirectoryPath(
-        confirmButtonText: 'Save here',
+      final String suggestedName = _timestampedFileName(
+        prefix: 'mind-export',
+        extension: 'json',
       );
-      if (directoryPath == null || directoryPath.isEmpty) {
+      final FileSaveLocation? saveLocation = await getSaveLocation(
+        suggestedName: suggestedName,
+        confirmButtonText: 'Save',
+      );
+      if (saveLocation == null || saveLocation.path.isEmpty) {
         return;
       }
 
       final XFile exportFile = XFile.fromData(
         Uint8List.fromList(utf8.encode(exportJson)),
         mimeType: 'application/json',
-        name: _timestampedFileName(
-          prefix: 'mind-export',
-          extension: 'json',
-        ),
+        name: suggestedName,
       );
-      final String outputPath = _appendFileName(
-        directoryPath,
-        exportFile.name,
-      );
+      final String outputPath = saveLocation.path;
       await exportFile.saveTo(outputPath);
 
       if (!context.mounted) {
@@ -273,7 +264,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             onPressed: () =>
                                 _saveJsonToFolder(context, exportJson),
                             icon: const Icon(Icons.folder_open_outlined),
-                            label: const Text('Save JSON to Folder'),
+                            label: const Text('Save JSON File'),
                           ),
                         ],
                         if (_isAndroidDevice) ...<Widget>[

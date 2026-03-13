@@ -12,9 +12,10 @@ class _TaskDragPayload {
   final String taskId;
 }
 
-class TaskListView extends StatelessWidget {
+class TaskListView extends StatefulWidget {
   const TaskListView({
     super.key,
+    this.header,
     required this.tasks,
     required this.emptyLabel,
     required this.cardLayoutPreset,
@@ -26,6 +27,7 @@ class TaskListView extends StatelessWidget {
     required this.onNestTask,
   });
 
+  final Widget? header;
   final List<TaskItem> tasks;
   final String emptyLabel;
   final CardLayoutPreset cardLayoutPreset;
@@ -41,6 +43,14 @@ class TaskListView extends StatelessWidget {
     required String sourceTaskId,
     required String targetTaskId,
   }) onNestTask;
+
+  @override
+  State<TaskListView> createState() => _TaskListViewState();
+}
+
+class _TaskListViewState extends State<TaskListView> {
+  final Set<String> _expandedTaskIds = <String>{};
+  final Set<String> _expandedPreviewSubtaskIds = <String>{};
 
   Widget? _buildLeading(TaskItem task) {
     final IconData? iconData = iconDataForKey(task.iconKey);
@@ -81,13 +91,144 @@ class TaskListView extends StatelessWidget {
     );
   }
 
+  void _toggleTaskExpanded(String taskId) {
+    setState(() {
+      if (_expandedTaskIds.contains(taskId)) {
+        _expandedTaskIds.remove(taskId);
+      } else {
+        _expandedTaskIds.add(taskId);
+      }
+    });
+  }
+
+  void _togglePreviewSubtaskExpanded(String subTaskId) {
+    setState(() {
+      if (_expandedPreviewSubtaskIds.contains(subTaskId)) {
+        _expandedPreviewSubtaskIds.remove(subTaskId);
+      } else {
+        _expandedPreviewSubtaskIds.add(subTaskId);
+      }
+    });
+  }
+
+  Widget _buildPreviewSubtaskList(List<SubTaskItem> items, int depth) {
+    if (items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Column(
+      children: items
+          .map(
+            (SubTaskItem item) => _buildPreviewSubtaskNode(item, depth),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  Widget _buildPreviewSubtaskNode(SubTaskItem subTask, int depth) {
+    final bool hasChildren = subTask.children.isNotEmpty;
+    final bool isExpanded = _expandedPreviewSubtaskIds.contains(subTask.id);
+    final IconData? iconData = iconDataForKey(subTask.iconKey);
+    final List<Widget> trailingParts = <Widget>[
+      if (subTask.body.isNotEmpty)
+        const Tooltip(
+          message: 'Has text content',
+          child: Icon(
+            Icons.notes_outlined,
+            size: 18,
+          ),
+        ),
+      if (iconData != null)
+        Icon(
+          iconData,
+          size: 18,
+        ),
+    ];
+
+    return Padding(
+      padding: EdgeInsets.only(left: depth * 18.0, top: 4),
+      child: Column(
+        children: <Widget>[
+          Card(
+            margin: EdgeInsets.zero,
+            color:
+                subTask.colorValue == null ? null : Color(subTask.colorValue!),
+            child: ListTile(
+              dense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                horizontal: 8,
+                vertical: 2,
+              ),
+              leading: hasChildren
+                  ? IconButton(
+                      onPressed: () =>
+                          _togglePreviewSubtaskExpanded(subTask.id),
+                      tooltip: isExpanded
+                          ? 'Collapse nested ideas'
+                          : 'Expand nested ideas',
+                      icon: Icon(
+                        isExpanded
+                            ? Icons.expand_more_outlined
+                            : Icons.chevron_right_outlined,
+                      ),
+                    )
+                  : Icon(
+                      iconData ?? Icons.subdirectory_arrow_right_outlined,
+                      size: 20,
+                    ),
+              title: Text(
+                subTask.title,
+                maxLines: null,
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+              subtitle: subTask.body.isEmpty
+                  ? null
+                  : Text(
+                      subTask.body,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+              trailing: trailingParts.isEmpty
+                  ? null
+                  : Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: <Widget>[
+                        for (int i = 0;
+                            i < trailingParts.length;
+                            i++) ...<Widget>[
+                          if (i > 0) const SizedBox(width: 8),
+                          trailingParts[i],
+                        ],
+                      ],
+                    ),
+            ),
+          ),
+          if (hasChildren && isExpanded)
+            _buildPreviewSubtaskList(subTask.children, depth + 1),
+        ],
+      ),
+    );
+  }
+
   Widget? _buildTrailing(
     BuildContext context,
     TaskItem task,
     Future<void> Function() onOptionsTap,
   ) {
+    final bool hasSubtasks = task.subtasks.isNotEmpty;
+    final bool isExpanded = _expandedTaskIds.contains(task.id);
     final List<Widget> parts = <Widget>[
-      if (task.subtasks.isNotEmpty)
+      if (hasSubtasks)
+        IconButton(
+          onPressed: () => _toggleTaskExpanded(task.id),
+          tooltip: isExpanded ? 'Collapse subtasks' : 'Expand subtasks',
+          icon: Icon(
+            isExpanded
+                ? Icons.expand_more_outlined
+                : Icons.chevron_right_outlined,
+          ),
+        ),
+      if (hasSubtasks)
         _buildSubtaskCountIndicator(context, task.subtasks.length),
       if (task.body.isNotEmpty) _buildContentIndicator(),
       IconButton(
@@ -120,7 +261,10 @@ class TaskListView extends StatelessWidget {
         return true;
       },
       onAcceptWithDetails: (DragTargetDetails<_TaskDragPayload> details) {
-        onMoveTask(taskId: details.data.taskId, targetIndex: targetIndex);
+        widget.onMoveTask(
+          taskId: details.data.taskId,
+          targetIndex: targetIndex,
+        );
       },
       builder: (
         BuildContext context,
@@ -148,7 +292,10 @@ class TaskListView extends StatelessWidget {
     TaskItem task, {
     required CardLayoutSpec layout,
     required bool isDropTarget,
+    bool showExpandedPreview = true,
   }) {
+    final bool hasSubtasks = task.subtasks.isNotEmpty;
+    final bool isExpanded = _expandedTaskIds.contains(task.id);
     final TextStyle? titleStyle =
         Theme.of(context).textTheme.titleMedium?.copyWith(
               fontSize:
@@ -166,23 +313,33 @@ class TaskListView extends StatelessWidget {
               )
             : null,
       ),
-      child: Card(
-        color: task.colorValue == null ? null : Color(task.colorValue!),
-        child: ListTile(
-          contentPadding: layout.contentPadding,
-          leading: _buildLeading(task),
-          title: Text(
-            task.title,
-            style: titleStyle,
-            maxLines: null,
+      child: Column(
+        children: <Widget>[
+          Card(
+            margin: EdgeInsets.zero,
+            color: task.colorValue == null ? null : Color(task.colorValue!),
+            child: ListTile(
+              contentPadding: layout.contentPadding,
+              leading: _buildLeading(task),
+              title: Text(
+                task.title,
+                style: titleStyle,
+                maxLines: null,
+              ),
+              trailing: _buildTrailing(
+                context,
+                task,
+                () => widget.onTaskOptionsTap(task.id),
+              ),
+              onTap: () async => widget.onTaskTap(task.id),
+            ),
           ),
-          trailing: _buildTrailing(
-            context,
-            task,
-            () => onTaskOptionsTap(task.id),
-          ),
-          onTap: () async => onTaskTap(task.id),
-        ),
+          if (showExpandedPreview && hasSubtasks && isExpanded)
+            Padding(
+              padding: const EdgeInsets.only(left: 16, right: 8, bottom: 8),
+              child: _buildPreviewSubtaskList(task.subtasks, 0),
+            ),
+        ],
       ),
     );
   }
@@ -199,7 +356,8 @@ class TaskListView extends StatelessWidget {
         return details.data.taskId != task.id;
       },
       onAcceptWithDetails: (DragTargetDetails<_TaskDragPayload> details) {
-        onNestTask(
+        _expandedTaskIds.add(task.id);
+        widget.onNestTask(
           sourceTaskId: details.data.taskId,
           targetTaskId: task.id,
         );
@@ -221,12 +379,12 @@ class TaskListView extends StatelessWidget {
           direction: DismissDirection.horizontal,
           confirmDismiss: (DismissDirection direction) async {
             if (direction == DismissDirection.startToEnd) {
-              await onMoveTaskToProject(task.id);
+              await widget.onMoveTaskToProject(task.id);
               return false;
             }
             return true;
           },
-          onDismissed: (_) => onRemoveTask(task.id),
+          onDismissed: (_) => widget.onRemoveTask(task.id),
           background: Container(
             margin: EdgeInsets.only(bottom: layout.listBottomSpacing),
             decoration: BoxDecoration(
@@ -266,6 +424,7 @@ class TaskListView extends StatelessWidget {
                     task,
                     layout: layout,
                     isDropTarget: false,
+                    showExpandedPreview: false,
                   ),
                 ),
               ),
@@ -283,31 +442,38 @@ class TaskListView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final CardLayoutSpec layout = cardLayoutSpecForPreset(cardLayoutPreset);
-
-    if (tasks.isEmpty) {
-      return Center(child: Text(emptyLabel));
-    }
-
+    final CardLayoutSpec layout =
+        cardLayoutSpecForPreset(widget.cardLayoutPreset);
     return ListView(
       padding: const EdgeInsets.all(12),
       children: <Widget>[
-        _buildDropSlot(
-          context,
-          targetIndex: 0,
-          inactiveHeight: 0,
-        ),
-        for (int i = 0; i < tasks.length; i++) ...<Widget>[
-          _buildDraggableTaskCard(
-            context,
-            tasks[i],
-            layout: layout,
-          ),
+        if (widget.header != null) ...<Widget>[
+          widget.header!,
+          const SizedBox(height: 12),
+        ],
+        if (widget.tasks.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(child: Text(widget.emptyLabel)),
+          )
+        else ...<Widget>[
           _buildDropSlot(
             context,
-            targetIndex: i + 1,
-            inactiveHeight: 4,
+            targetIndex: 0,
+            inactiveHeight: 0,
           ),
+          for (int i = 0; i < widget.tasks.length; i++) ...<Widget>[
+            _buildDraggableTaskCard(
+              context,
+              widget.tasks[i],
+              layout: layout,
+            ),
+            _buildDropSlot(
+              context,
+              targetIndex: i + 1,
+              inactiveHeight: 4,
+            ),
+          ],
         ],
       ],
     );

@@ -302,6 +302,7 @@ class ProjectItem {
     this.colorValue,
     this.iconKey,
     this.isArchived = false,
+    this.isPinned = false,
     this.stackId,
     this.projectTypeId,
     List<TaskItem>? tasks,
@@ -317,6 +318,7 @@ class ProjectItem {
   final int? colorValue;
   final String? iconKey;
   final bool isArchived;
+  final bool isPinned;
   final String? stackId;
   final String? projectTypeId;
   final List<TaskItem> tasks;
@@ -330,6 +332,7 @@ class ProjectItem {
       colorValue: colorValue,
       iconKey: iconKey,
       isArchived: isArchived,
+      isPinned: isPinned,
       stackId: stackId,
       projectTypeId: projectTypeId,
       tasks: tasks.map((TaskItem item) => item.clone()).toList(),
@@ -346,6 +349,7 @@ class ProjectItem {
     String? iconKey,
     bool clearIcon = false,
     bool? isArchived,
+    bool? isPinned,
     String? stackId,
     bool clearStack = false,
     String? projectTypeId,
@@ -360,6 +364,7 @@ class ProjectItem {
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
       isArchived: isArchived ?? this.isArchived,
+      isPinned: isPinned ?? this.isPinned,
       stackId: clearStack ? null : (stackId ?? this.stackId),
       projectTypeId:
           clearProjectType ? null : (projectTypeId ?? this.projectTypeId),
@@ -376,6 +381,7 @@ class ProjectItem {
       'color': colorValue,
       'icon': iconKey,
       'archived': isArchived,
+      'pinned': isPinned,
       'stackId': stackId,
       'projectTypeId': projectTypeId,
       'tasks': tasks.map((TaskItem item) => item.toJson()).toList(),
@@ -390,6 +396,7 @@ class ProjectItem {
     final int? colorValue = _readOptionalInt(json, 'color');
     final String? iconKey = _readOptionalTrimmedString(json, 'icon');
     final bool isArchived = _readOptionalBool(json, 'archived');
+    final bool isPinned = _readOptionalBool(json, 'pinned');
     final String? stackId = _readOptionalTrimmedString(json, 'stackId');
     final String? projectTypeId =
         _readOptionalTrimmedString(json, 'projectTypeId');
@@ -403,6 +410,7 @@ class ProjectItem {
       colorValue: colorValue,
       iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
       isArchived: isArchived,
+      isPinned: isPinned,
       stackId: stackId == null || stackId.isEmpty ? null : stackId,
       projectTypeId:
           projectTypeId == null || projectTypeId.isEmpty ? null : projectTypeId,

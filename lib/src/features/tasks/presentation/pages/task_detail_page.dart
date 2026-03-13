@@ -69,6 +69,7 @@ class TaskDetailPage extends StatefulWidget {
 class _TaskDetailPageState extends State<TaskDetailPage> {
   late TaskItem _task;
   final Set<String> _expandedSubtaskIds = <String>{};
+  String? _draggingSubTaskId;
 
   CardLayoutSpec get _layout =>
       cardLayoutSpecForPreset(widget.cardLayoutPreset);
@@ -391,6 +392,24 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     return false;
   }
 
+  bool _isStrictDescendantOfSubTask({
+    required String ancestorSubTaskId,
+    required String candidateSubTaskId,
+  }) {
+    final SubTaskItem? ancestor =
+        _findSubtask(_task.subtasks, ancestorSubTaskId);
+    if (ancestor == null) {
+      return false;
+    }
+
+    for (final SubTaskItem child in ancestor.children) {
+      if (_subtaskTreeContainsId(child, candidateSubTaskId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   List<SubTaskItem> _insertSubtaskIntoTree(
     List<SubTaskItem> items, {
     required String? parentId,
@@ -636,6 +655,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           _buildSubTaskNode(
             visibleItems[index],
             depth,
+            parentId: parentId,
+            indexInParent: index,
           ),
           _buildSubTaskDropSlot(
             parentId: parentId,
@@ -648,7 +669,97 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     );
   }
 
-  Widget _buildSubTaskNode(SubTaskItem subTask, int depth) {
+  Widget _buildSubTaskPromotionDropSlot({
+    required String currentSubTaskId,
+    required String? targetParentId,
+    required int targetIndex,
+    required int depth,
+  }) {
+    final String? draggingSubTaskId = _draggingSubTaskId;
+    if (draggingSubTaskId == null ||
+        !_isStrictDescendantOfSubTask(
+          ancestorSubTaskId: currentSubTaskId,
+          candidateSubTaskId: draggingSubTaskId,
+        )) {
+      return const SizedBox.shrink();
+    }
+
+    return Padding(
+      padding: EdgeInsets.only(
+        left: depth * 18.0 + 12,
+        right: 4,
+        bottom: _layout.listBottomSpacing,
+      ),
+      child: DragTarget<_SubTaskDragPayload>(
+        onWillAcceptWithDetails: (
+          DragTargetDetails<_SubTaskDragPayload> details,
+        ) {
+          return _isStrictDescendantOfSubTask(
+            ancestorSubTaskId: currentSubTaskId,
+            candidateSubTaskId: details.data.subTaskId,
+          );
+        },
+        onAcceptWithDetails: (DragTargetDetails<_SubTaskDragPayload> details) {
+          _moveSubTaskToPosition(
+            sourceSubTaskId: details.data.subTaskId,
+            targetParentId: targetParentId,
+            targetIndex: targetIndex,
+          );
+        },
+        builder: (
+          BuildContext context,
+          List<_SubTaskDragPayload?> candidateData,
+          List<dynamic> rejectedData,
+        ) {
+          final bool isActive = candidateData.isNotEmpty;
+          final ColorScheme colorScheme = Theme.of(context).colorScheme;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 120),
+            height: 34,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              color: isActive
+                  ? colorScheme.primary.withValues(alpha: 0.18)
+                  : colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                color:
+                    isActive ? colorScheme.primary : colorScheme.outlineVariant,
+              ),
+            ),
+            child: Row(
+              children: <Widget>[
+                Icon(
+                  Icons.format_indent_decrease_outlined,
+                  size: 18,
+                  color: isActive
+                      ? colorScheme.primary
+                      : colorScheme.onSurfaceVariant,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  'Move to this level',
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                        color: isActive
+                            ? colorScheme.primary
+                            : colorScheme.onSurfaceVariant,
+                        fontWeight: FontWeight.w600,
+                      ),
+                ),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildSubTaskNode(
+    SubTaskItem subTask,
+    int depth, {
+    required String? parentId,
+    required int indexInParent,
+  }) {
     final bool hasChildren = _visibleChildren(subTask.children).isNotEmpty;
     final bool isExpanded = _expandedSubtaskIds.contains(subTask.id);
     final double baseTitleFontSize =
@@ -799,6 +910,18 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           children: <Widget>[
             LongPressDraggable<_SubTaskDragPayload>(
               data: _SubTaskDragPayload(subTaskId: subTask.id),
+              onDragStarted: () {
+                setState(() {
+                  _draggingSubTaskId = subTask.id;
+                });
+              },
+              onDragEnd: (_) {
+                if (_draggingSubTaskId == subTask.id) {
+                  setState(() {
+                    _draggingSubTaskId = null;
+                  });
+                }
+              },
               feedback: Material(
                 color: Colors.transparent,
                 child: ConstrainedBox(
@@ -820,6 +943,13 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 subTask.children,
                 depth + 1,
                 parentId: subTask.id,
+              ),
+            if (hasChildren && isExpanded)
+              _buildSubTaskPromotionDropSlot(
+                currentSubTaskId: subTask.id,
+                targetParentId: parentId,
+                targetIndex: indexInParent + 1,
+                depth: depth,
               ),
           ],
         );
