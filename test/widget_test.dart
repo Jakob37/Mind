@@ -197,8 +197,8 @@ void main() {
     expect(find.textContaining('"version"'), findsWidgets);
     expect(find.textContaining('18'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
-    expect(find.text('Save JSON File'), findsOneWidget);
-    expect(find.text('Export JSON File (Android)'), findsOneWidget);
+    expect(find.text('Save JSON File'), findsNothing);
+    expect(find.text('Save or Share JSON File (Android)'), findsOneWidget);
   });
 
   testWidgets('pinned projects appear at the top of Incoming',
@@ -223,6 +223,63 @@ void main() {
 
     expect(find.text('Pinned projects'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'Morning Routine'), findsOneWidget);
+  });
+
+  testWidgets('stacked projects expose project options and can be pinned',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Studio');
+    await tester.tap(find.text('Stack: No stack'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create stack'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Focus Stack');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Stack'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    if (find.text('Studio').evaluate().isEmpty) {
+      await tester.tap(find.text('Focus Stack'));
+      await tester.pumpAndSettle();
+    }
+
+    expect(find.text('Studio'), findsOneWidget);
+
+    final Offset studioCenter = tester.getCenter(find.text('Studio'));
+    final Finder projectOptions = find.byTooltip('Project options');
+    int studioOptionsIndex = 0;
+    double bestVerticalDistance = double.infinity;
+    final int optionCount = projectOptions.evaluate().length;
+    for (int index = 0; index < optionCount; index += 1) {
+      final Offset optionCenter = tester.getCenter(projectOptions.at(index));
+      final double verticalDistance = (optionCenter.dy - studioCenter.dy).abs();
+      if (verticalDistance < bestVerticalDistance) {
+        bestVerticalDistance = verticalDistance;
+        studioOptionsIndex = index;
+      }
+    }
+    await tester.tap(projectOptions.at(studioOptionsIndex));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Pin project'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Pin project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Incoming'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Pinned projects'), findsOneWidget);
+    expect(find.widgetWithText(ListTile, 'Studio'), findsOneWidget);
   });
 
   testWidgets('creates stacks and groups projects by dragging',

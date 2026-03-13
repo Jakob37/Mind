@@ -57,7 +57,7 @@ class _SettingsPageState extends State<SettingsPage> {
   bool get _isAndroidDevice =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
 
-  bool get _supportsFolderSave => !kIsWeb;
+  bool get _supportsFolderSave => !kIsWeb && !_isAndroidDevice;
 
   Future<void> _exportJsonFile(BuildContext context, String exportJson) async {
     await _exportTextFile(
@@ -150,6 +150,11 @@ class _SettingsPageState extends State<SettingsPage> {
     BuildContext context,
     String exportJson,
   ) async {
+    if (_isAndroidDevice) {
+      await _exportJsonFile(context, exportJson);
+      return;
+    }
+
     try {
       final String suggestedName = _timestampedFileName(
         prefix: 'mind-export',
@@ -273,7 +278,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             onPressed: () =>
                                 _exportJsonFile(context, exportJson),
                             icon: const Icon(Icons.download_outlined),
-                            label: const Text('Export JSON File (Android)'),
+                            label:
+                                const Text('Save or Share JSON File (Android)'),
                           ),
                         ],
                       ],
@@ -344,7 +350,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   OutlinedButton.icon(
                     onPressed: () => _exportPlainTextFile(context, exportText),
                     icon: const Icon(Icons.download_outlined),
-                    label: const Text('Export TXT File (Android)'),
+                    label: const Text('Save or Share TXT File (Android)'),
                   ),
                 ],
               ],

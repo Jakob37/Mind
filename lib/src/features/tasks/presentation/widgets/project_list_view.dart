@@ -464,6 +464,11 @@ class _ProjectListViewState extends State<ProjectListView> {
           showStackLabel: false,
         ),
         isThreeLine: project.body.isNotEmpty || project.isArchived,
+        trailing: IconButton(
+          tooltip: 'Project options',
+          onPressed: () async => widget.onProjectOptionsTap(project.id),
+          icon: const Icon(Icons.more_vert),
+        ),
         onTap: () async => widget.onProjectTap(project.id),
       ),
     );
@@ -528,6 +533,11 @@ class _ProjectListViewState extends State<ProjectListView> {
               showStackLabel: false,
             ),
             isThreeLine: project.body.isNotEmpty,
+            trailing: IconButton(
+              tooltip: 'Project options',
+              onPressed: () async => widget.onProjectOptionsTap(project.id),
+              icon: const Icon(Icons.more_vert),
+            ),
             onTap: () async => widget.onProjectTap(project.id),
           ),
         );
