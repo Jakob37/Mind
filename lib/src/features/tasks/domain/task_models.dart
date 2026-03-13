@@ -50,6 +50,24 @@ enum TaskEntryType {
   }
 }
 
+enum CardLayoutPreset {
+  compact,
+  standard,
+  comfortable;
+
+  static CardLayoutPreset fromJsonValue(Object? rawValue) {
+    if (rawValue is! String) {
+      return CardLayoutPreset.standard;
+    }
+
+    return switch (rawValue.trim().toLowerCase()) {
+      'compact' => CardLayoutPreset.compact,
+      'comfortable' => CardLayoutPreset.comfortable,
+      _ => CardLayoutPreset.standard,
+    };
+  }
+}
+
 class SubTaskItem {
   SubTaskItem({
     String? id,
@@ -579,6 +597,7 @@ class TaskBoardState {
     required this.projectTypes,
     required this.colorLabels,
     required this.hideCompletedProjectItems,
+    required this.cardLayoutPreset,
   });
 
   final List<TaskItem> incomingTasks;
@@ -587,6 +606,7 @@ class TaskBoardState {
   final List<ProjectTypeConfig> projectTypes;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
+  final CardLayoutPreset cardLayoutPreset;
 
   TaskBoardState clone() {
     return TaskBoardState(
@@ -599,6 +619,7 @@ class TaskBoardState {
           projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
       colorLabels: Map<int, String>.from(colorLabels),
       hideCompletedProjectItems: hideCompletedProjectItems,
+      cardLayoutPreset: cardLayoutPreset,
     );
   }
 
@@ -808,6 +829,7 @@ class TaskBoardState {
       projectTypes: ProjectTypeConfig.defaults(),
       colorLabels: <int, String>{},
       hideCompletedProjectItems: false,
+      cardLayoutPreset: CardLayoutPreset.standard,
     );
   }
 
@@ -826,6 +848,7 @@ class TaskBoardState {
             MapEntry<String, String>(colorValue.toString(), label),
       ),
       'hideCompletedProjectItems': hideCompletedProjectItems,
+      'cardLayoutPreset': cardLayoutPreset.name,
     };
   }
 
@@ -885,6 +908,9 @@ class TaskBoardState {
       colorLabels: colorLabels,
       hideCompletedProjectItems:
           _readOptionalBool(json, 'hideCompletedProjectItems'),
+      cardLayoutPreset: CardLayoutPreset.fromJsonValue(
+        json['cardLayoutPreset'],
+      ),
     );
   }
 }

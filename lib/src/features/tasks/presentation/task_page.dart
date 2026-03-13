@@ -45,6 +45,7 @@ enum _IncomingTaskMenuAction {
 enum _ProjectStackMenuAction {
   rename,
   setColor,
+  createProject,
 }
 
 class TaskPage extends StatefulWidget {
@@ -72,10 +73,10 @@ class _TaskPageState extends State<TaskPage>
   late final TabController _tabController;
   int _selectedTabIndex = 0;
   bool _isAddTaskSheetOpen = false;
-  bool _isReorderMode = false;
   bool _isPersistencePaused = false;
   bool _hasShownPersistencePausedMessage = false;
   bool _hideCompletedProjectItems = false;
+  CardLayoutPreset _cardLayoutPreset = CardLayoutPreset.standard;
 
   @override
   void initState() {
@@ -92,7 +93,6 @@ class _TaskPageState extends State<TaskPage>
       }
       setState(() {
         _selectedTabIndex = _tabController.index;
-        _isReorderMode = false;
       });
     });
     _setupWidgetActionHandling();
@@ -290,6 +290,12 @@ class _TaskPageState extends State<TaskPage>
                 onTap: () =>
                     Navigator.of(context).pop(_ProjectStackMenuAction.setColor),
               ),
+              ListTile(
+                leading: const Icon(Icons.add_box_outlined),
+                title: const Text('Create project'),
+                onTap: () => Navigator.of(context)
+                    .pop(_ProjectStackMenuAction.createProject),
+              ),
             ],
           ),
         );
@@ -314,6 +320,12 @@ class _TaskPageState extends State<TaskPage>
     }
     if (action == _ProjectStackMenuAction.setColor) {
       await _setProjectStackColor(stackId);
+      return;
+    }
+    if (action == _ProjectStackMenuAction.createProject) {
+      await _openAddProjectWidget(
+        initialStackSelection: ProjectStackSelection.existing(stackId: stackId),
+      );
     }
   }
 
@@ -483,53 +495,63 @@ class _TaskPageState extends State<TaskPage>
     return newStack.id;
   }
 
-  void _enterReorderMode() {
-    if (_isReorderMode) {
+  void _moveIncomingTaskToPosition({
+    required String taskId,
+    required int targetIndex,
+  }) {
+    final int sourceIndex = _indexOfTaskById(_incomingTasks, taskId);
+    if (sourceIndex < 0) {
       return;
     }
 
     setState(() {
-      _isReorderMode = true;
+      final TaskItem movedTask = _incomingTasks.removeAt(sourceIndex);
+      int insertionIndex = targetIndex;
+      if (sourceIndex < insertionIndex) {
+        insertionIndex -= 1;
+      }
+      insertionIndex = insertionIndex.clamp(0, _incomingTasks.length);
+      _incomingTasks.insert(insertionIndex, movedTask);
     });
+    _persistState();
+  }
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Drag mode enabled. Use drag handles to reorder cards.'),
-        duration: Duration(seconds: 2),
-      ),
+  void _nestIncomingTaskUnderTask({
+    required String sourceTaskId,
+    required String targetTaskId,
+  }) {
+    if (sourceTaskId == targetTaskId) {
+      return;
+    }
+
+    final int sourceIndex = _indexOfTaskById(_incomingTasks, sourceTaskId);
+    final int targetIndex = _indexOfTaskById(_incomingTasks, targetTaskId);
+    if (sourceIndex < 0 || targetIndex < 0) {
+      return;
+    }
+
+    final TaskItem sourceTask = _incomingTasks[sourceIndex];
+    final SubTaskItem nestedItem = SubTaskItem(
+      title: sourceTask.title,
+      body: sourceTask.body,
+      colorValue: sourceTask.colorValue,
+      iconKey: sourceTask.iconKey,
+      children: sourceTask.subtasks
+          .map((SubTaskItem item) => item.clone())
+          .toList(growable: false),
     );
-  }
 
-  void _exitReorderMode() {
-    if (!_isReorderMode) {
-      return;
-    }
     setState(() {
-      _isReorderMode = false;
-    });
-  }
-
-  void _reorderListItems<T>(List<T> items, int oldIndex, int newIndex) {
-    if (oldIndex < 0 || oldIndex >= items.length) {
-      return;
-    }
-    if (newIndex < 0 || newIndex > items.length) {
-      return;
-    }
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-    if (newIndex == oldIndex) {
-      return;
-    }
-
-    final T item = items.removeAt(oldIndex);
-    items.insert(newIndex, item);
-  }
-
-  void _reorderIncomingTasks(int oldIndex, int newIndex) {
-    setState(() {
-      _reorderListItems<TaskItem>(_incomingTasks, oldIndex, newIndex);
+      _incomingTasks.removeAt(sourceIndex);
+      final int adjustedTargetIndex =
+          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      final TaskItem targetTask = _incomingTasks[adjustedTargetIndex];
+      _incomingTasks[adjustedTargetIndex] = targetTask.copyWith(
+        subtasks: <SubTaskItem>[
+          nestedItem,
+          ...targetTask.subtasks.map((SubTaskItem item) => item.clone()),
+        ],
+      );
     });
     _persistState();
   }
@@ -587,6 +609,7 @@ class _TaskPageState extends State<TaskPage>
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
+          cardLayoutPreset: _cardLayoutPreset,
           colorLabels: _colorLabels,
           onTaskChanged: (TaskItem updatedTask) {
             final int sourceTaskIndex =
@@ -891,12 +914,6 @@ class _TaskPageState extends State<TaskPage>
                     Navigator.of(context).pop(_IncomingTaskMenuAction.setIcon),
               ),
               ListTile(
-                leading: const Icon(Icons.add_reaction_outlined),
-                title: const Text('Set icon'),
-                onTap: () =>
-                    Navigator.of(context).pop(_ProjectMenuAction.setIcon),
-              ),
-              ListTile(
                 leading: const Icon(Icons.palette_outlined),
                 title: const Text('Set color'),
                 onTap: () =>
@@ -994,6 +1011,12 @@ class _TaskPageState extends State<TaskPage>
                 title: const Text('Set stack'),
                 onTap: () =>
                     Navigator.of(context).pop(_ProjectMenuAction.setStack),
+              ),
+              ListTile(
+                leading: const Icon(Icons.add_reaction_outlined),
+                title: const Text('Set icon'),
+                onTap: () =>
+                    Navigator.of(context).pop(_ProjectMenuAction.setIcon),
               ),
               ListTile(
                 leading: const Icon(Icons.palette_outlined),
@@ -1273,7 +1296,6 @@ class _TaskPageState extends State<TaskPage>
 
     setState(() {
       _projects[projectIndex] = archivedProject.copyWith(isArchived: true);
-      _isReorderMode = false;
     });
     _persistState();
     _showUndoTaskDeletion(
@@ -1396,7 +1418,10 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
-  Future<void> _openAddProjectWidget() async {
+  Future<void> _openAddProjectWidget({
+    ProjectStackSelection initialStackSelection =
+        const ProjectStackSelection.none(),
+  }) async {
     final AddProjectResult? result =
         await showModalBottomSheet<AddProjectResult>(
       context: context,
@@ -1404,6 +1429,7 @@ class _TaskPageState extends State<TaskPage>
       builder: (_) => AddProjectSheet(
         projectStacks: _projectStacks,
         projectTypes: _projectTypes,
+        initialStackSelection: initialStackSelection,
       ),
     );
 
@@ -1525,6 +1551,7 @@ class _TaskPageState extends State<TaskPage>
           projectTypes: _cloneProjectTypes(_projectTypes),
           colorLabels: _colorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,
+          cardLayoutPreset: _cardLayoutPreset,
           onProjectDataChanged: (
             List<ProjectItem> updatedProjects,
             List<ProjectStack> updatedProjectStacks,
@@ -1568,6 +1595,7 @@ class _TaskPageState extends State<TaskPage>
           ..clear()
           ..addAll(persistedState.colorLabels);
         _hideCompletedProjectItems = persistedState.hideCompletedProjectItems;
+        _cardLayoutPreset = persistedState.cardLayoutPreset;
       });
       return;
     }
@@ -1642,6 +1670,7 @@ class _TaskPageState extends State<TaskPage>
           _projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
       colorLabels: Map<int, String>.from(_colorLabels),
       hideCompletedProjectItems: _hideCompletedProjectItems,
+      cardLayoutPreset: _cardLayoutPreset,
     );
   }
 
@@ -1657,6 +1686,13 @@ class _TaskPageState extends State<TaskPage>
   void _updateHideCompletedProjectItems(bool value) {
     setState(() {
       _hideCompletedProjectItems = value;
+    });
+    _persistState();
+  }
+
+  void _updateCardLayoutPreset(CardLayoutPreset value) {
+    setState(() {
+      _cardLayoutPreset = value;
     });
     _persistState();
   }
@@ -1698,7 +1734,7 @@ class _TaskPageState extends State<TaskPage>
           ..clear()
           ..addAll(importedState.colorLabels);
         _hideCompletedProjectItems = importedState.hideCompletedProjectItems;
-        _isReorderMode = false;
+        _cardLayoutPreset = importedState.cardLayoutPreset;
       });
       await _taskStorage.save(_createSnapshot());
       return null;
@@ -1721,6 +1757,8 @@ class _TaskPageState extends State<TaskPage>
           onColorLabelsChanged: _updateColorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,
           onHideCompletedProjectItemsChanged: _updateHideCompletedProjectItems,
+          cardLayoutPreset: _cardLayoutPreset,
+          onCardLayoutPresetChanged: _updateCardLayoutPreset,
         ),
       ),
     );
@@ -1739,18 +1777,6 @@ class _TaskPageState extends State<TaskPage>
           ],
         ),
         actions: <Widget>[
-          if (!_isReorderMode)
-            IconButton(
-              onPressed: _enterReorderMode,
-              tooltip: 'Enter drag mode',
-              icon: const Icon(Icons.drag_indicator_outlined),
-            ),
-          if (_isReorderMode)
-            IconButton(
-              onPressed: _exitReorderMode,
-              tooltip: 'Done reordering',
-              icon: const Icon(Icons.check),
-            ),
           IconButton(
             onPressed: _openSettingsPage,
             tooltip: 'Open settings',
@@ -1771,27 +1797,41 @@ class _TaskPageState extends State<TaskPage>
           TaskListView(
             tasks: _incomingTasks,
             emptyLabel: 'No incoming tasks yet.',
-            isReorderMode: _isReorderMode,
-            onReorder: _reorderIncomingTasks,
+            cardLayoutPreset: _cardLayoutPreset,
             onTaskTap: _openIncomingTaskView,
-            onTaskLongPress: _openIncomingTaskMenu,
+            onTaskOptionsTap: _openIncomingTaskMenu,
             onMoveTaskToProject: (String taskId) =>
                 _moveTaskFromListToProject(_incomingTasks, taskId),
             onRemoveTask: (String taskId) =>
                 _deleteTaskInList(_incomingTasks, taskId),
+            onMoveTask: ({
+              required String taskId,
+              required int targetIndex,
+            }) =>
+                _moveIncomingTaskToPosition(
+              taskId: taskId,
+              targetIndex: targetIndex,
+            ),
+            onNestTask: ({
+              required String sourceTaskId,
+              required String targetTaskId,
+            }) =>
+                _nestIncomingTaskUnderTask(
+              sourceTaskId: sourceTaskId,
+              targetTaskId: targetTaskId,
+            ),
           ),
           ProjectListView(
             projects: _projects,
             projectStacks: _projectStacks,
             projectTypes: _projectTypes,
-            isReorderMode: _isReorderMode,
+            cardLayoutPreset: _cardLayoutPreset,
             onVisibleProjectOrderChanged: _reorderVisibleProjects,
             onProjectTap: (String projectId) async =>
                 _openProjectDetail(projectId),
             onProjectArchive: _archiveProject,
             onProjectRestore: _restoreProject,
             onProjectRemove: _deleteProject,
-            onProjectLongPress: _openProjectMenu,
             onProjectOptionsTap: _openProjectMenu,
             onProjectStackOptionsTap: _openProjectStackMenu,
             onProjectStackDrop: (

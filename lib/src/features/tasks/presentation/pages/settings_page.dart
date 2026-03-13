@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../domain/task_models.dart';
+import '../widgets/card_layout.dart';
 import '../widgets/edit_project_type_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
@@ -23,6 +24,8 @@ class SettingsPage extends StatefulWidget {
     required this.onColorLabelsChanged,
     required this.hideCompletedProjectItems,
     required this.onHideCompletedProjectItemsChanged,
+    required this.cardLayoutPreset,
+    required this.onCardLayoutPresetChanged,
   });
 
   final String Function() exportData;
@@ -34,6 +37,8 @@ class SettingsPage extends StatefulWidget {
   final void Function(Map<int, String> colorLabels) onColorLabelsChanged;
   final bool hideCompletedProjectItems;
   final ValueChanged<bool> onHideCompletedProjectItemsChanged;
+  final CardLayoutPreset cardLayoutPreset;
+  final ValueChanged<CardLayoutPreset> onCardLayoutPresetChanged;
 
   @override
   State<SettingsPage> createState() => _SettingsPageState();
@@ -47,6 +52,7 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.colorLabels,
   );
   late bool _hideCompletedProjectItems = widget.hideCompletedProjectItems;
+  late CardLayoutPreset _cardLayoutPreset = widget.cardLayoutPreset;
 
   bool get _isAndroidDevice =>
       !kIsWeb && defaultTargetPlatform == TargetPlatform.android;
@@ -252,7 +258,8 @@ class _SettingsPageState extends State<SettingsPage> {
                             }
                             ScaffoldMessenger.of(context).showSnackBar(
                               const SnackBar(
-                                content: Text('Export JSON copied to clipboard.'),
+                                content:
+                                    Text('Export JSON copied to clipboard.'),
                               ),
                             );
                             Navigator.of(bottomSheetContext).pop();
@@ -514,6 +521,48 @@ class _SettingsPageState extends State<SettingsPage> {
     }
   }
 
+  Future<void> _editCardLayoutPreset() async {
+    final CardLayoutPreset? selectedPreset =
+        await showModalBottomSheet<CardLayoutPreset>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              const ListTile(
+                title: Text(
+                  'Card size',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text('Adjust padding and title size for cards'),
+              ),
+              const Divider(height: 1),
+              for (final CardLayoutPreset preset in CardLayoutPreset.values)
+                ListTile(
+                  title: Text(cardLayoutPresetLabel(preset)),
+                  trailing: preset == _cardLayoutPreset
+                      ? const Icon(Icons.check)
+                      : null,
+                  selected: preset == _cardLayoutPreset,
+                  onTap: () => Navigator.of(context).pop(preset),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (selectedPreset == null) {
+      return;
+    }
+
+    setState(() {
+      _cardLayoutPreset = selectedPreset;
+    });
+    widget.onCardLayoutPresetChanged(selectedPreset);
+  }
+
   Future<bool> _confirmJsonImport(
     BuildContext context,
     String fileName,
@@ -606,6 +655,14 @@ class _SettingsPageState extends State<SettingsPage> {
               });
               widget.onHideCompletedProjectItemsChanged(value);
             },
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.view_agenda_outlined),
+            title: const Text('Card size'),
+            subtitle: Text(cardLayoutPresetLabel(_cardLayoutPreset)),
+            trailing: const Icon(Icons.chevron_right_outlined),
+            onTap: _editCardLayoutPreset,
           ),
           const Divider(height: 1),
           const ListTile(

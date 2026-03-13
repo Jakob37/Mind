@@ -22,10 +22,12 @@ class AddProjectSheet extends StatefulWidget {
     super.key,
     required this.projectStacks,
     required this.projectTypes,
+    this.initialStackSelection = const ProjectStackSelection.none(),
   });
 
   final List<ProjectStack> projectStacks;
   final List<ProjectTypeConfig> projectTypes;
+  final ProjectStackSelection initialStackSelection;
 
   @override
   State<AddProjectSheet> createState() => _AddProjectSheetState();
@@ -33,8 +35,14 @@ class AddProjectSheet extends StatefulWidget {
 
 class _AddProjectSheetState extends State<AddProjectSheet> {
   final TextEditingController _projectNameController = TextEditingController();
-  ProjectStackSelection _stackSelection = const ProjectStackSelection.none();
+  late ProjectStackSelection _stackSelection;
   String _projectTypeId = ProjectTypeDefaults.blankId;
+
+  @override
+  void initState() {
+    super.initState();
+    _stackSelection = widget.initialStackSelection;
+  }
 
   @override
   void dispose() {
@@ -137,10 +145,13 @@ class _AddProjectSheetState extends State<AddProjectSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _projectNameController,
-            textInputAction: TextInputAction.done,
-            onSubmitted: (_) => _createProject(),
+            textInputAction: TextInputAction.newline,
+            keyboardType: TextInputType.multiline,
+            minLines: 1,
+            maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Project name',
+              alignLabelWithHint: true,
               hintText: 'Deep Focus',
             ),
           ),

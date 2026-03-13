@@ -85,9 +85,13 @@ class _EditProjectSheetState extends State<EditProjectSheet> {
           const SizedBox(height: 12),
           TextField(
             controller: _nameController,
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.newline,
+            keyboardType: TextInputType.multiline,
+            minLines: 1,
+            maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Project name',
+              alignLabelWithHint: true,
             ),
           ),
           const SizedBox(height: 12),

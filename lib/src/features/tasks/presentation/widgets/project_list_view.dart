@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import 'card_layout.dart';
 import 'item_icon_picker_sheet.dart';
 
 class _ProjectDragPayload {
@@ -25,37 +26,18 @@ class _ProjectGroup {
   final String? stackId;
 }
 
-class _ProjectReorderEntry {
-  const _ProjectReorderEntry({
-    required this.key,
-    required this.label,
-    required this.projectIds,
-    required this.isStack,
-    this.project,
-    this.stackId,
-  });
-
-  final String key;
-  final String label;
-  final List<String> projectIds;
-  final bool isStack;
-  final ProjectItem? project;
-  final String? stackId;
-}
-
 class ProjectListView extends StatefulWidget {
   const ProjectListView({
     super.key,
     required this.projects,
     required this.projectStacks,
     required this.projectTypes,
-    required this.isReorderMode,
+    required this.cardLayoutPreset,
     required this.onVisibleProjectOrderChanged,
     required this.onProjectTap,
     required this.onProjectArchive,
     required this.onProjectRestore,
     required this.onProjectRemove,
-    required this.onProjectLongPress,
     required this.onProjectOptionsTap,
     required this.onProjectStackOptionsTap,
     required this.onProjectStackDrop,
@@ -64,13 +46,12 @@ class ProjectListView extends StatefulWidget {
   final List<ProjectItem> projects;
   final List<ProjectStack> projectStacks;
   final List<ProjectTypeConfig> projectTypes;
-  final bool isReorderMode;
+  final CardLayoutPreset cardLayoutPreset;
   final void Function(List<String> projectIds) onVisibleProjectOrderChanged;
   final Future<void> Function(String) onProjectTap;
   final void Function(String) onProjectArchive;
   final void Function(String) onProjectRestore;
   final void Function(String) onProjectRemove;
-  final Future<void> Function(String) onProjectLongPress;
   final Future<void> Function(String) onProjectOptionsTap;
   final Future<void> Function(String) onProjectStackOptionsTap;
   final Future<void> Function(
@@ -86,6 +67,9 @@ class _ProjectListViewState extends State<ProjectListView> {
   late final Set<String> _collapsedStackIds =
       widget.projectStacks.map((ProjectStack stack) => stack.id).toSet();
   bool _showArchivedProjects = false;
+
+  CardLayoutSpec get _layout =>
+      cardLayoutSpecForPreset(widget.cardLayoutPreset);
 
   @override
   void didUpdateWidget(covariant ProjectListView oldWidget) {
@@ -225,70 +209,75 @@ class _ProjectListViewState extends State<ProjectListView> {
     });
   }
 
-  void _reorderListItems<T>(
-    List<T> items,
-    int oldIndex,
-    int newIndex,
-  ) {
-    if (oldIndex < 0 || oldIndex >= items.length) {
-      return;
+  List<String> _reorderedProjectIdsForDrop({
+    required List<_ProjectGroup> groups,
+    required List<String> draggedProjectIds,
+    required int targetGroupIndex,
+  }) {
+    final Set<String> draggedIdSet = draggedProjectIds.toSet();
+    int insertionIndex = 0;
+    for (int index = 0;
+        index < targetGroupIndex && index < groups.length;
+        index += 1) {
+      insertionIndex += groups[index]
+          .projects
+          .where((ProjectItem project) => !draggedIdSet.contains(project.id))
+          .length;
     }
-    if (newIndex < 0 || newIndex > items.length) {
-      return;
-    }
-    if (newIndex > oldIndex) {
-      newIndex -= 1;
-    }
-    if (newIndex == oldIndex) {
-      return;
-    }
-
-    final T movedItem = items.removeAt(oldIndex);
-    items.insert(newIndex, movedItem);
+    final List<String> reorderedIds = groups
+        .expand(
+          (_ProjectGroup group) => group.projects
+              .map((ProjectItem project) => project.id)
+              .where((String projectId) => !draggedIdSet.contains(projectId)),
+        )
+        .toList(growable: true);
+    reorderedIds.insertAll(
+      insertionIndex.clamp(0, reorderedIds.length),
+      draggedProjectIds,
+    );
+    return reorderedIds;
   }
 
-  List<_ProjectReorderEntry> _buildReorderEntries(
-    List<ProjectItem> sourceProjects,
-  ) {
-    final List<_ProjectReorderEntry> entries = <_ProjectReorderEntry>[];
-    final Set<String> handledStackIds = <String>{};
-
-    for (final ProjectItem project in sourceProjects) {
-      final String? stackId = project.stackId;
-      if (stackId == null || stackId.isEmpty) {
-        entries.add(
-          _ProjectReorderEntry(
-            key: project.id,
-            label: project.name,
-            projectIds: <String>[project.id],
-            isStack: false,
-            project: project,
+  Widget _buildGroupDropSlot(
+    BuildContext context, {
+    required List<_ProjectGroup> groups,
+    required int targetGroupIndex,
+    required double inactiveHeight,
+  }) {
+    return DragTarget<_ProjectDragPayload>(
+      onWillAcceptWithDetails: (
+        DragTargetDetails<_ProjectDragPayload> details,
+      ) {
+        return true;
+      },
+      onAcceptWithDetails: (DragTargetDetails<_ProjectDragPayload> details) {
+        widget.onVisibleProjectOrderChanged(
+          _reorderedProjectIdsForDrop(
+            groups: groups,
+            draggedProjectIds: details.data.projectIds,
+            targetGroupIndex: targetGroupIndex,
           ),
         );
-        continue;
-      }
-
-      if (!handledStackIds.add(stackId)) {
-        continue;
-      }
-
-      final String stackLabel = _stackNameForProject(project) ?? 'Stack';
-      final List<String> stackProjectIds = sourceProjects
-          .where((ProjectItem item) => item.stackId == stackId)
-          .map((ProjectItem item) => item.id)
-          .toList(growable: false);
-      entries.add(
-        _ProjectReorderEntry(
-          key: 'stack-$stackId',
-          label: stackLabel,
-          projectIds: stackProjectIds,
-          isStack: true,
-          stackId: stackId,
-        ),
-      );
-    }
-
-    return entries;
+      },
+      builder: (
+        BuildContext context,
+        List<_ProjectDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isActive = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: isActive ? 22 : inactiveHeight,
+          margin: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: isActive
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildSubtitle(
@@ -321,7 +310,14 @@ class _ProjectListViewState extends State<ProjectListView> {
     required VoidCallback onTap,
     bool isDropTarget = false,
     bool isArchivedView = false,
+    bool showOptionsButton = false,
   }) {
+    final TextStyle? titleStyle =
+        Theme.of(context).textTheme.titleMedium?.copyWith(
+              fontSize:
+                  (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
+                      _layout.titleScale,
+            );
     return Opacity(
       opacity: isArchivedView ? 0.82 : 1,
       child: AnimatedContainer(
@@ -338,14 +334,11 @@ class _ProjectListViewState extends State<ProjectListView> {
         child: Card(
           color: project.colorValue == null ? null : Color(project.colorValue!),
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
+            contentPadding: _layout.contentPadding,
             leading: _buildLeading(project),
             title: Text(
               project.name,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: titleStyle,
               maxLines: null,
             ),
             subtitle: _buildSubtitle(
@@ -355,6 +348,14 @@ class _ProjectListViewState extends State<ProjectListView> {
             ),
             isThreeLine:
                 showStackLabel || project.body.isNotEmpty || project.isArchived,
+            trailing: showOptionsButton
+                ? IconButton(
+                    tooltip: 'Project options',
+                    onPressed: () async =>
+                        widget.onProjectOptionsTap(project.id),
+                    icon: const Icon(Icons.more_vert),
+                  )
+                : null,
             onTap: onTap,
           ),
         ),
@@ -368,7 +369,7 @@ class _ProjectListViewState extends State<ProjectListView> {
   }) {
     final bool restore = isArchivedView;
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
       decoration: BoxDecoration(
         color: restore
             ? Theme.of(context).colorScheme.secondaryContainer
@@ -388,7 +389,7 @@ class _ProjectListViewState extends State<ProjectListView> {
 
   Widget _buildDeleteBackground(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 4),
+      margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.errorContainer,
         borderRadius: BorderRadius.circular(12),
@@ -433,7 +434,7 @@ class _ProjectListViewState extends State<ProjectListView> {
       ),
       secondaryBackground: _buildDeleteBackground(context),
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 4),
+        padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
         child: child,
       ),
     );
@@ -446,14 +447,15 @@ class _ProjectListViewState extends State<ProjectListView> {
     final Widget row = Material(
       color: Colors.transparent,
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 12,
-          vertical: 6,
-        ),
+        contentPadding: _layout.contentPadding,
         leading: _buildLeading(project),
         title: Text(
           project.name,
-          style: Theme.of(context).textTheme.titleMedium,
+          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                fontSize:
+                    (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
+                        _layout.titleScale,
+              ),
           maxLines: null,
         ),
         subtitle: _buildSubtitle(
@@ -508,14 +510,16 @@ class _ProjectListViewState extends State<ProjectListView> {
               ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.10)
               : Colors.transparent,
           child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
+            contentPadding: _layout.contentPadding,
             leading: _buildLeading(project),
             title: Text(
               project.name,
-              style: Theme.of(context).textTheme.titleMedium,
+              style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                    fontSize:
+                        (Theme.of(context).textTheme.titleMedium?.fontSize ??
+                                16) *
+                            _layout.titleScale,
+                  ),
               maxLines: null,
             ),
             subtitle: _buildSubtitle(
@@ -580,10 +584,7 @@ class _ProjectListViewState extends State<ProjectListView> {
           children: <Widget>[
             ListTile(
               onTap: () => _toggleStack(stackId),
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
+              contentPadding: _layout.contentPadding,
               leading: Icon(
                 isCollapsed
                     ? Icons.folder_copy_outlined
@@ -591,7 +592,12 @@ class _ProjectListViewState extends State<ProjectListView> {
               ),
               title: Text(
                 group.label,
-                style: Theme.of(context).textTheme.titleMedium,
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                      fontSize:
+                          (Theme.of(context).textTheme.titleMedium?.fontSize ??
+                                  16) *
+                              _layout.titleScale,
+                    ),
               ),
               subtitle: Padding(
                 padding: const EdgeInsets.only(top: 4),
@@ -604,7 +610,7 @@ class _ProjectListViewState extends State<ProjectListView> {
                     tooltip: 'Stack settings',
                     onPressed: () async =>
                         widget.onProjectStackOptionsTap(stackId),
-                    icon: const Icon(Icons.more_horiz),
+                    icon: const Icon(Icons.more_vert),
                   ),
                   Icon(
                     isCollapsed
@@ -624,7 +630,7 @@ class _ProjectListViewState extends State<ProjectListView> {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: EdgeInsets.only(bottom: _layout.listBottomSpacing + 6),
       child: isArchivedView
           ? stackCard
           : DragTarget<_ProjectDragPayload>(
@@ -667,10 +673,7 @@ class _ProjectListViewState extends State<ProjectListView> {
                       width: MediaQuery.sizeOf(context).width - 24,
                       child: Card(
                         child: ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 6,
-                          ),
+                          contentPadding: _layout.contentPadding,
                           leading: Icon(
                             isCollapsed
                                 ? Icons.folder_copy_outlined
@@ -693,78 +696,12 @@ class _ProjectListViewState extends State<ProjectListView> {
     );
   }
 
-  Widget _buildReorderItem(
-    BuildContext context,
-    List<_ProjectReorderEntry> entries,
-    int index,
-  ) {
-    final _ProjectReorderEntry entry = entries[index];
-    if (entry.isStack) {
-      final int projectCount = entry.projectIds.length;
-      return Padding(
-        key: ValueKey<String>(entry.key),
-        padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-        child: Card(
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: 12,
-              vertical: 6,
-            ),
-            leading: const Icon(Icons.folder_copy_outlined),
-            title: Text(
-              entry.label,
-              style: Theme.of(context).textTheme.titleMedium,
-              maxLines: null,
-            ),
-            subtitle: Text(
-              '$projectCount project${projectCount == 1 ? '' : 's'}',
-            ),
-            trailing: ReorderableDragStartListener(
-              index: index,
-              child: const Icon(Icons.drag_indicator_outlined),
-            ),
-          ),
-        ),
-      );
-    }
-
-    final ProjectItem project = entry.project!;
-    return Padding(
-      key: ValueKey<String>(entry.key),
-      padding: const EdgeInsets.fromLTRB(20, 0, 20, 4),
-      child: Card(
-        color: project.colorValue == null ? null : Color(project.colorValue!),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 12,
-            vertical: 6,
-          ),
-          leading: _buildLeading(project),
-          title: Text(
-            project.name,
-            style: Theme.of(context).textTheme.titleMedium,
-            maxLines: null,
-          ),
-          subtitle: _buildSubtitle(
-            context,
-            project,
-            showStackLabel: project.stackId != null,
-          ),
-          isThreeLine: project.stackId != null || project.body.isNotEmpty,
-          trailing: ReorderableDragStartListener(
-            index: index,
-            child: const Icon(Icons.drag_indicator_outlined),
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildProjectCard(
     BuildContext context,
     ProjectItem project, {
     required bool isDropTarget,
     bool isArchivedView = false,
+    bool showOptionsButton = false,
   }) {
     return _buildProjectTile(
       context,
@@ -773,6 +710,7 @@ class _ProjectListViewState extends State<ProjectListView> {
       onTap: () async => widget.onProjectTap(project.id),
       isDropTarget: isDropTarget,
       isArchivedView: isArchivedView,
+      showOptionsButton: showOptionsButton,
     );
   }
 
@@ -786,6 +724,7 @@ class _ProjectListViewState extends State<ProjectListView> {
           project,
           isDropTarget: false,
           isArchivedView: true,
+          showOptionsButton: true,
         ),
       );
     }
@@ -794,6 +733,7 @@ class _ProjectListViewState extends State<ProjectListView> {
       context,
       project,
       isDropTarget: false,
+      showOptionsButton: true,
     );
 
     return DragTarget<_ProjectDragPayload>(
@@ -839,6 +779,7 @@ class _ProjectListViewState extends State<ProjectListView> {
               context,
               project,
               isDropTarget: isDropTarget,
+              showOptionsButton: true,
             ),
           ),
         );
@@ -867,10 +808,7 @@ class _ProjectListViewState extends State<ProjectListView> {
               });
             },
             child: ListTile(
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 12,
-                vertical: 6,
-              ),
+              contentPadding: _layout.contentPadding,
               leading: const Icon(Icons.archive_outlined),
               title: const Text('Archived projects'),
               subtitle: Text(
@@ -908,35 +846,6 @@ class _ProjectListViewState extends State<ProjectListView> {
       return const Center(child: Text('No projects yet.'));
     }
 
-    if (widget.isReorderMode) {
-      final List<_ProjectReorderEntry> reorderEntries =
-          _buildReorderEntries(_visibleProjects()).toList(growable: true);
-      if (reorderEntries.isEmpty) {
-        return const Center(child: Text('No active projects to reorder.'));
-      }
-      return ReorderableListView.builder(
-        padding: const EdgeInsets.all(12),
-        itemCount: reorderEntries.length,
-        onReorder: (int oldIndex, int newIndex) {
-          _reorderListItems<_ProjectReorderEntry>(
-            reorderEntries,
-            oldIndex,
-            newIndex,
-          );
-          widget.onVisibleProjectOrderChanged(
-            reorderEntries
-                .expand(
-                  (_ProjectReorderEntry entry) => entry.projectIds,
-                )
-                .toList(growable: false),
-          );
-        },
-        buildDefaultDragHandles: false,
-        itemBuilder: (BuildContext context, int index) =>
-            _buildReorderItem(context, reorderEntries, index),
-      );
-    }
-
     final List<ProjectItem> activeProjects = _visibleProjects();
     final List<ProjectItem> archivedProjects = widget.projects
         .where((ProjectItem project) => project.isArchived)
@@ -955,14 +864,29 @@ class _ProjectListViewState extends State<ProjectListView> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-        ...activeGroups.expand((_ProjectGroup group) {
-          return <Widget>[
-            if (group.isStack)
-              _buildStackCard(context, group)
-            else
-              _buildGroupedProjectItem(context, group.projects.single),
-          ];
-        }),
+        if (activeGroups.isNotEmpty)
+          _buildGroupDropSlot(
+            context,
+            groups: activeGroups,
+            targetGroupIndex: 0,
+            inactiveHeight: 0,
+          ),
+        for (int index = 0;
+            index < activeGroups.length;
+            index += 1) ...<Widget>[
+          activeGroups[index].isStack
+              ? _buildStackCard(context, activeGroups[index])
+              : _buildGroupedProjectItem(
+                  context,
+                  activeGroups[index].projects.single,
+                ),
+          _buildGroupDropSlot(
+            context,
+            groups: activeGroups,
+            targetGroupIndex: index + 1,
+            inactiveHeight: 4,
+          ),
+        ],
         if (archivedGroups.isNotEmpty)
           _buildArchivedSection(context, archivedGroups),
       ],

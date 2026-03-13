@@ -5,6 +5,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../domain/task_models.dart';
 import '../widgets/add_session_sheet.dart';
 import '../widgets/add_task_sheet.dart';
+import '../widgets/card_layout.dart';
 import '../widgets/edit_project_sheet.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
@@ -60,6 +61,7 @@ class ProjectDetailPage extends StatefulWidget {
     required this.projectTypes,
     required this.colorLabels,
     required this.hideCompletedProjectItems,
+    required this.cardLayoutPreset,
     required this.onProjectDataChanged,
   });
 
@@ -69,6 +71,7 @@ class ProjectDetailPage extends StatefulWidget {
   final List<ProjectTypeConfig> projectTypes;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
+  final CardLayoutPreset cardLayoutPreset;
   final void Function(
     List<ProjectItem> projects,
     List<ProjectStack> projectStacks,
@@ -81,10 +84,12 @@ class ProjectDetailPage extends StatefulWidget {
 class _ProjectDetailPageState extends State<ProjectDetailPage> {
   late final List<ProjectItem> _projects;
   late final List<ProjectStack> _projectStacks;
-  bool _isReorderMode = false;
   bool _showArchivedTasks = false;
   final Set<String> _expandedProjectTaskIds = <String>{};
   final Set<String> _expandedPreviewSubtaskIds = <String>{};
+
+  CardLayoutSpec get _layout =>
+      cardLayoutSpecForPreset(widget.cardLayoutPreset);
 
   @override
   void initState() {
@@ -287,32 +292,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           : task.copyWith(type: TaskItemType.planning);
     }
     return task;
-  }
-
-  void _enterReorderMode() {
-    if (_isReorderMode) {
-      return;
-    }
-    setState(() {
-      _isReorderMode = true;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Drag mode enabled. Drag tasks between sections.',
-        ),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _exitReorderMode() {
-    if (!_isReorderMode) {
-      return;
-    }
-    setState(() {
-      _isReorderMode = false;
-    });
   }
 
   void _toggleProjectTaskExpanded(String taskId) {
@@ -793,6 +772,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
+          cardLayoutPreset: widget.cardLayoutPreset,
           colorLabels: widget.colorLabels,
           onTaskChanged: (TaskItem updatedTask) {
             final ProjectItem? activeProject = _findProject();
@@ -1348,7 +1328,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     setState(() {
       project.tasks[taskIndex] = task.copyWith(isArchived: true);
-      _isReorderMode = false;
     });
     _notifyProjectDataChanged();
     _showUndoTaskDeletion(
@@ -1407,9 +1386,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         return;
       }
       _projects[projectIndex] = project.copyWith(isArchived: nextArchived);
-      if (nextArchived) {
-        _isReorderMode = false;
-      }
     });
     _notifyProjectDataChanged();
   }
@@ -1952,9 +1928,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Widget _buildTaskCard({
     required TaskItem task,
     required VoidCallback? onTap,
-    required VoidCallback? onLongPress,
     bool showNestedPreview = false,
-    Widget? trailing,
+    bool showOptionsButton = false,
     double bottomPadding = 4,
   }) {
     final IconData? iconData = iconDataForKey(task.iconKey) ??
@@ -2025,7 +2000,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             size: 18,
           ),
         ),
-      if (trailing != null) trailing,
+      if (showOptionsButton)
+        IconButton(
+          onPressed: () => _openTaskQuickMenu(task.id),
+          tooltip: 'Task options',
+          icon: const Icon(Icons.more_vert),
+        ),
     ];
 
     final Widget? effectiveTrailing = trailingParts.isEmpty
@@ -2049,19 +2029,22 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             child: Card(
               color: task.colorValue == null ? null : Color(task.colorValue!),
               child: ListTile(
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+                contentPadding: _layout.contentPadding,
                 leading: iconData == null ? null : Icon(iconData),
                 title: Text(
                   task.title,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: (Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.fontSize ??
+                                16) *
+                            _layout.titleScale,
+                      ),
                   maxLines: null,
                 ),
                 trailing: effectiveTrailing,
                 onTap: onTap,
-                onLongPress: onLongPress,
               ),
             ),
           ),
@@ -2178,6 +2161,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     required String title,
     required String emptyLabel,
     required List<TaskItem> tasks,
+    required TaskItemType sectionType,
     bool showNestedPreview = false,
     bool isArchivedSection = false,
   }) {
@@ -2197,65 +2181,75 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ),
-        for (final TaskItem task in tasks)
-          Dismissible(
-            key: ValueKey<String>('project-task-swipe-${task.id}'),
-            direction: DismissDirection.horizontal,
-            confirmDismiss: (DismissDirection direction) async {
-              if (direction == DismissDirection.startToEnd) {
-                if (task.isArchived) {
-                  _restoreTask(task.id);
-                } else {
-                  _archiveTask(task.id);
-                }
-                return true;
-              }
-              return true;
-            },
-            onDismissed: (DismissDirection direction) {
-              if (direction == DismissDirection.endToStart) {
-                _deleteTask(task.id);
-              }
-            },
-            background: Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              decoration: BoxDecoration(
-                color: task.isArchived
-                    ? Theme.of(context).colorScheme.secondaryContainer
-                    : Theme.of(context).colorScheme.tertiaryContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.centerLeft,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Icon(
-                task.isArchived
-                    ? Icons.unarchive_outlined
-                    : Icons.archive_outlined,
-                color: task.isArchived
-                    ? Theme.of(context).colorScheme.onSecondaryContainer
-                    : Theme.of(context).colorScheme.onTertiaryContainer,
-              ),
-            ),
-            secondaryBackground: Container(
-              margin: const EdgeInsets.only(bottom: 4),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.errorContainer,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              child: Icon(
-                Icons.delete_outline,
-                color: Theme.of(context).colorScheme.onErrorContainer,
-              ),
-            ),
-            child: _buildTaskCard(
-              task: task,
-              onTap: () => _openTaskView(task.id),
-              onLongPress: () => _openTaskQuickMenu(task.id),
-              showNestedPreview: showNestedPreview && !isArchivedSection,
-            ),
+        if (!isArchivedSection)
+          _buildDropSlot(
+            sectionType: sectionType,
+            targetIndex: 0,
+            inactiveHeight: tasks.isEmpty ? 4 : 0,
           ),
+        for (int index = 0; index < tasks.length; index += 1) ...<Widget>[
+          isArchivedSection
+              ? Dismissible(
+                  key:
+                      ValueKey<String>('project-task-swipe-${tasks[index].id}'),
+                  direction: DismissDirection.horizontal,
+                  confirmDismiss: (DismissDirection direction) async {
+                    if (direction == DismissDirection.startToEnd) {
+                      _restoreTask(tasks[index].id);
+                      return true;
+                    }
+                    return true;
+                  },
+                  onDismissed: (DismissDirection direction) {
+                    if (direction == DismissDirection.endToStart) {
+                      _deleteTask(tasks[index].id);
+                    }
+                  },
+                  background: Container(
+                    margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.unarchive_outlined,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                  secondaryBackground: Container(
+                    margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  child: _buildTaskCard(
+                    task: tasks[index],
+                    onTap: () => _openTaskView(tasks[index].id),
+                    showNestedPreview: showNestedPreview,
+                    showOptionsButton: true,
+                    bottomPadding: _layout.listBottomSpacing,
+                  ),
+                )
+              : _buildDraggableTaskCard(
+                  tasks[index],
+                  showNestedPreview: showNestedPreview,
+                ),
+          if (!isArchivedSection)
+            _buildDropSlot(
+              sectionType: sectionType,
+              targetIndex: index + 1,
+              inactiveHeight: 4,
+            ),
+        ],
       ],
     );
   }
@@ -2300,7 +2294,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     );
   }
 
-  Widget _buildDraggableTaskCard(TaskItem task) {
+  Widget _buildDraggableTaskCard(
+    TaskItem task, {
+    required bool showNestedPreview,
+  }) {
     return DragTarget<_TaskSectionDragPayload>(
       onWillAcceptWithDetails:
           (DragTargetDetails<_TaskSectionDragPayload> details) {
@@ -2319,7 +2316,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         List<dynamic> rejectedData,
       ) {
         final bool isHovering = candidateData.isNotEmpty;
-        return Padding(
+        final Widget tile = Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
           child: DecoratedBox(
             decoration: BoxDecoration(
@@ -2331,112 +2328,79 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     )
                   : null,
             ),
-            child: Draggable<_TaskSectionDragPayload>(
+            child: _buildTaskCard(
+              task: task,
+              onTap: () => _openTaskView(task.id),
+              showNestedPreview: showNestedPreview,
+              showOptionsButton: true,
+              bottomPadding: 0,
+            ),
+          ),
+        );
+        return Dismissible(
+          key: ValueKey<String>('project-task-swipe-${task.id}'),
+          direction: DismissDirection.horizontal,
+          confirmDismiss: (DismissDirection direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              _archiveTask(task.id);
+              return true;
+            }
+            return true;
+          },
+          onDismissed: (DismissDirection direction) {
+            if (direction == DismissDirection.endToStart) {
+              _deleteTask(task.id);
+            }
+          },
+          background: Container(
+            margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.tertiaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(
+              Icons.archive_outlined,
+              color: Theme.of(context).colorScheme.onTertiaryContainer,
+            ),
+          ),
+          secondaryBackground: Container(
+            margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+            child: LongPressDraggable<_TaskSectionDragPayload>(
               data: _TaskSectionDragPayload(taskId: task.id),
               feedback: Material(
                 color: Colors.transparent,
                 child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 280),
-                  child: Card(
-                    color: task.colorValue == null
-                        ? null
-                        : Color(task.colorValue!),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 10,
-                      ),
-                      child: Text(
-                        task.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                      ),
-                    ),
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: _buildTaskCard(
+                    task: task,
+                    onTap: null,
+                    showNestedPreview: showNestedPreview,
+                    bottomPadding: 0,
                   ),
                 ),
               ),
               childWhenDragging: Opacity(
                 opacity: 0.45,
-                child: _buildTaskCard(
-                  task: task,
-                  onTap: null,
-                  onLongPress: null,
-                  trailing: const Icon(Icons.drag_indicator_outlined),
-                  bottomPadding: 0,
-                ),
+                child: tile,
               ),
-              child: _buildTaskCard(
-                task: task,
-                onTap: null,
-                onLongPress: null,
-                trailing: Tooltip(
-                  message: isHovering ? 'Drop to nest' : 'Drag',
-                  child: const Icon(Icons.drag_indicator_outlined),
-                ),
-                bottomPadding: 0,
-              ),
+              child: tile,
             ),
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildReorderTaskSection({
-    required String title,
-    required String emptyLabel,
-    required List<TaskItem> tasks,
-    required TaskItemType sectionType,
-  }) {
-    return DragTarget<_TaskSectionDragPayload>(
-      onWillAcceptWithDetails: (
-        DragTargetDetails<_TaskSectionDragPayload> details,
-      ) {
-        return true;
-      },
-      onAcceptWithDetails: (
-        DragTargetDetails<_TaskSectionDragPayload> details,
-      ) {
-        _moveTaskToPosition(
-          taskId: details.data.taskId,
-          targetType: sectionType,
-          targetIndex: tasks.length,
-        );
-      },
-      builder: (
-        BuildContext context,
-        List<_TaskSectionDragPayload?> candidateData,
-        List<dynamic> rejectedData,
-      ) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Text(
-              title,
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            const SizedBox(height: 8),
-            if (tasks.isEmpty)
-              Padding(
-                padding: const EdgeInsets.only(bottom: 12),
-                child: Text(
-                  emptyLabel,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            _buildDropSlot(
-              sectionType: sectionType,
-              targetIndex: 0,
-              inactiveHeight: tasks.isEmpty ? 4 : 0,
-            ),
-            for (int i = 0; i < tasks.length; i++) ...<Widget>[
-              _buildDraggableTaskCard(tasks[i]),
-              _buildDropSlot(
-                sectionType: sectionType,
-                targetIndex: i + 1,
-                inactiveHeight: 4,
-              ),
-            ],
-          ],
         );
       },
     );
@@ -2478,6 +2442,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 title: 'Archived',
                 emptyLabel: 'No archived tasks.',
                 tasks: archivedTasks,
+                sectionType: TaskItemType.planning,
                 isArchivedSection: true,
               ),
             ),
@@ -2545,18 +2510,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               tooltip: 'New session',
               icon: const Icon(Icons.add_box_outlined),
             ),
-          if (!_isReorderMode)
-            IconButton(
-              onPressed: _enterReorderMode,
-              tooltip: 'Enter drag mode',
-              icon: const Icon(Icons.drag_indicator_outlined),
-            ),
-          if (_isReorderMode)
-            IconButton(
-              onPressed: _exitReorderMode,
-              tooltip: 'Done reordering',
-              icon: const Icon(Icons.check),
-            ),
           IconButton(
             onPressed: _openProjectSettings,
             tooltip: 'Project settings',
@@ -2609,16 +2562,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 ),
               ),
             ),
-          if (showsIdeasSection && _isReorderMode)
-            _buildReorderTaskSection(
-              title:
-                  isKnowledgeProject ? 'Knowledge notes' : 'Thinking (ideas)',
-              emptyLabel:
-                  isKnowledgeProject ? 'Drop notes here.' : 'Drop ideas here.',
-              tasks: thinkingTasks,
-              sectionType: TaskItemType.thinking,
-            )
-          else if (showsIdeasSection)
+          if (showsIdeasSection)
             _buildTaskSection(
               title:
                   isKnowledgeProject ? 'Knowledge notes' : 'Thinking (ideas)',
@@ -2626,22 +2570,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   ? 'No knowledge captured yet.'
                   : 'No ideas in this project yet.',
               tasks: thinkingTasks,
+              sectionType: TaskItemType.thinking,
               showNestedPreview: true,
             ),
           if (showsIdeasSection && showsPlanningSection)
             const SizedBox(height: 8),
-          if (showsPlanningSection && _isReorderMode)
-            _buildReorderTaskSection(
-              title: 'Planning (action items)',
-              emptyLabel: 'Drop action items here.',
-              tasks: planningTasks,
-              sectionType: TaskItemType.planning,
-            )
-          else if (showsPlanningSection)
+          if (showsPlanningSection)
             _buildTaskSection(
               title: 'Planning (action items)',
               emptyLabel: 'No action items in this project yet.',
               tasks: planningTasks,
+              sectionType: TaskItemType.planning,
             ),
           if (!showsIdeasSection && !showsPlanningSection)
             Text(
@@ -2652,16 +2591,15 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             _buildArchivedTaskSection(archivedTasks),
         ],
       ),
-      floatingActionButton:
-          _isReorderMode || !canCreateTasks || project.isArchived
-              ? null
-              : FloatingActionButton(
-                  onPressed: _addTaskToProject,
-                  tooltip: isKnowledgeProject
-                      ? 'Add knowledge note'
-                      : 'Add project task',
-                  child: const Icon(Icons.add),
-                ),
+      floatingActionButton: !canCreateTasks || project.isArchived
+          ? null
+          : FloatingActionButton(
+              onPressed: _addTaskToProject,
+              tooltip: isKnowledgeProject
+                  ? 'Add knowledge note'
+                  : 'Add project task',
+              child: const Icon(Icons.add),
+            ),
     );
   }
 }

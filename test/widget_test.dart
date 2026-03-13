@@ -195,7 +195,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('16'), findsWidgets);
+    expect(find.textContaining('17'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON to Folder'), findsOneWidget);
     expect(find.text('Export JSON File (Android)'), findsOneWidget);
@@ -263,15 +263,6 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(ListTile, 'Archive'), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Enter drag mode'));
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(ListTile, 'Focus Stack'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, 'Archive'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, 'Studio'), findsNothing);
-    expect(find.widgetWithText(ListTile, 'Research'), findsNothing);
-    await tester.tap(find.byTooltip('Done reordering'));
-    await tester.pumpAndSettle();
 
     final Finder collapsedStackTile =
         find.widgetWithText(ListTile, 'Focus Stack');
@@ -407,26 +398,12 @@ void main() {
     final String bottomSubtask =
         isFirstOnTop ? 'Second subtask' : 'First subtask';
 
-    await tester.tap(find.byTooltip('Enter drag mode'));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Done reordering nested items'), findsOneWidget);
-
-    final Finder topSubtaskTile = find.ancestor(
-      of: find.text(topSubtask),
-      matching: find.byType(ListTile),
-    );
-    final Finder topSubtaskDragHandle = find.descendant(
-        of: topSubtaskTile,
-        matching: find.byIcon(Icons.drag_indicator_outlined));
-    final Offset topSubtaskCenter = tester.getCenter(topSubtaskDragHandle);
-    final Offset bottomSubtaskCenter = tester.getCenter(
-      find.ancestor(
-        of: find.text(bottomSubtask),
-        matching: find.byType(ListTile),
-      ),
-    );
+    final Offset topSubtaskCenter = tester.getCenter(find.text(topSubtask));
+    final Offset bottomSubtaskCenter =
+        tester.getCenter(find.text(bottomSubtask));
     final TestGesture reorderGesture =
         await tester.startGesture(topSubtaskCenter);
+    await tester.pump(kLongPressTimeout);
     await reorderGesture.moveTo(bottomSubtaskCenter.translate(0, 28));
     await tester.pump();
     await reorderGesture.up();
@@ -434,9 +411,6 @@ void main() {
 
     expect(find.text(topSubtask), findsOneWidget);
     expect(find.text(bottomSubtask), findsOneWidget);
-
-    await tester.tap(find.byTooltip('Done reordering nested items'));
-    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Second subtask'));
     await tester.pumpAndSettle();
@@ -495,18 +469,19 @@ void main() {
     expect(subTaskCard.color, const Color(0xFFFFCDD2));
   });
 
-  testWidgets('drag mode button enables drag mode for incoming cards',
+  testWidgets('incoming cards expose direct controls without drag mode',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
 
-    await tester.tap(find.byTooltip('Enter drag mode'));
+    expect(find.byTooltip('Enter drag mode'), findsNothing);
+    expect(find.byTooltip('Done reordering'), findsNothing);
+    expect(find.byTooltip('Task options'), findsWidgets);
+
+    await tester.tap(find.byTooltip('Task options').first);
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Done reordering'), findsOneWidget);
-    expect(find.byIcon(Icons.drag_indicator_outlined), findsWidgets);
-    await tester.tap(find.byTooltip('Done reordering'));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Done reordering'), findsNothing);
+    expect(find.text('Task options'), findsOneWidget);
+    expect(find.text('Edit task'), findsOneWidget);
   });
 
   testWidgets('swipe left removes task with undo and project with confirmation',
@@ -801,7 +776,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('16'), findsWidgets);
+    expect(find.textContaining('17'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -849,7 +824,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('16'), findsWidgets);
+    expect(find.textContaining('17'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });
@@ -929,22 +904,15 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Drag idea'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('Enter drag mode'));
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('Done reordering'), findsOneWidget);
-
     final Offset dragStart = tester.getCenter(find.text('Drag idea'));
     final Offset planningHeader = tester.getCenter(
       find.text('Planning (action items)'),
     );
     final TestGesture drag = await tester.startGesture(dragStart);
-    await tester.pump(const Duration(milliseconds: 700));
+    await tester.pump(kLongPressTimeout);
     await drag.moveTo(planningHeader.translate(0, 42));
     await tester.pump();
     await drag.up();
-    await tester.pumpAndSettle();
-
-    await tester.tap(find.byTooltip('Done reordering'));
     await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Add project task'));

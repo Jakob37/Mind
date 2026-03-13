@@ -155,6 +155,7 @@ void main() {
         4294951112: 'Warm',
       },
       hideCompletedProjectItems: false,
+      cardLayoutPreset: CardLayoutPreset.standard,
     );
 
     await storage.save(state);
@@ -165,7 +166,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 16);
+    expect(decoded['version'], 17);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -198,6 +199,7 @@ void main() {
       projectTypes: const <ProjectTypeConfig>[],
       colorLabels: const <int, String>{},
       hideCompletedProjectItems: false,
+      cardLayoutPreset: CardLayoutPreset.standard,
     );
 
     final String exported = storage.export(state);
@@ -208,8 +210,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 16,'), isTrue);
-    expect(decoded['version'], 16);
+    expect(exported.contains('\n  "version": 17,'), isTrue);
+    expect(decoded['version'], 17);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -274,6 +276,7 @@ void main() {
       ],
       colorLabels: const <int, String>{4294951112: 'Warm'},
       hideCompletedProjectItems: true,
+      cardLayoutPreset: CardLayoutPreset.standard,
     );
 
     final String exported = storage.export(state);
@@ -297,6 +300,7 @@ void main() {
     );
     expect(imported.colorLabels[4294951112], 'Warm');
     expect(imported.hideCompletedProjectItems, isTrue);
+    expect(imported.cardLayoutPreset, CardLayoutPreset.standard);
   });
 
   test('import rejects invalid payload shapes', () {

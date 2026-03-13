@@ -47,7 +47,7 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 16;
+  static const int _currentSchemaVersion = 17;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
@@ -65,6 +65,7 @@ class TaskStorage {
     13: _migrateV13ToV14,
     14: _migrateV14ToV15,
     15: _migrateV15ToV16,
+    16: _migrateV16ToV17,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
@@ -504,6 +505,22 @@ class TaskStorage {
       'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
           ? payload['hideCompletedProjectItems']
           : false,
+    };
+  }
+
+  static Map<String, dynamic> _migrateV16ToV17(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
+      'projects': _upgradeProjectShape(payload['projects']),
+      'projectStacks': _upgradeProjectStackShape(payload['projectStacks']),
+      'projectTypes': _upgradeProjectTypeShape(payload['projectTypes']),
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
+      'cardLayoutPreset': payload['cardLayoutPreset'] is String
+          ? payload['cardLayoutPreset']
+          : CardLayoutPreset.standard.name,
     };
   }
 

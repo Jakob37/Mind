@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/task_models.dart';
+import '../widgets/card_layout.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
@@ -35,12 +36,21 @@ enum _SubTaskMenuAction {
   remove,
 }
 
+class _SubTaskDragPayload {
+  const _SubTaskDragPayload({
+    required this.subTaskId,
+  });
+
+  final String subTaskId;
+}
+
 class TaskDetailPage extends StatefulWidget {
   const TaskDetailPage({
     super.key,
     required this.task,
     required this.menuItems,
     required this.onTaskChanged,
+    required this.cardLayoutPreset,
     this.colorLabels = const <int, String>{},
     this.hideCompletedProjectItems = false,
   });
@@ -48,6 +58,7 @@ class TaskDetailPage extends StatefulWidget {
   final TaskItem task;
   final List<TaskDetailMenuItem> menuItems;
   final ValueChanged<TaskItem> onTaskChanged;
+  final CardLayoutPreset cardLayoutPreset;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
 
@@ -57,8 +68,10 @@ class TaskDetailPage extends StatefulWidget {
 
 class _TaskDetailPageState extends State<TaskDetailPage> {
   late TaskItem _task;
-  bool _isSubtaskReorderMode = false;
   final Set<String> _expandedSubtaskIds = <String>{};
+
+  CardLayoutSpec get _layout =>
+      cardLayoutSpecForPreset(widget.cardLayoutPreset);
 
   bool get _usesChecklistStyle => _task.type == TaskItemType.planning;
 
@@ -83,30 +96,6 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       _task = updatedTask;
     });
     widget.onTaskChanged(_task.clone());
-  }
-
-  void _enterSubtaskReorderMode() {
-    if (_isSubtaskReorderMode) {
-      return;
-    }
-    setState(() {
-      _isSubtaskReorderMode = true;
-    });
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Drag mode enabled for top-level nested items.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-  }
-
-  void _exitSubtaskReorderMode() {
-    if (!_isSubtaskReorderMode) {
-      return;
-    }
-    setState(() {
-      _isSubtaskReorderMode = false;
-    });
   }
 
   void _toggleExpanded(String subTaskId) {
@@ -390,28 +379,126 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     _applyUpdatedTask(_copyTaskWithSubtasks(result.items));
   }
 
-  void _reorderSubTasks(int oldIndex, int newIndex) {
-    if (oldIndex < 0 || oldIndex >= _task.subtasks.length) {
+  bool _subtaskTreeContainsId(SubTaskItem subTask, String candidateId) {
+    if (subTask.id == candidateId) {
+      return true;
+    }
+    for (final SubTaskItem child in subTask.children) {
+      if (_subtaskTreeContainsId(child, candidateId)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  List<SubTaskItem> _insertSubtaskIntoTree(
+    List<SubTaskItem> items, {
+    required String? parentId,
+    required int targetIndex,
+    required SubTaskItem insertedItem,
+  }) {
+    if (parentId == null) {
+      final List<SubTaskItem> updated =
+          items.map((SubTaskItem item) => item.clone()).toList(growable: true);
+      updated.insert(targetIndex.clamp(0, updated.length), insertedItem);
+      return updated;
+    }
+
+    return items.map((SubTaskItem item) {
+      if (item.id == parentId) {
+        final List<SubTaskItem> updatedChildren = item.children
+            .map((SubTaskItem child) => child.clone())
+            .toList(growable: true);
+        updatedChildren.insert(
+          targetIndex.clamp(0, updatedChildren.length),
+          insertedItem,
+        );
+        return item.copyWith(children: updatedChildren);
+      }
+      if (item.children.isEmpty) {
+        return item.clone();
+      }
+      return item.copyWith(
+        children: _insertSubtaskIntoTree(
+          item.children,
+          parentId: parentId,
+          targetIndex: targetIndex,
+          insertedItem: insertedItem.clone(),
+        ),
+      );
+    }).toList();
+  }
+
+  void _moveSubTaskToPosition({
+    required String sourceSubTaskId,
+    required String? targetParentId,
+    required int targetIndex,
+  }) {
+    final SubTaskItem? sourceSubTask =
+        _findSubtask(_task.subtasks, sourceSubTaskId);
+    if (sourceSubTask == null) {
       return;
     }
-    if (newIndex < 0 || newIndex > _task.subtasks.length) {
+    if (targetParentId != null &&
+        _subtaskTreeContainsId(sourceSubTask, targetParentId)) {
       return;
     }
 
-    int insertionIndex = newIndex;
-    if (insertionIndex > oldIndex) {
-      insertionIndex -= 1;
-    }
-    if (insertionIndex == oldIndex) {
+    final _SubTaskRemovalResult removalResult =
+        _removeSubtaskFromTree(_task.subtasks, sourceSubTaskId);
+    final SubTaskItem? removedItem = removalResult.removedItem;
+    if (removedItem == null) {
       return;
     }
 
-    final List<SubTaskItem> updatedSubtasks =
-        _task.subtasks.map((SubTaskItem subTask) => subTask.clone()).toList();
-    final SubTaskItem moved = updatedSubtasks.removeAt(oldIndex);
-    final int safeInsertionIndex =
-        insertionIndex.clamp(0, updatedSubtasks.length);
-    updatedSubtasks.insert(safeInsertionIndex, moved);
+    if (targetParentId != null) {
+      _expandedSubtaskIds.add(targetParentId);
+    }
+    _applyUpdatedTask(
+      _copyTaskWithSubtasks(
+        _insertSubtaskIntoTree(
+          removalResult.items,
+          parentId: targetParentId,
+          targetIndex: targetIndex,
+          insertedItem: removedItem,
+        ),
+      ),
+    );
+  }
+
+  void _nestSubTaskUnderSubTask({
+    required String sourceSubTaskId,
+    required String targetSubTaskId,
+  }) {
+    if (sourceSubTaskId == targetSubTaskId) {
+      return;
+    }
+
+    final SubTaskItem? sourceSubTask =
+        _findSubtask(_task.subtasks, sourceSubTaskId);
+    if (sourceSubTask == null ||
+        _subtaskTreeContainsId(sourceSubTask, targetSubTaskId)) {
+      return;
+    }
+
+    final _SubTaskRemovalResult removalResult =
+        _removeSubtaskFromTree(_task.subtasks, sourceSubTaskId);
+    final SubTaskItem? removedItem = removalResult.removedItem;
+    if (removedItem == null) {
+      return;
+    }
+
+    final List<SubTaskItem> updatedSubtasks = _updateSubtaskTree(
+      removalResult.items,
+      targetSubTaskId,
+      (SubTaskItem item) => item.copyWith(
+        children: <SubTaskItem>[
+          removedItem,
+          ...item.children.map((SubTaskItem child) => child.clone()),
+        ],
+      ),
+    );
+    _expandedSubtaskIds.add(targetSubTaskId);
     _applyUpdatedTask(_copyTaskWithSubtasks(updatedSubtasks));
   }
 
@@ -485,22 +572,87 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         .toList(growable: false);
   }
 
-  Widget _buildNestedList(List<SubTaskItem> items, int depth) {
+  Widget _buildSubTaskDropSlot({
+    required String? parentId,
+    required int targetIndex,
+    required int depth,
+    required double inactiveHeight,
+  }) {
+    return DragTarget<_SubTaskDragPayload>(
+      onWillAcceptWithDetails: (
+        DragTargetDetails<_SubTaskDragPayload> details,
+      ) {
+        return true;
+      },
+      onAcceptWithDetails: (DragTargetDetails<_SubTaskDragPayload> details) {
+        _moveSubTaskToPosition(
+          sourceSubTaskId: details.data.subTaskId,
+          targetParentId: parentId,
+          targetIndex: targetIndex,
+        );
+      },
+      builder: (
+        BuildContext context,
+        List<_SubTaskDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isActive = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: isActive ? 20 : inactiveHeight,
+          margin: EdgeInsets.only(left: depth * 18.0 + 12),
+          decoration: BoxDecoration(
+            color: isActive
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildNestedList(
+    List<SubTaskItem> items,
+    int depth, {
+    String? parentId,
+  }) {
     final List<SubTaskItem> visibleItems = _visibleChildren(items);
     if (visibleItems.isEmpty) {
       return const SizedBox.shrink();
     }
 
     return Column(
-      children: visibleItems
-          .map((SubTaskItem item) => _buildSubTaskNode(item, depth))
-          .toList(growable: false),
+      children: <Widget>[
+        _buildSubTaskDropSlot(
+          parentId: parentId,
+          targetIndex: 0,
+          depth: depth,
+          inactiveHeight: 0,
+        ),
+        for (int index = 0;
+            index < visibleItems.length;
+            index += 1) ...<Widget>[
+          _buildSubTaskNode(
+            visibleItems[index],
+            depth,
+          ),
+          _buildSubTaskDropSlot(
+            parentId: parentId,
+            targetIndex: index + 1,
+            depth: depth,
+            inactiveHeight: 4,
+          ),
+        ],
+      ],
     );
   }
 
   Widget _buildSubTaskNode(SubTaskItem subTask, int depth) {
     final bool hasChildren = _visibleChildren(subTask.children).isNotEmpty;
     final bool isExpanded = _expandedSubtaskIds.contains(subTask.id);
+    final double baseTitleFontSize =
+        Theme.of(context).textTheme.titleMedium?.fontSize ?? 16;
     final TextStyle? titleStyle = Theme.of(context)
         .textTheme
         .titleMedium
@@ -523,95 +675,155 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           size: 18,
         ),
     ];
-
-    return Padding(
-      padding: EdgeInsets.only(left: depth * 18.0, bottom: 4),
-      child: Column(
-        children: <Widget>[
-          Card(
-            color:
-                subTask.colorValue == null ? null : Color(subTask.colorValue!),
-            child: InkWell(
-              borderRadius: BorderRadius.circular(12),
-              onTap: () => _openSubTaskMenu(subTask),
-              onLongPress: () => _openSubTaskMenu(subTask),
-              child: Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                child: Row(
+    final Widget card = Card(
+      color: subTask.colorValue == null ? null : Color(subTask.colorValue!),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(12),
+        onTap: () => _openSubTaskMenu(subTask),
+        child: Padding(
+          padding: _layout.contentPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              if (_usesChecklistStyle)
+                Checkbox(
+                  value: subTask.isCompleted,
+                  onChanged: (bool? value) =>
+                      _toggleSubTaskCompletion(subTask.id, value ?? false),
+                )
+              else
+                SizedBox(
+                  width: 40,
+                  child: hasChildren
+                      ? IconButton(
+                          onPressed: () => _toggleExpanded(subTask.id),
+                          icon: Icon(
+                            isExpanded
+                                ? Icons.expand_more_outlined
+                                : Icons.chevron_right_outlined,
+                          ),
+                        )
+                      : Icon(
+                          iconDataForKey(subTask.iconKey) ??
+                              Icons.subdirectory_arrow_right_outlined,
+                        ),
+                ),
+              if (_usesChecklistStyle && hasChildren)
+                IconButton(
+                  onPressed: () => _toggleExpanded(subTask.id),
+                  icon: Icon(
+                    isExpanded
+                        ? Icons.expand_more_outlined
+                        : Icons.chevron_right_outlined,
+                  ),
+                ),
+              Expanded(
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    if (_usesChecklistStyle)
-                      Checkbox(
-                        value: subTask.isCompleted,
-                        onChanged: (bool? value) => _toggleSubTaskCompletion(
-                            subTask.id, value ?? false),
-                      )
-                    else
-                      SizedBox(
-                        width: 40,
-                        child: hasChildren
-                            ? IconButton(
-                                onPressed: () => _toggleExpanded(subTask.id),
-                                icon: Icon(
-                                  isExpanded
-                                      ? Icons.expand_more_outlined
-                                      : Icons.chevron_right_outlined,
-                                ),
-                              )
-                            : Icon(
-                                iconDataForKey(subTask.iconKey) ??
-                                    Icons.subdirectory_arrow_right_outlined,
-                              ),
-                      ),
-                    if (_usesChecklistStyle && hasChildren)
-                      IconButton(
-                        onPressed: () => _toggleExpanded(subTask.id),
-                        icon: Icon(
-                          isExpanded
-                              ? Icons.expand_more_outlined
-                              : Icons.chevron_right_outlined,
-                        ),
-                      ),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: <Widget>[
-                          Text(
-                            subTask.title,
-                            style: titleStyle,
-                          ),
-                          if (subTask.body.isNotEmpty) ...<Widget>[
-                            const SizedBox(height: 4),
-                            Text(
-                              subTask.body,
-                              style: Theme.of(context).textTheme.bodySmall,
-                            ),
-                          ],
-                        ],
+                    Text(
+                      subTask.title,
+                      style: titleStyle?.copyWith(
+                        fontSize: baseTitleFontSize * _layout.titleScale,
                       ),
                     ),
-                    if (trailingWidgets.isNotEmpty)
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: <Widget>[
-                          for (int i = 0;
-                              i < trailingWidgets.length;
-                              i++) ...<Widget>[
-                            if (i > 0) const SizedBox(width: 8),
-                            trailingWidgets[i],
-                          ],
-                        ],
+                    if (subTask.body.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: 4),
+                      Text(
+                        subTask.body,
+                        style: Theme.of(context).textTheme.bodySmall,
                       ),
+                    ],
                   ],
                 ),
               ),
-            ),
+              if (trailingWidgets.isNotEmpty)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: <Widget>[
+                    for (int i = 0;
+                        i < trailingWidgets.length;
+                        i++) ...<Widget>[
+                      if (i > 0) const SizedBox(width: 8),
+                      trailingWidgets[i],
+                    ],
+                  ],
+                ),
+            ],
           ),
-          if (hasChildren && isExpanded)
-            _buildNestedList(subTask.children, depth + 1),
-        ],
+        ),
       ),
+    );
+
+    return DragTarget<_SubTaskDragPayload>(
+      onWillAcceptWithDetails: (
+        DragTargetDetails<_SubTaskDragPayload> details,
+      ) {
+        if (details.data.subTaskId == subTask.id) {
+          return false;
+        }
+        final SubTaskItem? source =
+            _findSubtask(_task.subtasks, details.data.subTaskId);
+        return source == null || !_subtaskTreeContainsId(source, subTask.id);
+      },
+      onAcceptWithDetails: (DragTargetDetails<_SubTaskDragPayload> details) {
+        _nestSubTaskUnderSubTask(
+          sourceSubTaskId: details.data.subTaskId,
+          targetSubTaskId: subTask.id,
+        );
+      },
+      builder: (
+        BuildContext context,
+        List<_SubTaskDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isHovering = candidateData.isNotEmpty;
+        final Widget tile = Padding(
+          padding: EdgeInsets.only(
+              left: depth * 18.0, bottom: _layout.listBottomSpacing),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: isHovering
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    )
+                  : null,
+            ),
+            child: card,
+          ),
+        );
+
+        return Column(
+          children: <Widget>[
+            LongPressDraggable<_SubTaskDragPayload>(
+              data: _SubTaskDragPayload(subTaskId: subTask.id),
+              feedback: Material(
+                color: Colors.transparent,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: Padding(
+                    padding: EdgeInsets.only(left: depth * 18.0),
+                    child: card,
+                  ),
+                ),
+              ),
+              childWhenDragging: Opacity(
+                opacity: 0.45,
+                child: tile,
+              ),
+              child: tile,
+            ),
+            if (hasChildren && isExpanded)
+              _buildNestedList(
+                subTask.children,
+                depth + 1,
+                parentId: subTask.id,
+              ),
+          ],
+        );
+      },
     );
   }
 
@@ -648,18 +860,6 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
       appBar: AppBar(
         title: const Text('Task'),
         actions: <Widget>[
-          if (!_isSubtaskReorderMode)
-            IconButton(
-              onPressed: _enterSubtaskReorderMode,
-              tooltip: 'Enter drag mode',
-              icon: const Icon(Icons.drag_indicator_outlined),
-            ),
-          if (_isSubtaskReorderMode)
-            IconButton(
-              onPressed: _exitSubtaskReorderMode,
-              tooltip: 'Done reordering nested items',
-              icon: const Icon(Icons.check),
-            ),
           IconButton(
             onPressed: _openTaskMenu,
             tooltip: 'Task options',
@@ -707,45 +907,13 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   : 'No nested ideas yet.',
               style: Theme.of(context).textTheme.bodyMedium,
             )
-          else if (_isSubtaskReorderMode)
-            ReorderableListView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              itemCount: _task.subtasks.length,
-              onReorder: _reorderSubTasks,
-              buildDefaultDragHandles: false,
-              itemBuilder: (BuildContext context, int index) {
-                final SubTaskItem subTask = _task.subtasks[index];
-                return Padding(
-                  key: ValueKey<String>('subtask-reorder-${subTask.id}'),
-                  padding: const EdgeInsets.fromLTRB(24, 0, 24, 4),
-                  child: Card(
-                    color: subTask.colorValue == null
-                        ? null
-                        : Color(subTask.colorValue!),
-                    child: ListTile(
-                      title: Text(
-                        subTask.title,
-                        maxLines: null,
-                      ),
-                      trailing: ReorderableDragStartListener(
-                        index: index,
-                        child: const Icon(Icons.drag_indicator_outlined),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            )
           else
             _buildNestedList(_task.subtasks, 0),
           const SizedBox(height: 4),
           Text(
-            _isSubtaskReorderMode
-                ? 'Drag top-level nested items to reorder. Nested child placement uses the item menu.'
-                : _usesChecklistStyle
-                    ? 'Use the checkbox to complete items. Long press opens item options.'
-                    : 'Use the arrow to fold or expand child ideas. Long press opens item options.',
+            _usesChecklistStyle
+                ? 'Use the checkbox to complete items. Tap an item for options and long press to drag.'
+                : 'Use the arrow to fold or expand child ideas. Tap an item for options and long press to drag.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
@@ -854,9 +1022,13 @@ class _AddSubTaskSheetState extends State<_AddSubTaskSheet> {
             controller: _titleController,
             focusNode: _titleFocusNode,
             autofocus: true,
-            textInputAction: TextInputAction.next,
+            textInputAction: TextInputAction.newline,
+            keyboardType: TextInputType.multiline,
+            minLines: 1,
+            maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Title',
+              alignLabelWithHint: true,
               hintText: 'Follow-up thought or step',
             ),
           ),
