@@ -23,7 +23,7 @@ class _AddSessionSheetState extends State<AddSessionSheet> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
   final FocusNode _titleFocusNode = FocusNode();
-  bool _insertAtTop = true;
+  bool _insertAtTop = false;
 
   @override
   void initState() {

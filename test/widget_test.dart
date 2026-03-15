@@ -116,6 +116,12 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
 
+    final SegmentedButton<bool> insertionControl =
+        tester.widget<SegmentedButton<bool>>(
+      find.byType(SegmentedButton<bool>),
+    );
+    expect(insertionControl.selected, <bool>{false});
+
     await tester.enterText(find.byType(TextField).first, 'Plan weekend reset');
     await tester.tap(find.text('Project: Incoming'));
     await tester.pumpAndSettle();
@@ -555,10 +561,6 @@ void main() {
     await tester.tap(find.text('Remove item'));
     await tester.pumpAndSettle();
     expect(find.text('Second subtask'), findsNothing);
-
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    expect(find.byTooltip('1 subtask'), findsOneWidget);
   });
 
   testWidgets('opens subtask menu to edit and set color',

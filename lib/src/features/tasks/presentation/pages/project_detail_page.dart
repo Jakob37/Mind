@@ -2955,7 +2955,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         ],
       ),
       body: ListView(
-        padding: const EdgeInsets.all(12),
+        padding: EdgeInsets.fromLTRB(
+          12,
+          12,
+          12,
+          104 + MediaQuery.paddingOf(context).bottom,
+        ),
         children: <Widget>[
           if (project.isArchived)
             Padding(

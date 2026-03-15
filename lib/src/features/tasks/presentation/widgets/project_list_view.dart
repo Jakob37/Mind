@@ -862,9 +862,10 @@ class _ProjectListViewState extends State<ProjectListView> {
         .toList(growable: false);
     final List<_ProjectGroup> activeGroups = _buildGroups(activeProjects);
     final List<_ProjectGroup> archivedGroups = _buildGroups(archivedProjects);
+    final double fabClearance = 104 + MediaQuery.paddingOf(context).bottom;
 
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, fabClearance),
       children: <Widget>[
         if (activeGroups.isEmpty)
           Padding(

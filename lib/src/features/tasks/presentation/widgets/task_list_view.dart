@@ -444,8 +444,9 @@ class _TaskListViewState extends State<TaskListView> {
   Widget build(BuildContext context) {
     final CardLayoutSpec layout =
         cardLayoutSpecForPreset(widget.cardLayoutPreset);
+    final double fabClearance = 104 + MediaQuery.paddingOf(context).bottom;
     return ListView(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.fromLTRB(12, 12, 12, fabClearance),
       children: <Widget>[
         if (widget.header != null) ...<Widget>[
           widget.header!,

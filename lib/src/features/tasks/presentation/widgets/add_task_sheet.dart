@@ -35,7 +35,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   final TextEditingController _bodyController = TextEditingController();
   final TextEditingController _promptController = TextEditingController();
   final FocusNode _titleFocusNode = FocusNode();
-  bool _insertAtTop = true;
+  bool _insertAtTop = false;
   bool _showBodyField = false;
   bool _showPromptField = false;
   int? _colorValue;
