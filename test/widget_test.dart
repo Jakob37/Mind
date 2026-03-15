@@ -195,7 +195,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('18'), findsWidgets);
+    expect(find.textContaining('19'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON File'), findsNothing);
     expect(find.text('Save or Share JSON File (Android)'), findsOneWidget);
@@ -857,7 +857,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('18'), findsWidgets);
+    expect(find.textContaining('19'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -905,7 +905,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('18'), findsWidgets);
+    expect(find.textContaining('19'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

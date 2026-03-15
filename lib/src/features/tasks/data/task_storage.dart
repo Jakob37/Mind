@@ -47,7 +47,7 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 18;
+  static const int _currentSchemaVersion = 19;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
       _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
@@ -67,6 +67,7 @@ class TaskStorage {
     15: _migrateV15ToV16,
     16: _migrateV16ToV17,
     17: _migrateV17ToV18,
+    18: _migrateV18ToV19,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
@@ -541,6 +542,22 @@ class TaskStorage {
     };
   }
 
+  static Map<String, dynamic> _migrateV18ToV19(Map<String, dynamic> payload) {
+    return <String, dynamic>{
+      'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
+      'projects': _upgradeProjectShape(payload['projects']),
+      'projectStacks': _upgradeProjectStackShape(payload['projectStacks']),
+      'projectTypes': _upgradeProjectTypeShape(payload['projectTypes']),
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
+      'cardLayoutPreset': payload['cardLayoutPreset'] is String
+          ? payload['cardLayoutPreset']
+          : CardLayoutPreset.standard.name,
+    };
+  }
+
   static List<Map<String, dynamic>> _normalizeTaskList(Object? rawTasks) {
     if (rawTasks is! List<dynamic>) {
       return <Map<String, dynamic>>[];
@@ -906,6 +923,8 @@ class TaskStorage {
           task['body'] is String ? (task['body'] as String).trim() : '';
       task['prompt'] =
           task['prompt'] is String ? (task['prompt'] as String).trim() : '';
+      task['createdAtMicros'] =
+          task['createdAtMicros'] is int ? task['createdAtMicros'] : null;
       task['color'] = task['color'] is int ? task['color'] : null;
       task['type'] =
           task['type'] is String && (task['type'] as String).trim().isNotEmpty

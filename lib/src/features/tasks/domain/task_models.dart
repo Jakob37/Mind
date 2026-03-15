@@ -36,7 +36,8 @@ enum TaskItemType {
 
 enum TaskEntryType {
   note,
-  session;
+  session,
+  journal;
 
   static TaskEntryType fromJsonValue(Object? rawValue) {
     if (rawValue is! String) {
@@ -45,6 +46,7 @@ enum TaskEntryType {
 
     return switch (rawValue.trim().toLowerCase()) {
       'session' => TaskEntryType.session,
+      'journal' || 'diary' => TaskEntryType.journal,
       _ => TaskEntryType.note,
     };
   }
@@ -172,6 +174,7 @@ class TaskItem {
     required this.title,
     String? body,
     String? prompt,
+    this.createdAtMicros,
     this.colorValue,
     TaskItemType? type,
     TaskEntryType? entryType,
@@ -189,6 +192,7 @@ class TaskItem {
   final String title;
   final String body;
   final String prompt;
+  final int? createdAtMicros;
   final int? colorValue;
   final TaskItemType type;
   final TaskEntryType entryType;
@@ -196,12 +200,17 @@ class TaskItem {
   final String? iconKey;
   final List<SubTaskItem> subtasks;
 
+  DateTime? get createdAt => createdAtMicros == null
+      ? null
+      : DateTime.fromMicrosecondsSinceEpoch(createdAtMicros!);
+
   TaskItem clone() {
     return TaskItem(
       id: id,
       title: title,
       body: body,
       prompt: prompt,
+      createdAtMicros: createdAtMicros,
       colorValue: colorValue,
       type: type,
       entryType: entryType,
@@ -216,6 +225,8 @@ class TaskItem {
     String? title,
     String? body,
     String? prompt,
+    int? createdAtMicros,
+    bool clearCreatedAt = false,
     int? colorValue,
     bool clearColor = false,
     TaskItemType? type,
@@ -230,6 +241,8 @@ class TaskItem {
       title: title ?? this.title,
       body: body ?? this.body,
       prompt: prompt ?? this.prompt,
+      createdAtMicros:
+          clearCreatedAt ? null : (createdAtMicros ?? this.createdAtMicros),
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       type: type ?? this.type,
       entryType: entryType ?? this.entryType,
@@ -246,6 +259,7 @@ class TaskItem {
       'title': title,
       'body': body,
       'prompt': prompt,
+      'createdAtMicros': createdAtMicros,
       'color': colorValue,
       'type': type.name,
       'entryType': entryType.name,
@@ -260,6 +274,7 @@ class TaskItem {
     final String? id = _readOptionalTrimmedString(json, 'id');
     final String? body = _readOptionalTrimmedString(json, 'body');
     final String? prompt = _readOptionalTrimmedString(json, 'prompt');
+    final int? createdAtMicros = _readOptionalInt(json, 'createdAtMicros');
     final int? colorValue = _readOptionalInt(json, 'color');
     final TaskItemType type = TaskItemType.fromJsonValue(json['type']);
     final TaskEntryType entryType = TaskEntryType.fromJsonValue(
@@ -274,6 +289,7 @@ class TaskItem {
       title: title,
       body: body ?? '',
       prompt: prompt ?? '',
+      createdAtMicros: createdAtMicros,
       colorValue: colorValue,
       type: type,
       entryType: entryType,

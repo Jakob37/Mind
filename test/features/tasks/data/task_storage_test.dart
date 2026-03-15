@@ -166,7 +166,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 18);
+    expect(decoded['version'], 19);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -210,11 +210,12 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 18,'), isTrue);
-    expect(decoded['version'], 18);
+    expect(exported.contains('\n  "version": 19,'), isTrue);
+    expect(decoded['version'], 19);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
+    expect(firstIncoming['createdAtMicros'], isNull);
     expect(firstIncoming['archived'], isFalse);
     expect(firstIncoming['prompt'], '');
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
@@ -231,6 +232,7 @@ void main() {
           id: 'task-1',
           title: 'Imported incoming',
           type: TaskItemType.thinking,
+          createdAtMicros: 123456789,
         ),
       ],
       projects: <ProjectItem>[
@@ -246,8 +248,9 @@ void main() {
               id: 'task-2',
               title: 'Imported project task',
               prompt: 'Task level prompt',
-              type: TaskItemType.planning,
-              entryType: TaskEntryType.session,
+              type: TaskItemType.thinking,
+              entryType: TaskEntryType.journal,
+              createdAtMicros: 987654321,
               isArchived: true,
               subtasks: <SubTaskItem>[
                 SubTaskItem(
@@ -285,6 +288,7 @@ void main() {
 
     expect(imported.incomingTasks.single.title, 'Imported incoming');
     expect(imported.incomingTasks.single.type, TaskItemType.thinking);
+    expect(imported.incomingTasks.single.createdAtMicros, 123456789);
     expect(imported.projects.single.name, 'Imported project');
     expect(imported.projects.single.prompt, 'Project level prompt');
     expect(imported.projects.single.isArchived, isTrue);
@@ -295,7 +299,11 @@ void main() {
     expect(imported.projects.single.tasks.single.isArchived, isTrue);
     expect(imported.projects.single.tasks.single.prompt, 'Task level prompt');
     expect(
-        imported.projects.single.tasks.single.entryType, TaskEntryType.session);
+        imported.projects.single.tasks.single.entryType, TaskEntryType.journal);
+    expect(
+      imported.projects.single.tasks.single.createdAtMicros,
+      987654321,
+    );
     expect(
       imported.projects.single.tasks.single.subtasks.single.title,
       'Imported child',
@@ -312,12 +320,19 @@ void main() {
     );
   });
 
-  test('load migrates v17 payload and adds default pinned flags', () async {
+  test('load migrates v18 payload and adds nullable created timestamps',
+      () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'task_board_state': jsonEncode(<String, dynamic>{
-        'version': 17,
+        'version': 18,
         'data': <String, dynamic>{
-          'incomingTasks': <Map<String, dynamic>>[],
+          'incomingTasks': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'incoming-1',
+              'title': 'Incoming task',
+              'entryType': 'journal',
+            },
+          ],
           'projects': <Map<String, dynamic>>[
             <String, dynamic>{
               'id': 'project-1',
@@ -343,7 +358,10 @@ void main() {
 
     expect(result.isSuccess, isTrue);
     final TaskBoardState state = result.state!;
+    expect(state.incomingTasks.single.entryType, TaskEntryType.journal);
+    expect(state.incomingTasks.single.createdAtMicros, isNull);
     expect(state.projects.single.isPinned, isFalse);
+    expect(state.projects.single.tasks, isEmpty);
   });
 
   test('load migrates v11 payload and adds archived flags', () async {
