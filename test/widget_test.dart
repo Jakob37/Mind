@@ -260,7 +260,7 @@ void main() {
     expect(find.textContaining('"version"'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON File'), findsNothing);
-    expect(find.text('Share JSON File (Android)'), findsOneWidget);
+    expect(find.text('Save JSON File (Android)'), findsOneWidget);
   });
 
   testWidgets('pinned projects appear at the top of Incoming',

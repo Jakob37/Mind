@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:file_selector/file_selector.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter/services.dart';
-import 'package:share_plus/share_plus.dart';
 
 import '../../domain/task_models.dart';
 import '../widgets/card_layout.dart';
@@ -59,28 +59,33 @@ class _SettingsPageState extends State<SettingsPage> {
 
   bool get _supportsFolderSave => !kIsWeb && !_isAndroidDevice;
 
-  Future<void> _exportJsonFile(BuildContext context, String exportJson) async {
-    await _exportTextFile(
+  Future<void> _saveJsonFileOnAndroid(
+    BuildContext context,
+    String exportJson,
+  ) async {
+    await _saveTextFileOnAndroid(
       context: context,
       contents: exportJson,
       mimeType: 'application/json',
       prefix: 'mind-export',
       extension: 'json',
-      successMessage: 'Choose an app to share or save your JSON export.',
+      successMessage: 'JSON export saved.',
       unsupportedMessage: 'JSON file export is only available on Android.',
       failureMessage: 'Could not export JSON file. Please try again.',
     );
   }
 
-  Future<void> _exportPlainTextFile(
-      BuildContext context, String exportText) async {
-    await _exportTextFile(
+  Future<void> _savePlainTextFileOnAndroid(
+    BuildContext context,
+    String exportText,
+  ) async {
+    await _saveTextFileOnAndroid(
       context: context,
       contents: exportText,
       mimeType: 'text/plain',
       prefix: 'mind-export',
       extension: 'txt',
-      successMessage: 'Choose an app to share or save your text export.',
+      successMessage: 'Text export saved.',
       unsupportedMessage: 'Text file export is only available on Android.',
       failureMessage: 'Could not export text file. Please try again.',
     );
@@ -95,7 +100,7 @@ class _SettingsPageState extends State<SettingsPage> {
     return '$prefix-$sanitizedTimestamp.$extension';
   }
 
-  Future<void> _exportTextFile({
+  Future<void> _saveTextFileOnAndroid({
     required BuildContext context,
     required String contents,
     required String mimeType,
@@ -106,22 +111,20 @@ class _SettingsPageState extends State<SettingsPage> {
     required String failureMessage,
   }) async {
     try {
-      final XFile exportFile = XFile.fromData(
-        Uint8List.fromList(utf8.encode(contents)),
-        mimeType: mimeType,
-        name: _timestampedFileName(
-          prefix: prefix,
-          extension: extension,
+      final String suggestedName = _timestampedFileName(
+        prefix: prefix,
+        extension: extension,
+      );
+      final String? savedPath = await FlutterFileDialog.saveFile(
+        params: SaveFileDialogParams(
+          data: Uint8List.fromList(utf8.encode(contents)),
+          fileName: suggestedName,
+          mimeTypesFilter: <String>[mimeType],
         ),
       );
-
-      await SharePlus.instance.share(
-        ShareParams(
-          files: <XFile>[exportFile],
-          text: 'Mind data export',
-          subject: 'Mind data export',
-        ),
-      );
+      if (savedPath == null) {
+        return;
+      }
 
       if (!context.mounted) {
         return;
@@ -135,6 +138,13 @@ class _SettingsPageState extends State<SettingsPage> {
       }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(unsupportedMessage)),
+      );
+    } on PlatformException {
+      if (!context.mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(failureMessage)),
       );
     } catch (_) {
       if (!context.mounted) {
@@ -151,7 +161,7 @@ class _SettingsPageState extends State<SettingsPage> {
     String exportJson,
   ) async {
     if (_isAndroidDevice) {
-      await _exportJsonFile(context, exportJson);
+      await _saveJsonFileOnAndroid(context, exportJson);
       return;
     }
 
@@ -276,9 +286,9 @@ class _SettingsPageState extends State<SettingsPage> {
                           const SizedBox(height: 8),
                           OutlinedButton.icon(
                             onPressed: () =>
-                                _exportJsonFile(context, exportJson),
+                                _saveJsonFileOnAndroid(context, exportJson),
                             icon: const Icon(Icons.download_outlined),
-                            label: const Text('Share JSON File (Android)'),
+                            label: const Text('Save JSON File (Android)'),
                           ),
                         ],
                       ],
@@ -347,9 +357,10 @@ class _SettingsPageState extends State<SettingsPage> {
                 if (_isAndroidDevice) ...<Widget>[
                   const SizedBox(height: 8),
                   OutlinedButton.icon(
-                    onPressed: () => _exportPlainTextFile(context, exportText),
+                    onPressed: () =>
+                        _savePlainTextFileOnAndroid(context, exportText),
                     icon: const Icon(Icons.download_outlined),
-                    label: const Text('Share TXT File (Android)'),
+                    label: const Text('Save TXT File (Android)'),
                   ),
                 ],
               ],
@@ -603,7 +614,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.file_upload_outlined),
             title: const Text('Export data as JSON'),
             subtitle: const Text(
-              'Copy JSON or share a file on Android',
+              'Copy JSON or save a file on Android',
             ),
             onTap: () => _showJsonExport(context, widget.exportData()),
           ),
@@ -621,7 +632,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.text_snippet_outlined),
             title: const Text('Export projects and tasks as text'),
             subtitle: const Text(
-              'Copy nested content or share a TXT file on Android',
+              'Copy nested content or save a TXT file on Android',
             ),
             onTap: () =>
                 _showPlainTextExport(context, widget.exportPlainText()),
