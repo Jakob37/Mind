@@ -108,6 +108,63 @@ void main() {
     expect(find.text('Revert?'), findsOneWidget);
   });
 
+  testWidgets(
+      'add task sheet supports direct project capture with body and prompt',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, 'Plan weekend reset');
+    await tester.tap(find.text('Project: Incoming'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Icon: No icon'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Brain'));
+    await tester.pumpAndSettle();
+    expect(find.text('Icon: Brain'), findsOneWidget);
+
+    await tester.tap(find.text('Show body'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).at(1),
+      'Block the afternoon and prep tea ahead of time.',
+    );
+
+    await tester.tap(find.text('Show prompt'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField).at(2),
+      'Turn this into a simple two-step routine.',
+    );
+
+    await tester
+        .ensureVisible(find.widgetWithText(FilledButton, 'Save to Project'));
+    await tester.tap(find.widgetWithText(FilledButton, 'Save to Project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Plan weekend reset'), findsNothing);
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Plan weekend reset'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Plan weekend reset'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Block the afternoon and prep tea ahead of time.'),
+        findsOneWidget);
+    expect(
+        find.text('Turn this into a simple two-step routine.'), findsOneWidget);
+  });
+
   testWidgets('loads unversioned state from the previous storage key',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{

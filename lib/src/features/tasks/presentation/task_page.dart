@@ -460,6 +460,119 @@ class _TaskPageState extends State<TaskPage>
     ];
   }
 
+  List<TaskItem> _projectJournalEntries(
+    ProjectItem project, {
+    bool includeArchived = false,
+  }) {
+    return project.tasks
+        .where(
+          (TaskItem task) =>
+              task.entryType == TaskEntryType.journal &&
+              (includeArchived || !task.isArchived),
+        )
+        .toList(growable: false);
+  }
+
+  List<TaskItem> _projectThinkingTasks(
+    ProjectItem project, {
+    bool includeArchived = false,
+  }) {
+    return project.tasks
+        .where(
+          (TaskItem task) =>
+              task.type == TaskItemType.thinking &&
+              task.entryType != TaskEntryType.journal &&
+              (includeArchived || !task.isArchived),
+        )
+        .toList(growable: false);
+  }
+
+  List<TaskItem> _projectPlanningTasks(
+    ProjectItem project, {
+    bool includeArchived = false,
+  }) {
+    return project.tasks
+        .where(
+          (TaskItem task) =>
+              task.type == TaskItemType.planning &&
+              task.entryType != TaskEntryType.journal &&
+              (includeArchived || !task.isArchived),
+        )
+        .toList(growable: false);
+  }
+
+  List<TaskItem> _projectArchivedTasks(ProjectItem project) {
+    return project.tasks
+        .where((TaskItem task) => task.isArchived)
+        .toList(growable: false);
+  }
+
+  void _replaceProjectTasks({
+    required ProjectItem project,
+    required List<TaskItem> journalEntries,
+    required List<TaskItem> thinkingTasks,
+    required List<TaskItem> planningTasks,
+    required List<TaskItem> archivedTasks,
+  }) {
+    project.tasks
+      ..clear()
+      ..addAll(journalEntries)
+      ..addAll(thinkingTasks)
+      ..addAll(planningTasks)
+      ..addAll(archivedTasks);
+  }
+
+  void _insertTaskIntoProject(
+    ProjectItem project,
+    TaskItem task, {
+    required bool insertAtTop,
+  }) {
+    final List<TaskItem> journalEntries = _projectJournalEntries(project)
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
+    final List<TaskItem> thinkingTasks = _projectThinkingTasks(project)
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
+    final List<TaskItem> planningTasks = _projectPlanningTasks(project)
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
+    final List<TaskItem> archivedTasks = _projectArchivedTasks(project)
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
+    final TaskItem adjustedTask = _taskAdjustedForProjectType(
+      task,
+      _projectTypeForProject(project),
+    );
+
+    if (adjustedTask.entryType == TaskEntryType.journal) {
+      if (insertAtTop) {
+        journalEntries.insert(0, adjustedTask);
+      } else {
+        journalEntries.add(adjustedTask);
+      }
+    } else if (adjustedTask.type == TaskItemType.planning) {
+      if (insertAtTop) {
+        planningTasks.insert(0, adjustedTask);
+      } else {
+        planningTasks.add(adjustedTask);
+      }
+    } else {
+      if (insertAtTop) {
+        thinkingTasks.insert(0, adjustedTask);
+      } else {
+        thinkingTasks.add(adjustedTask);
+      }
+    }
+
+    _replaceProjectTasks(
+      project: project,
+      journalEntries: journalEntries,
+      thinkingTasks: thinkingTasks,
+      planningTasks: planningTasks,
+      archivedTasks: archivedTasks,
+    );
+  }
+
   TaskItem _taskAdjustedForProjectType(
     TaskItem task,
     ProjectTypeConfig projectType,
@@ -838,11 +951,11 @@ class _TaskPageState extends State<TaskPage>
     setState(() {
       final TaskItem task = sourceTasks.removeAt(sourceTaskIndex);
       final ProjectItem targetProject = _projects[targetProjectIndex];
-      final TaskItem adjustedTask = _taskAdjustedForProjectType(
+      _insertTaskIntoProject(
+        targetProject,
         task,
-        _projectTypeForProject(targetProject),
+        insertAtTop: true,
       );
-      _projects[targetProjectIndex].tasks.insert(0, adjustedTask);
     });
     _persistState();
   }
@@ -1460,7 +1573,10 @@ class _TaskPageState extends State<TaskPage>
     final AddTaskResult? result = await showModalBottomSheet<AddTaskResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const AddTaskSheet(),
+      builder: (_) => AddTaskSheet(
+        projects: _taskCompatibleProjects(currentProjectId: ''),
+        projectTypes: _projectTypes,
+      ),
     );
     _isAddTaskSheetOpen = false;
 
@@ -1469,7 +1585,16 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      if (result.insertAtTop) {
+      final String? targetProjectId = result.targetProjectId;
+      final int targetProjectIndex =
+          targetProjectId == null ? -1 : _indexOfProjectById(targetProjectId);
+      if (targetProjectIndex >= 0) {
+        _insertTaskIntoProject(
+          _projects[targetProjectIndex],
+          result.task,
+          insertAtTop: result.insertAtTop,
+        );
+      } else if (result.insertAtTop) {
         _incomingTasks.insert(0, result.task);
       } else {
         _incomingTasks.add(result.task);
