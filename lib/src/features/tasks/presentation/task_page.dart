@@ -455,7 +455,7 @@ class _TaskPageState extends State<TaskPage>
       for (final ProjectItem project in _projects)
         if (project.id != currentProjectId &&
             !project.isArchived &&
-            _projectTypeForProject(project).supportsAnyTasks)
+            _projectTypeForProject(project).supportsAnyEntries)
           project
     ];
   }
@@ -464,17 +464,39 @@ class _TaskPageState extends State<TaskPage>
     TaskItem task,
     ProjectTypeConfig projectType,
   ) {
+    TaskItem adjustedTask = task;
+
+    if (adjustedTask.entryType == TaskEntryType.journal &&
+        !projectType.showsJournalEntries) {
+      adjustedTask = adjustedTask.copyWith(entryType: TaskEntryType.note);
+    }
+
+    if (projectType.showsOnlyJournalEntries &&
+        adjustedTask.entryType != TaskEntryType.journal) {
+      return adjustedTask.copyWith(
+        entryType: TaskEntryType.journal,
+        type: TaskItemType.thinking,
+        createdAtMicros: adjustedTask.createdAtMicros ??
+            DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+
+    if (adjustedTask.entryType == TaskEntryType.journal &&
+        adjustedTask.type != TaskItemType.thinking) {
+      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
+    }
+
     if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
-      return task.type == TaskItemType.thinking
-          ? task
-          : task.copyWith(type: TaskItemType.thinking);
+      return adjustedTask.type == TaskItemType.thinking
+          ? adjustedTask
+          : adjustedTask.copyWith(type: TaskItemType.thinking);
     }
     if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
-      return task.type == TaskItemType.planning
-          ? task
-          : task.copyWith(type: TaskItemType.planning);
+      return adjustedTask.type == TaskItemType.planning
+          ? adjustedTask
+          : adjustedTask.copyWith(type: TaskItemType.planning);
     }
-    return task;
+    return adjustedTask;
   }
 
   String? _resolveStackIdForSelection({

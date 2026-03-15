@@ -16,16 +16,20 @@ class SelectProjectTypeSheet extends StatelessWidget {
   final String title;
 
   String _behaviorLabel(ProjectTypeConfig type) {
-    if (type.showsIdeas && type.showsPlanningTasks) {
-      return 'Ideas and tasks';
+    final List<String> labels = <String>[];
+    if (type.showsJournalEntries) {
+      labels.add('Journal');
     }
     if (type.showsIdeas) {
-      return 'Ideas only';
+      labels.add('Ideas');
     }
     if (type.showsPlanningTasks) {
-      return 'Tasks only';
+      labels.add('Tasks');
     }
-    return 'Blank';
+    if (labels.isEmpty) {
+      return 'Blank';
+    }
+    return labels.join(' + ');
   }
 
   @override
@@ -44,8 +48,7 @@ class SelectProjectTypeSheet extends StatelessWidget {
           for (final ProjectTypeConfig type in projectTypes)
             ListTile(
               leading: Icon(
-                iconDataForKey(type.iconKey) ??
-                    Icons.label_outline,
+                iconDataForKey(type.iconKey) ?? Icons.label_outline,
               ),
               title: Text(type.name),
               subtitle: Text(_behaviorLabel(type)),

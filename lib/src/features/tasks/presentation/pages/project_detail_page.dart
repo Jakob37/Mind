@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../domain/task_models.dart';
+import '../widgets/add_journal_entry_sheet.dart';
 import '../widgets/add_session_sheet.dart';
 import '../widgets/add_task_sheet.dart';
 import '../widgets/card_layout.dart';
@@ -50,6 +51,12 @@ enum _ProjectMenuAction {
 enum _GeneratePromptAction {
   allTasks,
   filterByColor,
+}
+
+enum _ProjectEntryKind {
+  journal,
+  thinking,
+  planning,
 }
 
 class ProjectDetailPage extends StatefulWidget {
@@ -139,6 +146,45 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         .toList(growable: false);
   }
 
+  List<TaskItem> _journalEntries(
+    ProjectItem project, {
+    bool includeArchived = false,
+  }) {
+    return project.tasks
+        .where(
+          (TaskItem task) =>
+              task.entryType == TaskEntryType.journal &&
+              (includeArchived || !task.isArchived),
+        )
+        .toList(growable: false);
+  }
+
+  List<TaskItem> _thinkingTasks(
+    ProjectItem project, {
+    bool includeArchived = false,
+  }) {
+    return _tasksByType(
+      project,
+      TaskItemType.thinking,
+      includeArchived: includeArchived,
+    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
+          growable: false,
+        );
+  }
+
+  List<TaskItem> _planningTasks(
+    ProjectItem project, {
+    bool includeArchived = false,
+  }) {
+    return _tasksByType(
+      project,
+      TaskItemType.planning,
+      includeArchived: includeArchived,
+    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
+          growable: false,
+        );
+  }
+
   List<TaskItem> _archivedTasks(ProjectItem project) {
     return project.tasks
         .where((TaskItem task) => task.isArchived)
@@ -149,15 +195,19 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return project.tasks.indexWhere((TaskItem task) => task.id == taskId);
   }
 
-  void _replaceProjectTasksBySections({
+  void _replaceProjectTasks({
     required ProjectItem project,
+    required List<TaskItem> journalEntries,
     required List<TaskItem> thinkingTasks,
     required List<TaskItem> planningTasks,
+    required List<TaskItem> archivedTasks,
   }) {
     project.tasks
       ..clear()
+      ..addAll(journalEntries)
       ..addAll(thinkingTasks)
-      ..addAll(planningTasks);
+      ..addAll(planningTasks)
+      ..addAll(archivedTasks);
   }
 
   ProjectTypeConfig _projectTypeFor(ProjectItem project) {
@@ -179,13 +229,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return _projectTypeFor(project).id == ProjectTypeDefaults.knowledgeId;
   }
 
+  bool _isPeopleProject(ProjectItem project) {
+    return _projectTypeFor(project).id == ProjectTypeDefaults.peopleId;
+  }
+
   List<TaskItem> _sessionTasks(ProjectItem project) {
-    return project.tasks
+    return _thinkingTasks(project)
         .where(
-          (TaskItem task) =>
-              !task.isArchived &&
-              task.type == TaskItemType.thinking &&
-              task.entryType == TaskEntryType.session,
+          (TaskItem task) => task.entryType == TaskEntryType.session,
         )
         .toList(growable: false);
   }
@@ -258,40 +309,68 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return newStack.id;
   }
 
+  bool _showsJournalSection(ProjectItem project) {
+    final ProjectTypeConfig projectType = _projectTypeFor(project);
+    return projectType.showsJournalEntries ||
+        _journalEntries(project).isNotEmpty;
+  }
+
   bool _showsIdeasSection(ProjectItem project) {
     final ProjectTypeConfig projectType = _projectTypeFor(project);
-    return projectType.showsIdeas ||
-        _tasksByType(project, TaskItemType.thinking).isNotEmpty;
+    return projectType.showsIdeas || _thinkingTasks(project).isNotEmpty;
   }
 
   bool _showsPlanningSection(ProjectItem project) {
     final ProjectTypeConfig projectType = _projectTypeFor(project);
-    return projectType.showsPlanningTasks ||
-        _tasksByType(project, TaskItemType.planning).isNotEmpty;
+    return projectType.showsPlanningTasks || _planningTasks(project).isNotEmpty;
   }
 
-  bool _canCreateTasks(ProjectItem project) {
-    return _projectTypeFor(project).supportsAnyTasks;
+  bool _canCreateEntries(ProjectItem project) {
+    return _projectTypeFor(project).supportsAnyEntries;
   }
 
   TaskItem _taskAdjustedForProjectType(
     TaskItem task,
     ProjectTypeConfig projectType,
   ) {
-    if (task.entryType == TaskEntryType.session) {
-      return task.copyWith(type: TaskItemType.thinking);
+    TaskItem adjustedTask = task;
+
+    if (adjustedTask.entryType == TaskEntryType.journal &&
+        !projectType.showsJournalEntries) {
+      adjustedTask = adjustedTask.copyWith(entryType: TaskEntryType.note);
     }
+
+    if (projectType.showsOnlyJournalEntries &&
+        adjustedTask.entryType != TaskEntryType.journal) {
+      adjustedTask = adjustedTask.copyWith(
+        entryType: TaskEntryType.journal,
+        type: TaskItemType.thinking,
+        createdAtMicros: adjustedTask.createdAtMicros ??
+            DateTime.now().microsecondsSinceEpoch,
+      );
+      return adjustedTask;
+    }
+
+    if (adjustedTask.entryType == TaskEntryType.session) {
+      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
+    }
+
+    if (adjustedTask.entryType == TaskEntryType.journal &&
+        adjustedTask.type != TaskItemType.thinking) {
+      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
+    }
+
     if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
-      return task.type == TaskItemType.thinking
-          ? task
-          : task.copyWith(type: TaskItemType.thinking);
+      return adjustedTask.type == TaskItemType.thinking
+          ? adjustedTask
+          : adjustedTask.copyWith(type: TaskItemType.thinking);
     }
     if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
-      return task.type == TaskItemType.planning
-          ? task
-          : task.copyWith(type: TaskItemType.planning);
+      return adjustedTask.type == TaskItemType.planning
+          ? adjustedTask
+          : adjustedTask.copyWith(type: TaskItemType.planning);
     }
-    return task;
+    return adjustedTask;
   }
 
   void _toggleProjectTaskExpanded(String taskId) {
@@ -343,13 +422,19 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final List<TaskItem> thinkingTasks = _tasksByType(
       project,
       TaskItemType.thinking,
-      includeArchived: true,
-    ).toList(growable: true);
-    final List<TaskItem> planningTasks = _tasksByType(
-      project,
-      TaskItemType.planning,
-      includeArchived: true,
-    ).toList(growable: true);
+      includeArchived: false,
+    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
+          growable: true,
+        );
+    final List<TaskItem> planningTasks = _planningTasks(project).toList(
+      growable: true,
+    );
+    final List<TaskItem> journalEntries = _journalEntries(project).toList(
+      growable: true,
+    );
+    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
+      growable: true,
+    );
 
     final TaskItem sessionTask = TaskItem(
       title: result.title,
@@ -366,10 +451,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     setState(() {
-      _replaceProjectTasksBySections(
+      _replaceProjectTasks(
         project: project,
+        journalEntries: journalEntries,
         thinkingTasks: thinkingTasks,
         planningTasks: planningTasks,
+        archivedTasks: archivedTasks,
       );
       _expandedProjectTaskIds.add(sessionTask.id);
     });
@@ -421,6 +508,90 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       _expandedProjectTaskIds.add(targetSession.id);
     });
     _notifyProjectDataChanged();
+  }
+
+  String _createJournalEntryTitle(int createdAtMicros) {
+    final DateTime createdAt =
+        DateTime.fromMicrosecondsSinceEpoch(createdAtMicros);
+    final String month = createdAt.month.toString().padLeft(2, '0');
+    final String day = createdAt.day.toString().padLeft(2, '0');
+    final String hour = createdAt.hour.toString().padLeft(2, '0');
+    final String minute = createdAt.minute.toString().padLeft(2, '0');
+    return 'Journal entry ${createdAt.year}-$month-$day $hour:$minute';
+  }
+
+  String _journalTimestampLabel(TaskItem task) {
+    final DateTime? createdAt = task.createdAt;
+    if (createdAt == null) {
+      return task.title;
+    }
+
+    final MaterialLocalizations localizations = MaterialLocalizations.of(
+      context,
+    );
+    final String dateLabel = localizations.formatFullDate(createdAt);
+    final String timeLabel = localizations.formatTimeOfDay(
+      TimeOfDay.fromDateTime(createdAt),
+    );
+    return '$dateLabel at $timeLabel';
+  }
+
+  String _journalBodyText(TaskItem task) {
+    if (task.body.trim().isNotEmpty) {
+      return task.body.trim();
+    }
+    return task.title.trim();
+  }
+
+  void _insertTaskIntoProject(
+    ProjectItem project,
+    TaskItem task, {
+    required bool insertAtTop,
+  }) {
+    final List<TaskItem> journalEntries = _journalEntries(project).toList(
+      growable: true,
+    );
+    final List<TaskItem> thinkingTasks = _thinkingTasks(project).toList(
+      growable: true,
+    );
+    final List<TaskItem> planningTasks = _planningTasks(project).toList(
+      growable: true,
+    );
+    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
+      growable: true,
+    );
+    final TaskItem adjustedTask = _taskAdjustedForProjectType(
+      task,
+      _projectTypeFor(project),
+    );
+
+    if (adjustedTask.entryType == TaskEntryType.journal) {
+      if (insertAtTop) {
+        journalEntries.insert(0, adjustedTask);
+      } else {
+        journalEntries.add(adjustedTask);
+      }
+    } else if (adjustedTask.type == TaskItemType.planning) {
+      if (insertAtTop) {
+        planningTasks.insert(0, adjustedTask);
+      } else {
+        planningTasks.add(adjustedTask);
+      }
+    } else {
+      if (insertAtTop) {
+        thinkingTasks.insert(0, adjustedTask);
+      } else {
+        thinkingTasks.add(adjustedTask);
+      }
+    }
+
+    _replaceProjectTasks(
+      project: project,
+      journalEntries: journalEntries,
+      thinkingTasks: thinkingTasks,
+      planningTasks: planningTasks,
+      archivedTasks: archivedTasks,
+    );
   }
 
   Future<_GeneratePromptAction?> _showGeneratePromptMenu() {
@@ -764,6 +935,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final TaskItem task = project.tasks[taskIndex];
     final bool canMoveBetweenSections =
         task.entryType != TaskEntryType.session &&
+            task.entryType != TaskEntryType.journal &&
             _projectTypeFor(project).showsIdeas &&
             _projectTypeFor(project).showsPlanningTasks;
     final TaskDetailAction? action = await Navigator.of(
@@ -868,6 +1040,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final ProjectItem? project = _findProject();
     final bool canMoveToOtherSection = project != null &&
         task.entryType != TaskEntryType.session &&
+        task.entryType != TaskEntryType.journal &&
         _projectTypeFor(project).showsIdeas &&
         _projectTypeFor(project).showsPlanningTasks;
     return showModalBottomSheet<_ProjectTaskMenuAction>(
@@ -1161,11 +1334,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final List<TaskItem> thinkingTasks = _tasksByType(
       project,
       TaskItemType.thinking,
-    ).toList(growable: true);
-    final List<TaskItem> planningTasks = _tasksByType(
-      project,
-      TaskItemType.planning,
-    ).toList(growable: true);
+    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
+          growable: true,
+        );
+    final List<TaskItem> planningTasks = _planningTasks(project).toList(
+      growable: true,
+    );
+    final List<TaskItem> journalEntries = _journalEntries(project).toList(
+      growable: true,
+    );
+    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
+      growable: true,
+    );
 
     TaskItem? sourceTask;
     TaskItemType? sourceType;
@@ -1209,6 +1389,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             title: sourceTask.title,
             body: sourceTask.body,
             prompt: sourceTask.prompt,
+            createdAtMicros: sourceTask.createdAtMicros,
             colorValue: sourceTask.colorValue,
             type: effectiveTargetType,
             entryType: sourceTask.entryType,
@@ -1222,10 +1403,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     destinationTasks.insert(insertionIndex, movedTask);
 
     setState(() {
-      _replaceProjectTasksBySections(
+      _replaceProjectTasks(
         project: project,
+        journalEntries: journalEntries,
         thinkingTasks: thinkingTasks,
         planningTasks: planningTasks,
+        archivedTasks: archivedTasks,
       );
     });
     _notifyProjectDataChanged();
@@ -1762,7 +1945,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       for (final ProjectItem project in _projects)
         if (project.id != widget.projectId &&
             !project.isArchived &&
-            _projectTypeFor(project).supportsAnyTasks)
+            _projectTypeFor(project).supportsAnyEntries)
           project,
     ];
 
@@ -1794,32 +1977,39 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     setState(() {
       final TaskItem task = sourceProject.tasks.removeAt(sourceTaskIndex);
       final ProjectItem targetProject = _projects[targetProjectIndex];
-      final TaskItem adjustedTask = _taskAdjustedForProjectType(
+      _insertTaskIntoProject(
+        targetProject,
         task,
-        _projectTypeFor(targetProject),
+        insertAtTop: true,
       );
-      _projects[targetProjectIndex].tasks.insert(0, adjustedTask);
     });
     _notifyProjectDataChanged();
   }
 
-  Future<TaskItemType?> _chooseTaskTypeForCreate() {
+  Future<_ProjectEntryKind?> _chooseEntryKindForCreate() {
     final ProjectItem? project = _findProject();
     if (project == null) {
-      return Future<TaskItemType?>.value(null);
+      return Future<_ProjectEntryKind?>.value(null);
     }
     final ProjectTypeConfig projectType = _projectTypeFor(project);
-    if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
-      return Future<TaskItemType?>.value(TaskItemType.thinking);
+    if (projectType.showsOnlyJournalEntries) {
+      return Future<_ProjectEntryKind?>.value(_ProjectEntryKind.journal);
     }
-    if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
-      return Future<TaskItemType?>.value(TaskItemType.planning);
+    if (projectType.showsIdeas &&
+        !projectType.showsPlanningTasks &&
+        !projectType.showsJournalEntries) {
+      return Future<_ProjectEntryKind?>.value(_ProjectEntryKind.thinking);
     }
-    if (!projectType.supportsAnyTasks) {
-      return Future<TaskItemType?>.value(null);
+    if (!projectType.showsIdeas &&
+        projectType.showsPlanningTasks &&
+        !projectType.showsJournalEntries) {
+      return Future<_ProjectEntryKind?>.value(_ProjectEntryKind.planning);
+    }
+    if (!projectType.supportsAnyEntries) {
+      return Future<_ProjectEntryKind?>.value(null);
     }
 
-    return showModalBottomSheet<TaskItemType>(
+    return showModalBottomSheet<_ProjectEntryKind>(
       context: context,
       builder: (BuildContext context) {
         return SafeArea(
@@ -1828,21 +2018,34 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             children: <Widget>[
               const ListTile(
                 title: Text(
-                  'Create task in',
+                  'Create entry in',
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
               ),
               const Divider(height: 1),
-              ListTile(
-                leading: const Icon(Icons.lightbulb_outline),
-                title: const Text('Thinking (ideas)'),
-                onTap: () => Navigator.of(context).pop(TaskItemType.thinking),
-              ),
-              ListTile(
-                leading: const Icon(Icons.checklist_rtl_outlined),
-                title: const Text('Planning (action items)'),
-                onTap: () => Navigator.of(context).pop(TaskItemType.planning),
-              ),
+              if (projectType.showsJournalEntries)
+                ListTile(
+                  leading: const Icon(Icons.menu_book_outlined),
+                  title: Text(
+                    _isPeopleProject(project) ? 'Journal entry' : 'Diary entry',
+                  ),
+                  onTap: () =>
+                      Navigator.of(context).pop(_ProjectEntryKind.journal),
+                ),
+              if (projectType.showsIdeas)
+                ListTile(
+                  leading: const Icon(Icons.lightbulb_outline),
+                  title: const Text('Thinking (ideas)'),
+                  onTap: () =>
+                      Navigator.of(context).pop(_ProjectEntryKind.thinking),
+                ),
+              if (projectType.showsPlanningTasks)
+                ListTile(
+                  leading: const Icon(Icons.checklist_rtl_outlined),
+                  title: const Text('Planning (action items)'),
+                  onTap: () =>
+                      Navigator.of(context).pop(_ProjectEntryKind.planning),
+                ),
             ],
           ),
         );
@@ -1851,11 +2054,54 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   Future<void> _addTaskToProject() async {
-    final TaskItemType? selectedType = await _chooseTaskTypeForCreate();
-    if (selectedType == null) {
+    final _ProjectEntryKind? selectedKind = await _chooseEntryKindForCreate();
+    if (selectedKind == null) {
       return;
     }
     if (!mounted) {
+      return;
+    }
+
+    if (selectedKind == _ProjectEntryKind.journal) {
+      final ProjectItem? project = _findProject();
+      if (project == null) {
+        return;
+      }
+
+      final AddJournalEntryResult? createdEntry =
+          await showModalBottomSheet<AddJournalEntryResult>(
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => AddJournalEntrySheet(
+          title: _isPeopleProject(project)
+              ? 'New Interaction Entry'
+              : 'New Diary Entry',
+          hintText: _isPeopleProject(project)
+              ? 'Capture the interaction, context, and anything to follow up.'
+              : 'Write what happened, what you noticed, or what you want to keep.',
+          saveLabel:
+              _isPeopleProject(project) ? 'Save Interaction' : 'Save Entry',
+        ),
+      );
+
+      if (createdEntry == null || !mounted) {
+        return;
+      }
+
+      setState(() {
+        _insertTaskIntoProject(
+          project,
+          TaskItem(
+            title: _createJournalEntryTitle(createdEntry.createdAtMicros),
+            body: createdEntry.body,
+            type: TaskItemType.thinking,
+            entryType: TaskEntryType.journal,
+            createdAtMicros: createdEntry.createdAtMicros,
+          ),
+          insertAtTop: false,
+        );
+      });
+      _notifyProjectDataChanged();
       return;
     }
 
@@ -1878,22 +2124,16 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final List<TaskItem> thinkingTasks = _tasksByType(
-      project,
-      TaskItemType.thinking,
-    ).toList(growable: true);
-    final List<TaskItem> planningTasks = _tasksByType(
-      project,
-      TaskItemType.planning,
-    ).toList(growable: true);
-
     final TaskItem insertedTask = TaskItem(
       id: createdTask.task.id,
       title: createdTask.task.title,
       body: createdTask.task.body,
       prompt: createdTask.task.prompt,
+      createdAtMicros: createdTask.task.createdAtMicros,
       colorValue: createdTask.task.colorValue,
-      type: selectedType,
+      type: selectedKind == _ProjectEntryKind.planning
+          ? TaskItemType.planning
+          : TaskItemType.thinking,
       entryType: createdTask.task.entryType,
       iconKey: createdTask.task.iconKey,
       subtasks: createdTask.task.subtasks
@@ -1901,25 +2141,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           .toList(),
     );
 
-    if (selectedType == TaskItemType.thinking) {
-      if (createdTask.insertAtTop) {
-        thinkingTasks.insert(0, insertedTask);
-      } else {
-        thinkingTasks.add(insertedTask);
-      }
-    } else {
-      if (createdTask.insertAtTop) {
-        planningTasks.insert(0, insertedTask);
-      } else {
-        planningTasks.add(insertedTask);
-      }
-    }
-
     setState(() {
-      _replaceProjectTasksBySections(
-        project: project,
-        thinkingTasks: thinkingTasks,
-        planningTasks: planningTasks,
+      _insertTaskIntoProject(
+        project,
+        insertedTask,
+        insertAtTop: createdTask.insertAtTop,
       );
     });
     _notifyProjectDataChanged();
@@ -1935,7 +2161,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final IconData? iconData = iconDataForKey(task.iconKey) ??
         (task.entryType == TaskEntryType.session
             ? Icons.headset_outlined
-            : null);
+            : task.entryType == TaskEntryType.journal
+                ? Icons.menu_book_outlined
+                : null);
     final bool hasNestedItems = task.subtasks.isNotEmpty;
     final bool isExpanded = _expandedProjectTaskIds.contains(task.id);
     final List<Widget> trailingParts = <Widget>[
@@ -1982,6 +2210,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     fontWeight: FontWeight.w600,
                   ),
             ),
+          ),
+        ),
+      if (task.entryType == TaskEntryType.journal)
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+          decoration: BoxDecoration(
+            color: Theme.of(context).colorScheme.primaryContainer,
+            borderRadius: BorderRadius.circular(999),
+          ),
+          child: Text(
+            'Journal',
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ),
       if (task.body.isNotEmpty)
@@ -2154,6 +2397,181 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             _buildPreviewSubtaskList(subTask.children, depth + 1),
         ],
       ),
+    );
+  }
+
+  Widget _buildJournalEntryCard(
+    TaskItem task, {
+    required bool isArchivedSection,
+  }) {
+    final String bodyText = _journalBodyText(task);
+    final IconData? iconData = iconDataForKey(task.iconKey);
+
+    return Card(
+      margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+      color: task.colorValue == null ? null : Color(task.colorValue!),
+      child: InkWell(
+        onTap: () => _openTaskView(task.id),
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: _layout.contentPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (iconData != null) ...<Widget>[
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Icon(iconData, size: 18),
+                    ),
+                    const SizedBox(width: 8),
+                  ],
+                  Expanded(
+                    child: Text(
+                      _journalTimestampLabel(task),
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                          ),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => _openTaskQuickMenu(task.id),
+                    tooltip: 'Task options',
+                    icon: const Icon(Icons.more_vert),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Text(
+                bodyText,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildJournalSection({
+    required String title,
+    required String emptyLabel,
+    required List<TaskItem> entries,
+    bool isArchivedSection = false,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Text(
+          title,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (entries.isEmpty)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              emptyLabel,
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        for (final TaskItem task in entries)
+          isArchivedSection
+              ? Dismissible(
+                  key: ValueKey<String>('project-journal-swipe-${task.id}'),
+                  direction: DismissDirection.horizontal,
+                  confirmDismiss: (DismissDirection direction) async {
+                    if (direction == DismissDirection.startToEnd) {
+                      _restoreTask(task.id);
+                      return true;
+                    }
+                    return true;
+                  },
+                  onDismissed: (DismissDirection direction) {
+                    if (direction == DismissDirection.endToStart) {
+                      _deleteTask(task.id);
+                    }
+                  },
+                  background: Container(
+                    margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.secondaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.unarchive_outlined,
+                      color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    ),
+                  ),
+                  secondaryBackground: Container(
+                    margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  child: _buildJournalEntryCard(
+                    task,
+                    isArchivedSection: true,
+                  ),
+                )
+              : Dismissible(
+                  key: ValueKey<String>('project-journal-swipe-${task.id}'),
+                  direction: DismissDirection.horizontal,
+                  confirmDismiss: (DismissDirection direction) async {
+                    if (direction == DismissDirection.startToEnd) {
+                      _archiveTask(task.id);
+                      return true;
+                    }
+                    return true;
+                  },
+                  onDismissed: (DismissDirection direction) {
+                    if (direction == DismissDirection.endToStart) {
+                      _deleteTask(task.id);
+                    }
+                  },
+                  background: Container(
+                    margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.tertiaryContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.centerLeft,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.archive_outlined,
+                      color: Theme.of(context).colorScheme.onTertiaryContainer,
+                    ),
+                  ),
+                  secondaryBackground: Container(
+                    margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    alignment: Alignment.centerRight,
+                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                    child: Icon(
+                      Icons.delete_outline,
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                  child: _buildJournalEntryCard(
+                    task,
+                    isArchivedSection: false,
+                  ),
+                ),
+      ],
     );
   }
 
@@ -2407,6 +2825,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   Widget _buildArchivedTaskSection(List<TaskItem> archivedTasks) {
+    final List<TaskItem> archivedJournalEntries = archivedTasks
+        .where((TaskItem task) => task.entryType == TaskEntryType.journal)
+        .toList(growable: false);
+    final List<TaskItem> archivedStandardTasks = archivedTasks
+        .where((TaskItem task) => task.entryType != TaskEntryType.journal)
+        .toList(growable: false);
+
     return Card(
       margin: const EdgeInsets.only(top: 12),
       child: Column(
@@ -2438,12 +2863,27 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           if (_showArchivedTasks)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: _buildTaskSection(
-                title: 'Archived',
-                emptyLabel: 'No archived tasks.',
-                tasks: archivedTasks,
-                sectionType: TaskItemType.planning,
-                isArchivedSection: true,
+              child: Column(
+                children: <Widget>[
+                  if (archivedJournalEntries.isNotEmpty)
+                    _buildJournalSection(
+                      title: 'Archived journal',
+                      emptyLabel: 'No archived journal entries.',
+                      entries: archivedJournalEntries,
+                      isArchivedSection: true,
+                    ),
+                  if (archivedJournalEntries.isNotEmpty &&
+                      archivedStandardTasks.isNotEmpty)
+                    const SizedBox(height: 8),
+                  if (archivedStandardTasks.isNotEmpty)
+                    _buildTaskSection(
+                      title: 'Archived tasks',
+                      emptyLabel: 'No archived tasks.',
+                      tasks: archivedStandardTasks,
+                      sectionType: TaskItemType.planning,
+                      isArchivedSection: true,
+                    ),
+                ],
               ),
             ),
         ],
@@ -2461,22 +2901,19 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       );
     }
 
-    final List<TaskItem> thinkingTasks = _tasksByType(
-      project,
-      TaskItemType.thinking,
-    );
-    final List<TaskItem> planningTasks = _tasksByType(
-      project,
-      TaskItemType.planning,
-    );
+    final List<TaskItem> journalEntries = _journalEntries(project);
+    final List<TaskItem> thinkingTasks = _thinkingTasks(project);
+    final List<TaskItem> planningTasks = _planningTasks(project);
     final List<TaskItem> archivedTasks = _archivedTasks(project);
+    final bool showsJournalSection = _showsJournalSection(project);
     final bool showsIdeasSection = _showsIdeasSection(project);
     final bool showsPlanningSection = _showsPlanningSection(project);
-    final bool canCreateTasks = _canCreateTasks(project);
+    final bool canCreateEntries = _canCreateEntries(project);
     final ProjectTypeConfig projectType = _projectTypeFor(project);
     final bool isLlmProject = projectType.id == ProjectTypeDefaults.llmId;
     final bool isKnowledgeProject =
         projectType.id == ProjectTypeDefaults.knowledgeId;
+    final bool isPeopleProject = projectType.id == ProjectTypeDefaults.peopleId;
     final IconData? projectIconData =
         iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
 
@@ -2562,6 +2999,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 ),
               ),
             ),
+          if (showsJournalSection)
+            _buildJournalSection(
+              title: isPeopleProject ? 'Interactions' : 'Diary',
+              emptyLabel: isPeopleProject
+                  ? 'No interactions captured yet.'
+                  : 'No diary entries yet.',
+              entries: journalEntries,
+            ),
+          if (showsJournalSection &&
+              (showsIdeasSection || showsPlanningSection))
+            const SizedBox(height: 8),
           if (showsIdeasSection)
             _buildTaskSection(
               title:
@@ -2583,22 +3031,28 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               sectionType: TaskItemType.planning,
               showNestedPreview: true,
             ),
-          if (!showsIdeasSection && !showsPlanningSection)
+          if (!showsJournalSection &&
+              !showsIdeasSection &&
+              !showsPlanningSection)
             Text(
-              'This project type is blank. Enable ideas or tasks in project type settings to add sections.',
+              'This project type is blank. Enable journal, ideas, or tasks in project type settings to add sections.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           if (archivedTasks.isNotEmpty)
             _buildArchivedTaskSection(archivedTasks),
         ],
       ),
-      floatingActionButton: !canCreateTasks || project.isArchived
+      floatingActionButton: !canCreateEntries || project.isArchived
           ? null
           : FloatingActionButton(
               onPressed: _addTaskToProject,
-              tooltip: isKnowledgeProject
-                  ? 'Add knowledge note'
-                  : 'Add project task',
+              tooltip: projectType.showsOnlyJournalEntries
+                  ? 'Add journal entry'
+                  : isPeopleProject
+                      ? 'Add interaction or idea'
+                      : isKnowledgeProject
+                          ? 'Add knowledge note'
+                          : 'Add project task',
               child: const Icon(Icons.add),
             ),
     );

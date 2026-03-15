@@ -16,6 +16,7 @@ class EditProjectTypeSheet extends StatefulWidget {
 }
 
 class _EditProjectTypeSheetState extends State<EditProjectTypeSheet> {
+  late bool _showsJournalEntries;
   late bool _showsIdeas;
   late bool _showsPlanningTasks;
   late String? _iconKey;
@@ -23,6 +24,7 @@ class _EditProjectTypeSheetState extends State<EditProjectTypeSheet> {
   @override
   void initState() {
     super.initState();
+    _showsJournalEntries = widget.projectType.showsJournalEntries;
     _showsIdeas = widget.projectType.showsIdeas;
     _showsPlanningTasks = widget.projectType.showsPlanningTasks;
     _iconKey = widget.projectType.iconKey;
@@ -48,6 +50,7 @@ class _EditProjectTypeSheetState extends State<EditProjectTypeSheet> {
       widget.projectType.copyWith(
         iconKey: _iconKey,
         clearIcon: _iconKey == null,
+        showsJournalEntries: _showsJournalEntries,
         showsIdeas: _showsIdeas,
         showsPlanningTasks: _showsPlanningTasks,
       ),
@@ -84,6 +87,16 @@ class _EditProjectTypeSheetState extends State<EditProjectTypeSheet> {
             onPressed: _pickIcon,
             icon: Icon(iconDataForKey(_iconKey) ?? Icons.label_outline),
             label: Text('Icon: ${_iconLabel()}'),
+          ),
+          SwitchListTile(
+            contentPadding: EdgeInsets.zero,
+            title: const Text('Show journal section'),
+            value: _showsJournalEntries,
+            onChanged: (bool value) {
+              setState(() {
+                _showsJournalEntries = value;
+              });
+            },
           ),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,

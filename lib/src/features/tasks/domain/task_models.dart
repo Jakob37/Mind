@@ -503,6 +503,8 @@ class ProjectTypeDefaults {
   static const String ideasId = 'project-type-ideas';
   static const String knowledgeId = 'project-type-knowledge';
   static const String llmId = 'project-type-llm';
+  static const String diaryId = 'project-type-diary';
+  static const String peopleId = 'project-type-people';
 }
 
 class ProjectTypeConfig {
@@ -510,6 +512,7 @@ class ProjectTypeConfig {
     required this.id,
     required this.name,
     this.iconKey,
+    required this.showsJournalEntries,
     required this.showsPlanningTasks,
     required this.showsIdeas,
   });
@@ -517,6 +520,7 @@ class ProjectTypeConfig {
   final String id;
   final String name;
   final String? iconKey;
+  final bool showsJournalEntries;
   final bool showsPlanningTasks;
   final bool showsIdeas;
 
@@ -525,6 +529,7 @@ class ProjectTypeConfig {
       id: id,
       name: name,
       iconKey: iconKey,
+      showsJournalEntries: showsJournalEntries,
       showsPlanningTasks: showsPlanningTasks,
       showsIdeas: showsIdeas,
     );
@@ -535,6 +540,7 @@ class ProjectTypeConfig {
     String? name,
     String? iconKey,
     bool clearIcon = false,
+    bool? showsJournalEntries,
     bool? showsPlanningTasks,
     bool? showsIdeas,
   }) {
@@ -542,18 +548,24 @@ class ProjectTypeConfig {
       id: id ?? this.id,
       name: name ?? this.name,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      showsJournalEntries: showsJournalEntries ?? this.showsJournalEntries,
       showsPlanningTasks: showsPlanningTasks ?? this.showsPlanningTasks,
       showsIdeas: showsIdeas ?? this.showsIdeas,
     );
   }
 
   bool get supportsAnyTasks => showsPlanningTasks || showsIdeas;
+  bool get supportsAnyEntries =>
+      showsJournalEntries || showsPlanningTasks || showsIdeas;
+  bool get showsOnlyJournalEntries =>
+      showsJournalEntries && !showsPlanningTasks && !showsIdeas;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'id': id,
       'name': name,
       'icon': iconKey,
+      'showsJournalEntries': showsJournalEntries,
       'showsPlanningTasks': showsPlanningTasks,
       'showsIdeas': showsIdeas,
     };
@@ -568,6 +580,7 @@ class ProjectTypeConfig {
       id: id,
       name: name,
       iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
+      showsJournalEntries: _readOptionalBool(json, 'showsJournalEntries'),
       showsPlanningTasks: _readOptionalBool(json, 'showsPlanningTasks'),
       showsIdeas: _readOptionalBool(json, 'showsIdeas'),
     );
@@ -578,6 +591,7 @@ class ProjectTypeConfig {
       ProjectTypeConfig(
         id: ProjectTypeDefaults.blankId,
         name: 'Blank',
+        showsJournalEntries: false,
         showsPlanningTasks: false,
         showsIdeas: false,
       ),
@@ -585,6 +599,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.projectId,
         name: 'Project',
         iconKey: 'folder-open',
+        showsJournalEntries: false,
         showsPlanningTasks: true,
         showsIdeas: true,
       ),
@@ -592,6 +607,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.ideasId,
         name: 'Ideas',
         iconKey: 'lightbulb',
+        showsJournalEntries: false,
         showsPlanningTasks: false,
         showsIdeas: true,
       ),
@@ -599,6 +615,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.knowledgeId,
         name: 'Knowledge',
         iconKey: 'book-open',
+        showsJournalEntries: false,
         showsPlanningTasks: false,
         showsIdeas: true,
       ),
@@ -606,7 +623,24 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.llmId,
         name: 'LLM Project',
         iconKey: 'brain',
+        showsJournalEntries: false,
         showsPlanningTasks: true,
+        showsIdeas: true,
+      ),
+      ProjectTypeConfig(
+        id: ProjectTypeDefaults.diaryId,
+        name: 'Diary',
+        iconKey: 'book-open',
+        showsJournalEntries: true,
+        showsPlanningTasks: false,
+        showsIdeas: false,
+      ),
+      ProjectTypeConfig(
+        id: ProjectTypeDefaults.peopleId,
+        name: 'People',
+        iconKey: 'heart',
+        showsJournalEntries: true,
+        showsPlanningTasks: false,
         showsIdeas: true,
       ),
     ];

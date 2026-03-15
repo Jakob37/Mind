@@ -31,7 +31,7 @@ class MoveProjectTaskSheet extends StatelessWidget {
     final List<ProjectItem> targetProjects = <ProjectItem>[
       for (final ProjectItem project in projects)
         if (project.id != currentProjectId &&
-            _projectTypeFor(project).supportsAnyTasks)
+            _projectTypeFor(project).supportsAnyEntries)
           project,
     ];
 

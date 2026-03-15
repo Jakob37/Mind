@@ -195,7 +195,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('19'), findsWidgets);
+    expect(find.textContaining('20'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON File'), findsNothing);
     expect(find.text('Save or Share JSON File (Android)'), findsOneWidget);
@@ -822,6 +822,109 @@ void main() {
     expect(find.text('Analogies improve recall'), findsOneWidget);
   });
 
+  testWidgets('diary projects create timestamped journal entries',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Daily Notes');
+    await tester.tap(find.text('Type: Blank'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Diary'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('Diary'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Daily Notes'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Diary'), findsOneWidget);
+    expect(find.text('No diary entries yet.'), findsOneWidget);
+    expect(find.byTooltip('Add journal entry'), findsOneWidget);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(find.text('New Diary Entry'), findsOneWidget);
+    await tester.enterText(
+      find.byType(TextField),
+      'Walked for 20 minutes and felt more clear afterwards.',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Entry'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Walked for 20 minutes and felt more clear afterwards.'),
+      findsOneWidget,
+    );
+    expect(find.textContaining('at '), findsWidgets);
+  });
+
+  testWidgets('people projects combine interactions and ideas',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Alice');
+    await tester.tap(find.text('Type: Blank'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('People'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.text('People'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Alice'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Interactions'), findsOneWidget);
+    expect(find.text('Thinking (ideas)'), findsWidgets);
+    expect(find.byTooltip('Add interaction or idea'), findsOneWidget);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Journal entry'), findsOneWidget);
+    expect(find.text('Thinking (ideas)'), findsWidgets);
+    await tester.tap(find.text('Journal entry'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField),
+      'Had coffee together and discussed summer plans.',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Interaction'));
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text('Had coffee together and discussed summer plans.'),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Thinking (ideas)'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byType(TextField), 'Invite Alice to hiking day');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Invite Alice to hiking day'), findsOneWidget);
+  });
+
   testWidgets('migrates versioned v2 payload and adds stable IDs',
       (WidgetTester tester) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
@@ -857,7 +960,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('19'), findsWidgets);
+    expect(find.textContaining('20'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -905,7 +1008,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('19'), findsWidgets);
+    expect(find.textContaining('20'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

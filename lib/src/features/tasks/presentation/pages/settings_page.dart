@@ -424,6 +424,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   String _projectTypeSummary(ProjectTypeConfig type) {
     final List<String> labels = <String>[];
+    if (type.showsJournalEntries) {
+      labels.add('journal');
+    }
     if (type.showsIdeas) {
       labels.add('ideas');
     }
@@ -625,7 +628,7 @@ class _SettingsPageState extends State<SettingsPage> {
           const ListTile(
             title: Text('Project types'),
             subtitle: Text(
-              'Configure the icon and whether each type shows ideas and tasks',
+              'Configure the icon and whether each type shows journal, ideas, and tasks',
             ),
           ),
           for (final ProjectTypeConfig type in _projectTypes)

@@ -166,7 +166,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 19);
+    expect(decoded['version'], 20);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -210,8 +210,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 19,'), isTrue);
-    expect(decoded['version'], 19);
+    expect(exported.contains('\n  "version": 20,'), isTrue);
+    expect(decoded['version'], 20);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -274,6 +274,7 @@ void main() {
           id: ProjectTypeDefaults.projectId,
           name: 'Project',
           iconKey: 'folder-open',
+          showsJournalEntries: false,
           showsPlanningTasks: true,
           showsIdeas: true,
         ),
@@ -362,6 +363,61 @@ void main() {
     expect(state.incomingTasks.single.createdAtMicros, isNull);
     expect(state.projects.single.isPinned, isFalse);
     expect(state.projects.single.tasks, isEmpty);
+    expect(
+      state.projectTypes.any(
+        (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.diaryId,
+      ),
+      isTrue,
+    );
+    expect(
+      state.projectTypes.any(
+        (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.peopleId,
+      ),
+      isTrue,
+    );
+  });
+
+  test('load migrates v19 payload and adds journal visibility flags', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 19,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-1',
+              'name': 'People project',
+              'projectTypeId': ProjectTypeDefaults.peopleId,
+              'prompt': '',
+              'archived': false,
+              'tasks': <Map<String, dynamic>>[],
+            },
+          ],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': ProjectTypeDefaults.peopleId,
+              'name': 'People',
+              'icon': 'heart',
+              'showsPlanningTasks': false,
+              'showsIdeas': true,
+            },
+          ],
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+          'cardLayoutPreset': 'standard',
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    final ProjectTypeConfig peopleType = state.projectTypes.firstWhere(
+      (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.peopleId,
+    );
+    expect(peopleType.showsJournalEntries, isTrue);
   });
 
   test('load migrates v11 payload and adds archived flags', () async {
