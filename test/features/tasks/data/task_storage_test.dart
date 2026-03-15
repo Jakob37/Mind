@@ -166,7 +166,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 21);
+    expect(decoded['version'], 22);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -210,8 +210,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 21,'), isTrue);
-    expect(decoded['version'], 21);
+    expect(exported.contains('\n  "version": 22,'), isTrue);
+    expect(decoded['version'], 22);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -274,6 +274,7 @@ void main() {
           id: ProjectTypeDefaults.projectId,
           name: 'Project',
           iconKey: 'folder-open',
+          layoutKind: ProjectLayoutKind.standard,
           showsJournalEntries: false,
           showsPlanningTasks: true,
           showsIdeas: true,
@@ -462,6 +463,53 @@ void main() {
     expect(state.projects.single.projectTypeId, ProjectTypeDefaults.peopleId);
     expect(state.projects.single.tasks, isEmpty);
     expect(state.projects.single.people, isEmpty);
+  });
+
+  test('load migrates v21 project types and adds layout kinds', () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 21,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': ProjectTypeDefaults.peopleId,
+              'name': 'People',
+              'icon': 'heart',
+              'showsJournalEntries': true,
+              'showsPlanningTasks': false,
+              'showsIdeas': true,
+            },
+            <String, dynamic>{
+              'id': ProjectTypeDefaults.diaryId,
+              'name': 'Diary',
+              'icon': 'book-open',
+              'showsJournalEntries': true,
+              'showsPlanningTasks': false,
+              'showsIdeas': false,
+            },
+          ],
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+          'cardLayoutPreset': 'standard',
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    final ProjectTypeConfig peopleType = state.projectTypes.firstWhere(
+      (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.peopleId,
+    );
+    final ProjectTypeConfig diaryType = state.projectTypes.firstWhere(
+      (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.diaryId,
+    );
+    expect(peopleType.layoutKind, ProjectLayoutKind.peopleContainer);
+    expect(diaryType.layoutKind, ProjectLayoutKind.journalOnly);
   });
 
   test('load migrates v11 payload and adds archived flags', () async {

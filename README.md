@@ -36,10 +36,10 @@ A Flutter task board app focused on quickly moving ideas into projects.
 ## Persistence and data schema
 
 - Local persistence uses `shared_preferences`.
-- Current schema version is `21`.
+- Current schema version is `22`.
 - Migration pipeline supports legacy payloads:
   - unversioned legacy key: `task_board_state_v1`
-  - versioned payloads: v1 -> v21
+  - versioned payloads: v1 -> v22
 - If persisted data is corrupted, autosave is paused to avoid overwriting potentially recoverable data.
 
 ## Project structure

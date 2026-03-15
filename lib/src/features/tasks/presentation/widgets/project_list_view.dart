@@ -96,14 +96,10 @@ class _ProjectListViewState extends State<ProjectListView> {
   }
 
   ProjectTypeConfig _projectTypeFor(ProjectItem project) {
-    final String targetId =
-        project.projectTypeId ?? ProjectTypeDefaults.blankId;
-    for (final ProjectTypeConfig type in widget.projectTypes) {
-      if (type.id == targetId) {
-        return type;
-      }
-    }
-    return ProjectTypeConfig.defaults().first;
+    return ProjectRules.resolveProjectType(
+      project.projectTypeId,
+      widget.projectTypes,
+    );
   }
 
   String? _stackNameForProject(ProjectItem project) {
@@ -136,7 +132,10 @@ class _ProjectListViewState extends State<ProjectListView> {
   }
 
   int _visibleTaskCount(ProjectItem project) {
-    if (_projectTypeFor(project).id == ProjectTypeDefaults.peopleId) {
+    if (ProjectRules.forProject(
+      project: project,
+      projectTypes: widget.projectTypes,
+    ).isPeopleContainer) {
       return project.people
           .where((PersonItem person) => !person.isArchived)
           .length;
@@ -290,8 +289,10 @@ class _ProjectListViewState extends State<ProjectListView> {
     ProjectItem project, {
     bool showStackLabel = false,
   }) {
-    final bool isPeopleProject =
-        _projectTypeFor(project).id == ProjectTypeDefaults.peopleId;
+    final bool isPeopleProject = ProjectRules.forProject(
+      project: project,
+      projectTypes: widget.projectTypes,
+    ).isPeopleContainer;
     final int taskCount = project.isArchived
         ? (isPeopleProject ? project.people.length : project.tasks.length)
         : _visibleTaskCount(project);

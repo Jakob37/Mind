@@ -66,7 +66,7 @@ class _SettingsPageState extends State<SettingsPage> {
       mimeType: 'application/json',
       prefix: 'mind-export',
       extension: 'json',
-      successMessage: 'Choose where to save or share your JSON export.',
+      successMessage: 'Choose an app to share or save your JSON export.',
       unsupportedMessage: 'JSON file export is only available on Android.',
       failureMessage: 'Could not export JSON file. Please try again.',
     );
@@ -80,7 +80,7 @@ class _SettingsPageState extends State<SettingsPage> {
       mimeType: 'text/plain',
       prefix: 'mind-export',
       extension: 'txt',
-      successMessage: 'Choose where to save or share your text export.',
+      successMessage: 'Choose an app to share or save your text export.',
       unsupportedMessage: 'Text file export is only available on Android.',
       failureMessage: 'Could not export text file. Please try again.',
     );
@@ -278,8 +278,7 @@ class _SettingsPageState extends State<SettingsPage> {
                             onPressed: () =>
                                 _exportJsonFile(context, exportJson),
                             icon: const Icon(Icons.download_outlined),
-                            label:
-                                const Text('Save or Share JSON File (Android)'),
+                            label: const Text('Share JSON File (Android)'),
                           ),
                         ],
                       ],
@@ -350,7 +349,7 @@ class _SettingsPageState extends State<SettingsPage> {
                   OutlinedButton.icon(
                     onPressed: () => _exportPlainTextFile(context, exportText),
                     icon: const Icon(Icons.download_outlined),
-                    label: const Text('Save or Share TXT File (Android)'),
+                    label: const Text('Share TXT File (Android)'),
                   ),
                 ],
               ],
@@ -424,6 +423,9 @@ class _SettingsPageState extends State<SettingsPage> {
 
   String _projectTypeSummary(ProjectTypeConfig type) {
     final List<String> labels = <String>[];
+    if (type.layoutKind == ProjectLayoutKind.peopleContainer) {
+      labels.add('people');
+    }
     if (type.showsJournalEntries) {
       labels.add('journal');
     }
@@ -601,7 +603,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.file_upload_outlined),
             title: const Text('Export data as JSON'),
             subtitle: const Text(
-              'Copy JSON or export a file on Android',
+              'Copy JSON or share a file on Android',
             ),
             onTap: () => _showJsonExport(context, widget.exportData()),
           ),
@@ -619,7 +621,7 @@ class _SettingsPageState extends State<SettingsPage> {
             leading: const Icon(Icons.text_snippet_outlined),
             title: const Text('Export projects and tasks as text'),
             subtitle: const Text(
-              'Copy nested content or export a TXT file on Android',
+              'Copy nested content or share a TXT file on Android',
             ),
             onTap: () =>
                 _showPlainTextExport(context, widget.exportPlainText()),

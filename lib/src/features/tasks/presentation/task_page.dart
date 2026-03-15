@@ -415,16 +415,10 @@ class _TaskPageState extends State<TaskPage>
     String? projectTypeId, {
     List<ProjectTypeConfig>? projectTypes,
   }) {
-    final List<ProjectTypeConfig> source = projectTypes ?? _projectTypes;
-    final String targetId = (projectTypeId == null || projectTypeId.isEmpty)
-        ? ProjectTypeDefaults.blankId
-        : projectTypeId;
-    for (final ProjectTypeConfig type in source) {
-      if (type.id == targetId) {
-        return type;
-      }
-    }
-    return ProjectTypeConfig.defaults().first;
+    return ProjectRules.resolveProjectType(
+      projectTypeId,
+      projectTypes ?? _projectTypes,
+    );
   }
 
   ProjectTypeConfig _projectTypeForProject(
@@ -434,6 +428,16 @@ class _TaskPageState extends State<TaskPage>
     return _projectTypeById(
       project.projectTypeId,
       projectTypes: projectTypes,
+    );
+  }
+
+  ProjectRules _projectRulesForProject(
+    ProjectItem project, {
+    List<ProjectTypeConfig>? projectTypes,
+  }) {
+    return ProjectRules.forProject(
+      project: project,
+      projectTypes: projectTypes ?? _projectTypes,
     );
   }
 
@@ -452,15 +456,10 @@ class _TaskPageState extends State<TaskPage>
     ProjectItem project, {
     List<ProjectTypeConfig>? projectTypes,
   }) {
-    return _projectTypeForProject(
-              project,
-              projectTypes: projectTypes,
-            ).id !=
-            ProjectTypeDefaults.peopleId &&
-        _projectTypeForProject(
-          project,
-          projectTypes: projectTypes,
-        ).supportsAnyEntries;
+    return _projectRulesForProject(
+      project,
+      projectTypes: projectTypes,
+    ).acceptsRootTasks;
   }
 
   List<ProjectItem> _taskCompatibleProjects({
@@ -554,10 +553,8 @@ class _TaskPageState extends State<TaskPage>
     final List<TaskItem> archivedTasks = _projectArchivedTasks(project)
         .map((TaskItem item) => item.clone())
         .toList(growable: true);
-    final TaskItem adjustedTask = _taskAdjustedForProjectType(
-      task,
-      _projectTypeForProject(project),
-    );
+    final TaskItem adjustedTask =
+        _projectRulesForProject(project).normalizeTask(task);
 
     if (adjustedTask.entryType == TaskEntryType.journal) {
       if (insertAtTop) {
@@ -586,45 +583,6 @@ class _TaskPageState extends State<TaskPage>
       planningTasks: planningTasks,
       archivedTasks: archivedTasks,
     );
-  }
-
-  TaskItem _taskAdjustedForProjectType(
-    TaskItem task,
-    ProjectTypeConfig projectType,
-  ) {
-    TaskItem adjustedTask = task;
-
-    if (adjustedTask.entryType == TaskEntryType.journal &&
-        !projectType.showsJournalEntries) {
-      adjustedTask = adjustedTask.copyWith(entryType: TaskEntryType.note);
-    }
-
-    if (projectType.showsOnlyJournalEntries &&
-        adjustedTask.entryType != TaskEntryType.journal) {
-      return adjustedTask.copyWith(
-        entryType: TaskEntryType.journal,
-        type: TaskItemType.thinking,
-        createdAtMicros: adjustedTask.createdAtMicros ??
-            DateTime.now().microsecondsSinceEpoch,
-      );
-    }
-
-    if (adjustedTask.entryType == TaskEntryType.journal &&
-        adjustedTask.type != TaskItemType.thinking) {
-      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
-    }
-
-    if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
-      return adjustedTask.type == TaskItemType.thinking
-          ? adjustedTask
-          : adjustedTask.copyWith(type: TaskItemType.thinking);
-    }
-    if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
-      return adjustedTask.type == TaskItemType.planning
-          ? adjustedTask
-          : adjustedTask.copyWith(type: TaskItemType.planning);
-    }
-    return adjustedTask;
   }
 
   String? _resolveStackIdForSelection({
@@ -1793,7 +1751,7 @@ class _TaskPageState extends State<TaskPage>
   }
 
   int _visibleProjectTaskCount(ProjectItem project) {
-    if (_projectTypeForProject(project).id == ProjectTypeDefaults.peopleId) {
+    if (_projectRulesForProject(project).isPeopleContainer) {
       return project.people
           .where((PersonItem person) => !person.isArchived)
           .length;
@@ -1832,8 +1790,7 @@ class _TaskPageState extends State<TaskPage>
             builder: (BuildContext context) {
               final int visibleTaskCount = _visibleProjectTaskCount(project);
               final bool isPeopleProject =
-                  _projectTypeForProject(project).id ==
-                      ProjectTypeDefaults.peopleId;
+                  _projectRulesForProject(project).isPeopleContainer;
               return Card(
                 color: project.colorValue == null
                     ? null

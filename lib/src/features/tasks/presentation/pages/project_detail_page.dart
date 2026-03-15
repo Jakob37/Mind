@@ -213,14 +213,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   ProjectTypeConfig _projectTypeFor(ProjectItem project) {
-    final String targetId =
-        project.projectTypeId ?? ProjectTypeDefaults.blankId;
-    for (final ProjectTypeConfig type in widget.projectTypes) {
-      if (type.id == targetId) {
-        return type;
-      }
-    }
-    return ProjectTypeConfig.defaults().first;
+    return ProjectRules.resolveProjectType(
+      project.projectTypeId,
+      widget.projectTypes,
+    );
+  }
+
+  ProjectRules _projectRulesFor(ProjectItem project) {
+    return ProjectRules.forProject(
+      project: project,
+      projectTypes: widget.projectTypes,
+    );
   }
 
   bool _isLlmProject(ProjectItem project) {
@@ -229,10 +232,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   bool _isKnowledgeProject(ProjectItem project) {
     return _projectTypeFor(project).id == ProjectTypeDefaults.knowledgeId;
-  }
-
-  bool _isPeopleProject(ProjectItem project) {
-    return _projectTypeFor(project).id == ProjectTypeDefaults.peopleId;
   }
 
   List<TaskItem> _sessionTasks(ProjectItem project) {
@@ -328,11 +327,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   bool _canCreateEntries(ProjectItem project) {
-    return _projectAcceptsRootTasks(project);
+    return _projectRulesFor(project).acceptsRootTasks;
   }
 
   bool _projectAcceptsRootTasks(ProjectItem project) {
-    return !_isPeopleProject(project) && _projectTypeFor(project).supportsAnyEntries;
+    return _projectRulesFor(project).acceptsRootTasks;
   }
 
   List<PersonItem> _visiblePeople(ProjectItem project) {
@@ -361,50 +360,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               !task.isArchived && task.entryType != TaskEntryType.journal,
         )
         .length;
-  }
-
-  TaskItem _taskAdjustedForProjectType(
-    TaskItem task,
-    ProjectTypeConfig projectType,
-  ) {
-    TaskItem adjustedTask = task;
-
-    if (adjustedTask.entryType == TaskEntryType.journal &&
-        !projectType.showsJournalEntries) {
-      adjustedTask = adjustedTask.copyWith(entryType: TaskEntryType.note);
-    }
-
-    if (projectType.showsOnlyJournalEntries &&
-        adjustedTask.entryType != TaskEntryType.journal) {
-      adjustedTask = adjustedTask.copyWith(
-        entryType: TaskEntryType.journal,
-        type: TaskItemType.thinking,
-        createdAtMicros: adjustedTask.createdAtMicros ??
-            DateTime.now().microsecondsSinceEpoch,
-      );
-      return adjustedTask;
-    }
-
-    if (adjustedTask.entryType == TaskEntryType.session) {
-      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
-    }
-
-    if (adjustedTask.entryType == TaskEntryType.journal &&
-        adjustedTask.type != TaskItemType.thinking) {
-      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
-    }
-
-    if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
-      return adjustedTask.type == TaskItemType.thinking
-          ? adjustedTask
-          : adjustedTask.copyWith(type: TaskItemType.thinking);
-    }
-    if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
-      return adjustedTask.type == TaskItemType.planning
-          ? adjustedTask
-          : adjustedTask.copyWith(type: TaskItemType.planning);
-    }
-    return adjustedTask;
   }
 
   void _toggleProjectTaskExpanded(String taskId) {
@@ -594,10 +549,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
       growable: true,
     );
-    final TaskItem adjustedTask = _taskAdjustedForProjectType(
-      task,
-      _projectTypeFor(project),
-    );
+    final TaskItem adjustedTask = _projectRulesFor(project).normalizeTask(task);
 
     if (adjustedTask.entryType == TaskEntryType.journal) {
       if (insertAtTop) {
@@ -967,11 +919,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     final TaskItem task = project.tasks[taskIndex];
+    final ProjectRules projectRules = _projectRulesFor(project);
     final bool canMoveBetweenSections =
         task.entryType != TaskEntryType.session &&
             task.entryType != TaskEntryType.journal &&
-            _projectTypeFor(project).showsIdeas &&
-            _projectTypeFor(project).showsPlanningTasks;
+            projectRules.canMoveBetweenTaskSections;
     final TaskDetailAction? action = await Navigator.of(
       context,
     ).push<TaskDetailAction>(
@@ -1072,11 +1024,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Future<_ProjectTaskMenuAction?> _showTaskMenu(TaskItem task) {
     final ProjectItem? project = _findProject();
+    final ProjectRules? projectRules =
+        project == null ? null : _projectRulesFor(project);
     final bool canMoveToOtherSection = project != null &&
         task.entryType != TaskEntryType.session &&
         task.entryType != TaskEntryType.journal &&
-        _projectTypeFor(project).showsIdeas &&
-        _projectTypeFor(project).showsPlanningTasks;
+        projectRules!.canMoveBetweenTaskSections;
     return showModalBottomSheet<_ProjectTaskMenuAction>(
       context: context,
       builder: (BuildContext context) {
@@ -2026,20 +1979,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return Future<_ProjectEntryKind?>.value(null);
     }
     final ProjectTypeConfig projectType = _projectTypeFor(project);
-    if (projectType.showsOnlyJournalEntries) {
+    final ProjectRules projectRules = _projectRulesFor(project);
+    if (projectRules.defaultsToJournalEntry) {
       return Future<_ProjectEntryKind?>.value(_ProjectEntryKind.journal);
     }
-    if (projectType.showsIdeas &&
-        !projectType.showsPlanningTasks &&
-        !projectType.showsJournalEntries) {
+    if (projectRules.defaultsToThinkingEntry) {
       return Future<_ProjectEntryKind?>.value(_ProjectEntryKind.thinking);
     }
-    if (!projectType.showsIdeas &&
-        projectType.showsPlanningTasks &&
-        !projectType.showsJournalEntries) {
+    if (projectRules.defaultsToPlanningEntry) {
       return Future<_ProjectEntryKind?>.value(_ProjectEntryKind.planning);
     }
-    if (!projectType.supportsAnyEntries) {
+    if (!projectRules.acceptsRootTasks) {
       return Future<_ProjectEntryKind?>.value(null);
     }
 
@@ -2061,7 +2011,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 ListTile(
                   leading: const Icon(Icons.menu_book_outlined),
                   title: Text(
-                    _isPeopleProject(project) ? 'Journal entry' : 'Diary entry',
+                    projectRules.isPeopleContainer
+                        ? 'Journal entry'
+                        : 'Diary entry',
                   ),
                   onTap: () =>
                       Navigator.of(context).pop(_ProjectEntryKind.journal),
@@ -2101,20 +2053,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       if (project == null) {
         return;
       }
+      final ProjectRules projectRules = _projectRulesFor(project);
 
       final AddJournalEntryResult? createdEntry =
           await showModalBottomSheet<AddJournalEntryResult>(
         context: context,
         isScrollControlled: true,
         builder: (_) => AddJournalEntrySheet(
-          title: _isPeopleProject(project)
+          title: projectRules.isPeopleContainer
               ? 'New Interaction Entry'
               : 'New Diary Entry',
-          hintText: _isPeopleProject(project)
+          hintText: projectRules.isPeopleContainer
               ? 'Capture the interaction, context, and anything to follow up.'
               : 'Write what happened, what you noticed, or what you want to keep.',
           saveLabel:
-              _isPeopleProject(project) ? 'Save Interaction' : 'Save Entry',
+              projectRules.isPeopleContainer ? 'Save Interaction' : 'Save Entry',
         ),
       );
 
@@ -2187,7 +2140,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Future<void> _addPerson() async {
     final ProjectItem? project = _findProject();
-    if (project == null || !_isPeopleProject(project) || project.isArchived) {
+    if (project == null ||
+        !_projectRulesFor(project).isPeopleContainer ||
+        project.isArchived) {
       return;
     }
 
@@ -3082,10 +3037,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final bool showsPlanningSection = _showsPlanningSection(project);
     final bool canCreateEntries = _canCreateEntries(project);
     final ProjectTypeConfig projectType = _projectTypeFor(project);
+    final ProjectRules projectRules = _projectRulesFor(project);
     final bool isLlmProject = projectType.id == ProjectTypeDefaults.llmId;
     final bool isKnowledgeProject =
         projectType.id == ProjectTypeDefaults.knowledgeId;
-    final bool isPeopleProject = projectType.id == ProjectTypeDefaults.peopleId;
+    final bool isPeopleProject = projectRules.isPeopleContainer;
     final IconData? projectIconData =
         iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
 
@@ -3232,7 +3188,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   ? null
                   : FloatingActionButton(
                       onPressed: _addTaskToProject,
-                      tooltip: projectType.showsOnlyJournalEntries
+                      tooltip: projectRules.defaultsToJournalEntry
                           ? 'Add journal entry'
                           : isKnowledgeProject
                               ? 'Add knowledge note'

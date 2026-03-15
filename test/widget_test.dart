@@ -258,10 +258,9 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('21'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON File'), findsNothing);
-    expect(find.text('Save or Share JSON File (Android)'), findsOneWidget);
+    expect(find.text('Share JSON File (Android)'), findsOneWidget);
   });
 
   testWidgets('pinned projects appear at the top of Incoming',
@@ -442,6 +441,8 @@ void main() {
       100,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.ensureVisible(coralTile);
+    await tester.pumpAndSettle();
     await tester.tap(coralTile);
     await tester.pumpAndSettle();
 
@@ -1049,7 +1050,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('21'), findsWidgets);
+    expect(find.textContaining('22'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -1097,7 +1098,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('21'), findsWidgets);
+    expect(find.textContaining('22'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

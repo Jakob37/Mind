@@ -625,11 +625,32 @@ class ProjectTypeDefaults {
   static const String peopleId = 'project-type-people';
 }
 
+enum ProjectLayoutKind {
+  standard,
+  journalOnly,
+  peopleContainer;
+
+  static ProjectLayoutKind fromJsonValue(Object? rawValue) {
+    if (rawValue is! String) {
+      return ProjectLayoutKind.standard;
+    }
+
+    return switch (rawValue.trim().toLowerCase()) {
+      'journalonly' || 'journal_only' || 'journal-only' =>
+        ProjectLayoutKind.journalOnly,
+      'peoplecontainer' || 'people_container' || 'people-container' =>
+        ProjectLayoutKind.peopleContainer,
+      _ => ProjectLayoutKind.standard,
+    };
+  }
+}
+
 class ProjectTypeConfig {
   const ProjectTypeConfig({
     required this.id,
     required this.name,
     this.iconKey,
+    this.layoutKind = ProjectLayoutKind.standard,
     required this.showsJournalEntries,
     required this.showsPlanningTasks,
     required this.showsIdeas,
@@ -638,6 +659,7 @@ class ProjectTypeConfig {
   final String id;
   final String name;
   final String? iconKey;
+  final ProjectLayoutKind layoutKind;
   final bool showsJournalEntries;
   final bool showsPlanningTasks;
   final bool showsIdeas;
@@ -647,6 +669,7 @@ class ProjectTypeConfig {
       id: id,
       name: name,
       iconKey: iconKey,
+      layoutKind: layoutKind,
       showsJournalEntries: showsJournalEntries,
       showsPlanningTasks: showsPlanningTasks,
       showsIdeas: showsIdeas,
@@ -658,6 +681,7 @@ class ProjectTypeConfig {
     String? name,
     String? iconKey,
     bool clearIcon = false,
+    ProjectLayoutKind? layoutKind,
     bool? showsJournalEntries,
     bool? showsPlanningTasks,
     bool? showsIdeas,
@@ -666,6 +690,7 @@ class ProjectTypeConfig {
       id: id ?? this.id,
       name: name ?? this.name,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      layoutKind: layoutKind ?? this.layoutKind,
       showsJournalEntries: showsJournalEntries ?? this.showsJournalEntries,
       showsPlanningTasks: showsPlanningTasks ?? this.showsPlanningTasks,
       showsIdeas: showsIdeas ?? this.showsIdeas,
@@ -683,6 +708,7 @@ class ProjectTypeConfig {
       'id': id,
       'name': name,
       'icon': iconKey,
+      'layoutKind': layoutKind.name,
       'showsJournalEntries': showsJournalEntries,
       'showsPlanningTasks': showsPlanningTasks,
       'showsIdeas': showsIdeas,
@@ -698,10 +724,21 @@ class ProjectTypeConfig {
       id: id,
       name: name,
       iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
+      layoutKind: json.containsKey('layoutKind')
+          ? ProjectLayoutKind.fromJsonValue(json['layoutKind'])
+          : defaultLayoutKindForId(id),
       showsJournalEntries: _readOptionalBool(json, 'showsJournalEntries'),
       showsPlanningTasks: _readOptionalBool(json, 'showsPlanningTasks'),
       showsIdeas: _readOptionalBool(json, 'showsIdeas'),
     );
+  }
+
+  static ProjectLayoutKind defaultLayoutKindForId(String? id) {
+    return switch (id) {
+      ProjectTypeDefaults.diaryId => ProjectLayoutKind.journalOnly,
+      ProjectTypeDefaults.peopleId => ProjectLayoutKind.peopleContainer,
+      _ => ProjectLayoutKind.standard,
+    };
   }
 
   static List<ProjectTypeConfig> defaults() {
@@ -709,6 +746,7 @@ class ProjectTypeConfig {
       ProjectTypeConfig(
         id: ProjectTypeDefaults.blankId,
         name: 'Blank',
+        layoutKind: ProjectLayoutKind.standard,
         showsJournalEntries: false,
         showsPlanningTasks: false,
         showsIdeas: false,
@@ -717,6 +755,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.projectId,
         name: 'Project',
         iconKey: 'folder-open',
+        layoutKind: ProjectLayoutKind.standard,
         showsJournalEntries: false,
         showsPlanningTasks: true,
         showsIdeas: true,
@@ -725,6 +764,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.ideasId,
         name: 'Ideas',
         iconKey: 'lightbulb',
+        layoutKind: ProjectLayoutKind.standard,
         showsJournalEntries: false,
         showsPlanningTasks: false,
         showsIdeas: true,
@@ -733,6 +773,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.knowledgeId,
         name: 'Knowledge',
         iconKey: 'book-open',
+        layoutKind: ProjectLayoutKind.standard,
         showsJournalEntries: false,
         showsPlanningTasks: false,
         showsIdeas: true,
@@ -741,6 +782,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.llmId,
         name: 'LLM Project',
         iconKey: 'brain',
+        layoutKind: ProjectLayoutKind.standard,
         showsJournalEntries: false,
         showsPlanningTasks: true,
         showsIdeas: true,
@@ -749,6 +791,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.diaryId,
         name: 'Diary',
         iconKey: 'book-open',
+        layoutKind: ProjectLayoutKind.journalOnly,
         showsJournalEntries: true,
         showsPlanningTasks: false,
         showsIdeas: false,
@@ -757,11 +800,119 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.peopleId,
         name: 'People',
         iconKey: 'heart',
+        layoutKind: ProjectLayoutKind.peopleContainer,
         showsJournalEntries: true,
         showsPlanningTasks: false,
         showsIdeas: true,
       ),
     ];
+  }
+}
+
+class ProjectRules {
+  const ProjectRules({
+    required this.projectType,
+  });
+
+  final ProjectTypeConfig projectType;
+
+  static ProjectTypeConfig resolveProjectType(
+    String? projectTypeId,
+    List<ProjectTypeConfig> projectTypes,
+  ) {
+    final String targetId = (projectTypeId == null || projectTypeId.isEmpty)
+        ? ProjectTypeDefaults.blankId
+        : projectTypeId;
+    for (final ProjectTypeConfig type in projectTypes) {
+      if (type.id == targetId) {
+        return type;
+      }
+    }
+    return ProjectTypeConfig.defaults().first;
+  }
+
+  factory ProjectRules.forProject({
+    required ProjectItem project,
+    required List<ProjectTypeConfig> projectTypes,
+  }) {
+    return ProjectRules(
+      projectType: resolveProjectType(project.projectTypeId, projectTypes),
+    );
+  }
+
+  factory ProjectRules.forProjectTypeId({
+    required String? projectTypeId,
+    required List<ProjectTypeConfig> projectTypes,
+  }) {
+    return ProjectRules(
+      projectType: resolveProjectType(projectTypeId, projectTypes),
+    );
+  }
+
+  bool get isPeopleContainer =>
+      projectType.layoutKind == ProjectLayoutKind.peopleContainer;
+
+  bool get isJournalOnly =>
+      projectType.layoutKind == ProjectLayoutKind.journalOnly;
+
+  bool get acceptsRootTasks =>
+      !isPeopleContainer && projectType.supportsAnyEntries;
+
+  bool get canMoveBetweenTaskSections =>
+      !isPeopleContainer &&
+      projectType.showsIdeas &&
+      projectType.showsPlanningTasks;
+
+  bool get defaultsToJournalEntry => projectType.showsOnlyJournalEntries;
+
+  bool get defaultsToThinkingEntry =>
+      projectType.showsIdeas &&
+      !projectType.showsPlanningTasks &&
+      !projectType.showsJournalEntries;
+
+  bool get defaultsToPlanningEntry =>
+      !projectType.showsIdeas &&
+      projectType.showsPlanningTasks &&
+      !projectType.showsJournalEntries;
+
+  TaskItem normalizeTask(TaskItem task) {
+    TaskItem adjustedTask = task;
+
+    if (adjustedTask.entryType == TaskEntryType.journal &&
+        !projectType.showsJournalEntries) {
+      adjustedTask = adjustedTask.copyWith(entryType: TaskEntryType.note);
+    }
+
+    if (projectType.showsOnlyJournalEntries &&
+        adjustedTask.entryType != TaskEntryType.journal) {
+      return adjustedTask.copyWith(
+        entryType: TaskEntryType.journal,
+        type: TaskItemType.thinking,
+        createdAtMicros: adjustedTask.createdAtMicros ??
+            DateTime.now().microsecondsSinceEpoch,
+      );
+    }
+
+    if (adjustedTask.entryType == TaskEntryType.session) {
+      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
+    }
+
+    if (adjustedTask.entryType == TaskEntryType.journal &&
+        adjustedTask.type != TaskItemType.thinking) {
+      adjustedTask = adjustedTask.copyWith(type: TaskItemType.thinking);
+    }
+
+    if (projectType.showsIdeas && !projectType.showsPlanningTasks) {
+      return adjustedTask.type == TaskItemType.thinking
+          ? adjustedTask
+          : adjustedTask.copyWith(type: TaskItemType.thinking);
+    }
+    if (!projectType.showsIdeas && projectType.showsPlanningTasks) {
+      return adjustedTask.type == TaskItemType.planning
+          ? adjustedTask
+          : adjustedTask.copyWith(type: TaskItemType.planning);
+    }
+    return adjustedTask;
   }
 }
 

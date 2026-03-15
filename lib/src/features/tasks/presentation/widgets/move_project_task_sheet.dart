@@ -16,20 +16,17 @@ class MoveProjectTaskSheet extends StatelessWidget {
   final String currentProjectId;
 
   ProjectTypeConfig _projectTypeFor(ProjectItem project) {
-    final String targetId =
-        project.projectTypeId ?? ProjectTypeDefaults.blankId;
-    for (final ProjectTypeConfig type in projectTypes) {
-      if (type.id == targetId) {
-        return type;
-      }
-    }
-    return ProjectTypeConfig.defaults().first;
+    return ProjectRules.resolveProjectType(
+      project.projectTypeId,
+      projectTypes,
+    );
   }
 
   bool _acceptsRootTasks(ProjectItem project) {
-    final ProjectTypeConfig projectType = _projectTypeFor(project);
-    return projectType.id != ProjectTypeDefaults.peopleId &&
-        projectType.supportsAnyEntries;
+    return ProjectRules.forProject(
+      project: project,
+      projectTypes: projectTypes,
+    ).acceptsRootTasks;
   }
 
   @override
