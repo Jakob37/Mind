@@ -7,6 +7,8 @@ class ModelIds {
 
   static String newProjectId() => _newId('project');
 
+  static String newPersonId() => _newId('person');
+
   static String newProjectStackId() => _newId('stack');
 
   static String newProjectTypeId() => _newId('project-type');
@@ -322,10 +324,12 @@ class ProjectItem {
     this.stackId,
     this.projectTypeId,
     List<TaskItem>? tasks,
+    List<PersonItem>? people,
   })  : id = id ?? ModelIds.newProjectId(),
         body = body ?? '',
         prompt = prompt ?? '',
-        tasks = tasks ?? <TaskItem>[];
+        tasks = tasks ?? <TaskItem>[],
+        people = people ?? <PersonItem>[];
 
   final String id;
   final String name;
@@ -338,6 +342,7 @@ class ProjectItem {
   final String? stackId;
   final String? projectTypeId;
   final List<TaskItem> tasks;
+  final List<PersonItem> people;
 
   ProjectItem clone() {
     return ProjectItem(
@@ -352,6 +357,7 @@ class ProjectItem {
       stackId: stackId,
       projectTypeId: projectTypeId,
       tasks: tasks.map((TaskItem item) => item.clone()).toList(),
+      people: people.map((PersonItem person) => person.clone()).toList(),
     );
   }
 
@@ -371,6 +377,7 @@ class ProjectItem {
     String? projectTypeId,
     bool clearProjectType = false,
     List<TaskItem>? tasks,
+    List<PersonItem>? people,
   }) {
     return ProjectItem(
       id: id ?? this.id,
@@ -385,6 +392,8 @@ class ProjectItem {
       projectTypeId:
           clearProjectType ? null : (projectTypeId ?? this.projectTypeId),
       tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
+      people:
+          people ?? this.people.map((PersonItem person) => person.clone()).toList(),
     );
   }
 
@@ -401,6 +410,7 @@ class ProjectItem {
       'stackId': stackId,
       'projectTypeId': projectTypeId,
       'tasks': tasks.map((TaskItem item) => item.toJson()).toList(),
+      'people': people.map((PersonItem person) => person.toJson()).toList(),
     };
   }
 
@@ -417,6 +427,7 @@ class ProjectItem {
     final String? projectTypeId =
         _readOptionalTrimmedString(json, 'projectTypeId');
     final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
+    final List<dynamic> personJson = _readOptionalList(json, 'people');
 
     return ProjectItem(
       id: id == null || id.isEmpty ? null : id,
@@ -436,6 +447,113 @@ class ProjectItem {
               _mapFromDynamic(
                 item: item,
                 fieldPath: 'projects.tasks[]',
+              ),
+            ),
+          )
+          .toList(),
+      people: personJson
+          .map(
+            (dynamic item) => PersonItem.fromJson(
+              _mapFromDynamic(
+                item: item,
+                fieldPath: 'projects.people[]',
+              ),
+            ),
+          )
+          .toList(),
+    );
+  }
+}
+
+class PersonItem {
+  PersonItem({
+    String? id,
+    required this.name,
+    String? body,
+    this.colorValue,
+    this.iconKey,
+    this.isArchived = false,
+    List<TaskItem>? tasks,
+  })  : id = id ?? ModelIds.newPersonId(),
+        body = body ?? '',
+        tasks = tasks ?? <TaskItem>[];
+
+  final String id;
+  final String name;
+  final String body;
+  final int? colorValue;
+  final String? iconKey;
+  final bool isArchived;
+  final List<TaskItem> tasks;
+
+  PersonItem clone() {
+    return PersonItem(
+      id: id,
+      name: name,
+      body: body,
+      colorValue: colorValue,
+      iconKey: iconKey,
+      isArchived: isArchived,
+      tasks: tasks.map((TaskItem item) => item.clone()).toList(),
+    );
+  }
+
+  PersonItem copyWith({
+    String? id,
+    String? name,
+    String? body,
+    int? colorValue,
+    bool clearColor = false,
+    String? iconKey,
+    bool clearIcon = false,
+    bool? isArchived,
+    List<TaskItem>? tasks,
+  }) {
+    return PersonItem(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      body: body ?? this.body,
+      colorValue: clearColor ? null : (colorValue ?? this.colorValue),
+      iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
+      isArchived: isArchived ?? this.isArchived,
+      tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return <String, dynamic>{
+      'id': id,
+      'name': name,
+      'body': body,
+      'color': colorValue,
+      'icon': iconKey,
+      'archived': isArchived,
+      'tasks': tasks.map((TaskItem item) => item.toJson()).toList(),
+    };
+  }
+
+  factory PersonItem.fromJson(Map<String, dynamic> json) {
+    final String name = _readRequiredString(json, 'name');
+    final String? id = _readOptionalTrimmedString(json, 'id');
+    final String? body = _readOptionalTrimmedString(json, 'body');
+    final int? colorValue = _readOptionalInt(json, 'color');
+    final String? iconKey = _readOptionalTrimmedString(json, 'icon');
+    final bool isArchived = _readOptionalBool(json, 'archived');
+    final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
+
+    return PersonItem(
+      id: id == null || id.isEmpty ? null : id,
+      name: name,
+      body: body ?? '',
+      colorValue: colorValue,
+      iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
+      isArchived: isArchived,
+      tasks: taskJson
+          .map(
+            (dynamic item) => TaskItem.fromJson(
+              _mapFromDynamic(
+                item: item,
+                fieldPath: 'projects.people.tasks[]',
               ),
             ),
           )

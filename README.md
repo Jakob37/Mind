@@ -23,7 +23,7 @@ A Flutter task board app focused on quickly moving ideas into projects.
 - Specialized project types:
   - `Knowledge` projects support sessions and quick capture
   - `Diary` projects support timestamped journal entries
-  - `People` projects combine interaction journals with ideas
+  - `People` projects contain person records, each with interaction journals and ideas
 - Reorder mode (long press + drag handles) for incoming tasks, projects, and project tasks.
 - Swipe-left delete for tasks/projects with confirmation dialog.
 - Settings screen:
@@ -36,10 +36,10 @@ A Flutter task board app focused on quickly moving ideas into projects.
 ## Persistence and data schema
 
 - Local persistence uses `shared_preferences`.
-- Current schema version is `20`.
+- Current schema version is `21`.
 - Migration pipeline supports legacy payloads:
   - unversioned legacy key: `task_board_state_v1`
-  - versioned payloads: v1 -> v20
+  - versioned payloads: v1 -> v21
 - If persisted data is corrupted, autosave is paused to avoid overwriting potentially recoverable data.
 
 ## Project structure

@@ -166,7 +166,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 20);
+    expect(decoded['version'], 21);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -210,8 +210,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 20,'), isTrue);
-    expect(decoded['version'], 20);
+    expect(exported.contains('\n  "version": 21,'), isTrue);
+    expect(decoded['version'], 21);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -418,6 +418,50 @@ void main() {
       (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.peopleId,
     );
     expect(peopleType.showsJournalEntries, isTrue);
+  });
+
+  test('load migrates v20 people projects and discards legacy root entries',
+      () async {
+    SharedPreferences.setMockInitialValues(<String, Object>{
+      'task_board_state': jsonEncode(<String, dynamic>{
+        'version': 20,
+        'data': <String, dynamic>{
+          'incomingTasks': <Map<String, dynamic>>[],
+          'projects': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'project-1',
+              'name': 'People project',
+              'projectTypeId': ProjectTypeDefaults.peopleId,
+              'prompt': '',
+              'archived': false,
+              'tasks': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 'task-1',
+                  'title': 'Legacy interaction',
+                  'type': 'thinking',
+                  'entryType': 'journal',
+                },
+              ],
+            },
+          ],
+          'projectStacks': <Map<String, dynamic>>[],
+          'projectTypes': ProjectTypeConfig.defaults()
+              .map((ProjectTypeConfig type) => type.toJson())
+              .toList(),
+          'colorLabels': <String, String>{},
+          'hideCompletedProjectItems': false,
+          'cardLayoutPreset': 'standard',
+        },
+      }),
+    });
+
+    final TaskLoadResult result = await storage.load();
+
+    expect(result.isSuccess, isTrue);
+    final TaskBoardState state = result.state!;
+    expect(state.projects.single.projectTypeId, ProjectTypeDefaults.peopleId);
+    expect(state.projects.single.tasks, isEmpty);
+    expect(state.projects.single.people, isEmpty);
   });
 
   test('load migrates v11 payload and adds archived flags', () async {
