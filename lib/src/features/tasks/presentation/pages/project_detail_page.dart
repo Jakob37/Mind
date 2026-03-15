@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../domain/task_models.dart';
 import '../widgets/add_journal_entry_sheet.dart';
+import '../widgets/add_person_sheet.dart';
 import '../widgets/add_session_sheet.dart';
 import '../widgets/add_task_sheet.dart';
 import '../widgets/card_layout.dart';
@@ -15,6 +16,7 @@ import '../widgets/move_project_task_sheet.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/select_project_stack_sheet.dart';
 import '../widgets/select_project_type_sheet.dart';
+import 'person_detail_page.dart';
 import 'task_detail_page.dart';
 
 class _TaskSectionDragPayload {
@@ -326,7 +328,39 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   bool _canCreateEntries(ProjectItem project) {
-    return _projectTypeFor(project).supportsAnyEntries;
+    return _projectAcceptsRootTasks(project);
+  }
+
+  bool _projectAcceptsRootTasks(ProjectItem project) {
+    return !_isPeopleProject(project) && _projectTypeFor(project).supportsAnyEntries;
+  }
+
+  List<PersonItem> _visiblePeople(ProjectItem project) {
+    return project.people
+        .where((PersonItem person) => !person.isArchived)
+        .toList(growable: false);
+  }
+
+  int _visiblePersonTaskCount(PersonItem person) {
+    return person.tasks.where((TaskItem task) => !task.isArchived).length;
+  }
+
+  int _personJournalCount(PersonItem person) {
+    return person.tasks
+        .where(
+          (TaskItem task) =>
+              !task.isArchived && task.entryType == TaskEntryType.journal,
+        )
+        .length;
+  }
+
+  int _personIdeaCount(PersonItem person) {
+    return person.tasks
+        .where(
+          (TaskItem task) =>
+              !task.isArchived && task.entryType != TaskEntryType.journal,
+        )
+        .length;
   }
 
   TaskItem _taskAdjustedForProjectType(
@@ -1945,7 +1979,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       for (final ProjectItem project in _projects)
         if (project.id != widget.projectId &&
             !project.isArchived &&
-            _projectTypeFor(project).supportsAnyEntries)
+            _projectAcceptsRootTasks(project))
           project,
     ];
 
@@ -2149,6 +2183,144 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       );
     });
     _notifyProjectDataChanged();
+  }
+
+  Future<void> _addPerson() async {
+    final ProjectItem? project = _findProject();
+    if (project == null || !_isPeopleProject(project) || project.isArchived) {
+      return;
+    }
+
+    final AddPersonResult? result = await showModalBottomSheet<AddPersonResult>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AddPersonSheet(),
+    );
+
+    if (result == null) {
+      return;
+    }
+
+    setState(() {
+      project.people.add(
+        PersonItem(
+          name: result.name,
+          body: result.body,
+        ),
+      );
+    });
+    _notifyProjectDataChanged();
+  }
+
+  Future<void> _openPersonDetail(String personId) async {
+    final int projectIndex = _projects.indexWhere(
+      (ProjectItem project) => project.id == widget.projectId,
+    );
+    if (projectIndex < 0) {
+      return;
+    }
+
+    final ProjectItem project = _projects[projectIndex];
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => PersonDetailPage(
+          personId: personId,
+          initialPeople: project.people,
+          colorLabels: widget.colorLabels,
+          hideCompletedProjectItems: widget.hideCompletedProjectItems,
+          cardLayoutPreset: widget.cardLayoutPreset,
+          onPeopleChanged: (List<PersonItem> updatedPeople) {
+            setState(() {
+              _projects[projectIndex] = project.copyWith(people: updatedPeople);
+            });
+            _notifyProjectDataChanged();
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPeopleProjectBody(ProjectItem project) {
+    final List<PersonItem> people = _visiblePeople(project);
+
+    return ListView(
+      padding: EdgeInsets.fromLTRB(
+        12,
+        12,
+        12,
+        104 + MediaQuery.paddingOf(context).bottom,
+      ),
+      children: <Widget>[
+        if (project.isArchived)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              'This project is archived. Restore it to bring it back into the main project list.',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+          ),
+        if (project.body.isNotEmpty)
+          Card(
+            margin: const EdgeInsets.only(bottom: 12),
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                project.body,
+                style: Theme.of(context).textTheme.bodyLarge,
+              ),
+            ),
+          ),
+        Text(
+          'People',
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        const SizedBox(height: 8),
+        if (people.isEmpty)
+          Text(
+            'No people in this project yet.',
+            style: Theme.of(context).textTheme.bodyMedium,
+          ),
+        for (final PersonItem person in people)
+          Padding(
+            padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+            child: Card(
+              color: person.colorValue == null ? null : Color(person.colorValue!),
+              child: ListTile(
+                contentPadding: _layout.contentPadding,
+                leading: Icon(
+                  iconDataForKey(person.iconKey) ?? Icons.person_outline,
+                ),
+                title: Text(
+                  person.name,
+                  maxLines: null,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontSize: (Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.fontSize ??
+                                16) *
+                            _layout.titleScale,
+                      ),
+                ),
+                subtitle: Text(
+                  <String>[
+                    if (person.body.trim().isNotEmpty) person.body.trim(),
+                    '${_personJournalCount(person)} interaction'
+                        '${_personJournalCount(person) == 1 ? '' : 's'}',
+                    '${_personIdeaCount(person)} idea'
+                        '${_personIdeaCount(person) == 1 ? '' : 's'}',
+                    '${_visiblePersonTaskCount(person)} total entr'
+                        '${_visiblePersonTaskCount(person) == 1 ? 'y' : 'ies'}',
+                  ].join('\n'),
+                ),
+                isThreeLine: true,
+                trailing: const Icon(Icons.chevron_right_outlined),
+                onTap: () => _openPersonDetail(person.id),
+              ),
+            ),
+          ),
+      ],
+    );
   }
 
   Widget _buildTaskCard({
@@ -2954,112 +3126,119 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           ),
         ],
       ),
-      body: ListView(
-        padding: EdgeInsets.fromLTRB(
-          12,
-          12,
-          12,
-          104 + MediaQuery.paddingOf(context).bottom,
-        ),
-        children: <Widget>[
-          if (project.isArchived)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                'This project is archived. Restore it to bring it back into the main project list.',
-                style: Theme.of(context).textTheme.bodyMedium,
+      body: isPeopleProject
+          ? _buildPeopleProjectBody(project)
+          : ListView(
+              padding: EdgeInsets.fromLTRB(
+                12,
+                12,
+                12,
+                104 + MediaQuery.paddingOf(context).bottom,
               ),
-            ),
-          if (project.body.isNotEmpty ||
-              (isLlmProject && project.prompt.isNotEmpty))
-            Card(
-              margin: const EdgeInsets.only(bottom: 12),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    if (project.body.isNotEmpty) ...<Widget>[
-                      Text(
-                        project.body,
-                        style: Theme.of(context).textTheme.bodyLarge,
+              children: <Widget>[
+                if (project.isArchived)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 12),
+                    child: Text(
+                      'This project is archived. Restore it to bring it back into the main project list.',
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                if (project.body.isNotEmpty ||
+                    (isLlmProject && project.prompt.isNotEmpty))
+                  Card(
+                    margin: const EdgeInsets.only(bottom: 12),
+                    child: Padding(
+                      padding: const EdgeInsets.all(16),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          if (project.body.isNotEmpty) ...<Widget>[
+                            Text(
+                              project.body,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                            ),
+                          ],
+                          if (project.body.isNotEmpty &&
+                              isLlmProject &&
+                              project.prompt.isNotEmpty)
+                            const SizedBox(height: 16),
+                          if (isLlmProject && project.prompt.isNotEmpty)
+                            ...<Widget>[
+                              Text(
+                                'Prompt',
+                                style: Theme.of(context).textTheme.titleSmall,
+                              ),
+                              const SizedBox(height: 8),
+                              SelectableText(
+                                project.prompt,
+                                style: Theme.of(context).textTheme.bodyMedium,
+                              ),
+                            ],
+                        ],
                       ),
-                    ],
-                    if (project.body.isNotEmpty &&
-                        isLlmProject &&
-                        project.prompt.isNotEmpty)
-                      const SizedBox(height: 16),
-                    if (isLlmProject && project.prompt.isNotEmpty) ...<Widget>[
-                      Text(
-                        'Prompt',
-                        style: Theme.of(context).textTheme.titleSmall,
-                      ),
-                      const SizedBox(height: 8),
-                      SelectableText(
-                        project.prompt,
-                        style: Theme.of(context).textTheme.bodyMedium,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                    ),
+                  ),
+                if (showsJournalSection)
+                  _buildJournalSection(
+                    title: 'Diary',
+                    emptyLabel: 'No diary entries yet.',
+                    entries: journalEntries,
+                  ),
+                if (showsJournalSection &&
+                    (showsIdeasSection || showsPlanningSection))
+                  const SizedBox(height: 8),
+                if (showsIdeasSection)
+                  _buildTaskSection(
+                    title:
+                        isKnowledgeProject ? 'Knowledge notes' : 'Thinking (ideas)',
+                    emptyLabel: isKnowledgeProject
+                        ? 'No knowledge captured yet.'
+                        : 'No ideas in this project yet.',
+                    tasks: thinkingTasks,
+                    sectionType: TaskItemType.thinking,
+                    showNestedPreview: true,
+                  ),
+                if (showsIdeasSection && showsPlanningSection)
+                  const SizedBox(height: 8),
+                if (showsPlanningSection)
+                  _buildTaskSection(
+                    title: 'Planning (action items)',
+                    emptyLabel: 'No action items in this project yet.',
+                    tasks: planningTasks,
+                    sectionType: TaskItemType.planning,
+                    showNestedPreview: true,
+                  ),
+                if (!showsJournalSection &&
+                    !showsIdeasSection &&
+                    !showsPlanningSection)
+                  Text(
+                    'This project type is blank. Enable journal, ideas, or tasks in project type settings to add sections.',
+                    style: Theme.of(context).textTheme.bodyMedium,
+                  ),
+                if (archivedTasks.isNotEmpty)
+                  _buildArchivedTaskSection(archivedTasks),
+              ],
             ),
-          if (showsJournalSection)
-            _buildJournalSection(
-              title: isPeopleProject ? 'Interactions' : 'Diary',
-              emptyLabel: isPeopleProject
-                  ? 'No interactions captured yet.'
-                  : 'No diary entries yet.',
-              entries: journalEntries,
-            ),
-          if (showsJournalSection &&
-              (showsIdeasSection || showsPlanningSection))
-            const SizedBox(height: 8),
-          if (showsIdeasSection)
-            _buildTaskSection(
-              title:
-                  isKnowledgeProject ? 'Knowledge notes' : 'Thinking (ideas)',
-              emptyLabel: isKnowledgeProject
-                  ? 'No knowledge captured yet.'
-                  : 'No ideas in this project yet.',
-              tasks: thinkingTasks,
-              sectionType: TaskItemType.thinking,
-              showNestedPreview: true,
-            ),
-          if (showsIdeasSection && showsPlanningSection)
-            const SizedBox(height: 8),
-          if (showsPlanningSection)
-            _buildTaskSection(
-              title: 'Planning (action items)',
-              emptyLabel: 'No action items in this project yet.',
-              tasks: planningTasks,
-              sectionType: TaskItemType.planning,
-              showNestedPreview: true,
-            ),
-          if (!showsJournalSection &&
-              !showsIdeasSection &&
-              !showsPlanningSection)
-            Text(
-              'This project type is blank. Enable journal, ideas, or tasks in project type settings to add sections.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          if (archivedTasks.isNotEmpty)
-            _buildArchivedTaskSection(archivedTasks),
-        ],
-      ),
-      floatingActionButton: !canCreateEntries || project.isArchived
+      floatingActionButton: project.isArchived
           ? null
-          : FloatingActionButton(
-              onPressed: _addTaskToProject,
-              tooltip: projectType.showsOnlyJournalEntries
-                  ? 'Add journal entry'
-                  : isPeopleProject
-                      ? 'Add interaction or idea'
-                      : isKnowledgeProject
-                          ? 'Add knowledge note'
-                          : 'Add project task',
-              child: const Icon(Icons.add),
-            ),
+          : isPeopleProject
+              ? FloatingActionButton(
+                  onPressed: _addPerson,
+                  tooltip: 'Add person',
+                  child: const Icon(Icons.add),
+                )
+              : !canCreateEntries
+                  ? null
+                  : FloatingActionButton(
+                      onPressed: _addTaskToProject,
+                      tooltip: projectType.showsOnlyJournalEntries
+                          ? 'Add journal entry'
+                          : isKnowledgeProject
+                              ? 'Add knowledge note'
+                              : 'Add project task',
+                      child: const Icon(Icons.add),
+                    ),
     );
   }
 }

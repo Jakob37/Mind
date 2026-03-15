@@ -258,7 +258,7 @@ void main() {
 
     expect(find.text('JSON Export'), findsOneWidget);
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('20'), findsWidgets);
+    expect(find.textContaining('21'), findsWidgets);
     expect(find.textContaining('"incomingTasks"'), findsOneWidget);
     expect(find.text('Save JSON File'), findsNothing);
     expect(find.text('Save or Share JSON File (Android)'), findsOneWidget);
@@ -926,7 +926,7 @@ void main() {
     expect(find.textContaining('at '), findsWidgets);
   });
 
-  testWidgets('people projects combine interactions and ideas',
+  testWidgets('people projects contain people with interactions and ideas',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
 
@@ -934,18 +934,41 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
-    await tester.enterText(find.byType(TextField), 'Alice');
+    await tester.enterText(find.byType(TextField), 'Contacts');
     await tester.tap(find.text('Type: Blank'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
-      find.text('People'),
+      find.widgetWithText(ListTile, 'People'),
       200,
       scrollable: find.byType(Scrollable).last,
     );
-    await tester.tap(find.text('People'));
+    await tester.drag(find.byType(Scrollable).last, const Offset(0, -120));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'People'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
     await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Contacts'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No people in this project yet.'), findsOneWidget);
+    expect(find.byTooltip('Add person'), findsOneWidget);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(find.text('New Person'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'Alice');
+    await tester.enterText(
+      find.byType(TextField).at(1),
+      'Friend from climbing group',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Person'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ListTile, 'Alice'), findsOneWidget);
+    expect(find.textContaining('0 interactions'), findsOneWidget);
+    expect(find.textContaining('0 ideas'), findsOneWidget);
 
     await tester.tap(find.widgetWithText(ListTile, 'Alice'));
     await tester.pumpAndSettle();
@@ -982,6 +1005,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Invite Alice to hiking day'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ListTile, 'Alice'), findsOneWidget);
+    expect(find.textContaining('1 interaction'), findsOneWidget);
+    expect(find.textContaining('1 idea'), findsOneWidget);
   });
 
   testWidgets('migrates versioned v2 payload and adds stable IDs',
@@ -1019,7 +1049,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('20'), findsWidgets);
+    expect(find.textContaining('21'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -1067,7 +1097,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('20'), findsWidgets);
+    expect(find.textContaining('21'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });

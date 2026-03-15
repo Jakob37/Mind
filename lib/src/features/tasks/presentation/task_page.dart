@@ -448,6 +448,21 @@ class _TaskPageState extends State<TaskPage>
         ProjectTypeDefaults.llmId;
   }
 
+  bool _projectAcceptsRootTasks(
+    ProjectItem project, {
+    List<ProjectTypeConfig>? projectTypes,
+  }) {
+    return _projectTypeForProject(
+              project,
+              projectTypes: projectTypes,
+            ).id !=
+            ProjectTypeDefaults.peopleId &&
+        _projectTypeForProject(
+          project,
+          projectTypes: projectTypes,
+        ).supportsAnyEntries;
+  }
+
   List<ProjectItem> _taskCompatibleProjects({
     required String currentProjectId,
   }) {
@@ -455,7 +470,7 @@ class _TaskPageState extends State<TaskPage>
       for (final ProjectItem project in _projects)
         if (project.id != currentProjectId &&
             !project.isArchived &&
-            _projectTypeForProject(project).supportsAnyEntries)
+            _projectAcceptsRootTasks(project))
           project
     ];
   }
@@ -1778,6 +1793,11 @@ class _TaskPageState extends State<TaskPage>
   }
 
   int _visibleProjectTaskCount(ProjectItem project) {
+    if (_projectTypeForProject(project).id == ProjectTypeDefaults.peopleId) {
+      return project.people
+          .where((PersonItem person) => !person.isArchived)
+          .length;
+    }
     return project.tasks.where((TaskItem task) => !task.isArchived).length;
   }
 
@@ -1811,6 +1831,9 @@ class _TaskPageState extends State<TaskPage>
           Builder(
             builder: (BuildContext context) {
               final int visibleTaskCount = _visibleProjectTaskCount(project);
+              final bool isPeopleProject =
+                  _projectTypeForProject(project).id ==
+                      ProjectTypeDefaults.peopleId;
               return Card(
                 color: project.colorValue == null
                     ? null
@@ -1831,8 +1854,11 @@ class _TaskPageState extends State<TaskPage>
                           case final String stackName)
                         'Stack: $stackName',
                       if (project.body.isNotEmpty) project.body,
-                      '$visibleTaskCount active task'
-                          '${visibleTaskCount == 1 ? '' : 's'}',
+                      isPeopleProject
+                          ? '$visibleTaskCount active '
+                              'person${visibleTaskCount == 1 ? '' : 's'}'
+                          : '$visibleTaskCount active task'
+                              '${visibleTaskCount == 1 ? '' : 's'}',
                     ].join('\n'),
                   ),
                   isThreeLine: project.body.isNotEmpty ||

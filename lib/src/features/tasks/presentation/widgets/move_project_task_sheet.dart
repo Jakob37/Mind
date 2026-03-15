@@ -26,12 +26,17 @@ class MoveProjectTaskSheet extends StatelessWidget {
     return ProjectTypeConfig.defaults().first;
   }
 
+  bool _acceptsRootTasks(ProjectItem project) {
+    final ProjectTypeConfig projectType = _projectTypeFor(project);
+    return projectType.id != ProjectTypeDefaults.peopleId &&
+        projectType.supportsAnyEntries;
+  }
+
   @override
   Widget build(BuildContext context) {
     final List<ProjectItem> targetProjects = <ProjectItem>[
       for (final ProjectItem project in projects)
-        if (project.id != currentProjectId &&
-            _projectTypeFor(project).supportsAnyEntries)
+        if (project.id != currentProjectId && _acceptsRootTasks(project))
           project,
     ];
 

@@ -136,6 +136,11 @@ class _ProjectListViewState extends State<ProjectListView> {
   }
 
   int _visibleTaskCount(ProjectItem project) {
+    if (_projectTypeFor(project).id == ProjectTypeDefaults.peopleId) {
+      return project.people
+          .where((PersonItem person) => !person.isArchived)
+          .length;
+    }
     return project.tasks.where((TaskItem task) => !task.isArchived).length;
   }
 
@@ -285,9 +290,14 @@ class _ProjectListViewState extends State<ProjectListView> {
     ProjectItem project, {
     bool showStackLabel = false,
   }) {
-    final int taskCount =
-        project.isArchived ? project.tasks.length : _visibleTaskCount(project);
-    final String taskCountLabel = '$taskCount task${taskCount == 1 ? '' : 's'}';
+    final bool isPeopleProject =
+        _projectTypeFor(project).id == ProjectTypeDefaults.peopleId;
+    final int taskCount = project.isArchived
+        ? (isPeopleProject ? project.people.length : project.tasks.length)
+        : _visibleTaskCount(project);
+    final String taskCountLabel = isPeopleProject
+        ? '$taskCount person${taskCount == 1 ? '' : 's'}'
+        : '$taskCount task${taskCount == 1 ? '' : 's'}';
     final String? stackName =
         showStackLabel ? _stackNameForProject(project) : null;
     final List<String> lines = <String>[
