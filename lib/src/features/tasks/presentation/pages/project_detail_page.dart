@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../domain/list_reorder.dart';
 import '../../domain/task_models.dart';
 import '../widgets/add_journal_entry_sheet.dart';
 import '../widgets/add_person_sheet.dart';
@@ -17,6 +18,7 @@ import '../widgets/move_project_task_sheet.dart';
 import '../widgets/quick_capture_sheet.dart';
 import '../widgets/select_project_stack_sheet.dart';
 import '../widgets/select_project_type_sheet.dart';
+import '../widgets/subtask_preview_tree.dart';
 import 'person_detail_page.dart';
 import 'task_detail_page.dart';
 
@@ -117,7 +119,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   late final List<ProjectStack> _projectStacks;
   bool _showArchivedTasks = false;
   final Set<String> _expandedProjectTaskIds = <String>{};
-  final Set<String> _expandedPreviewSubtaskIds = <String>{};
   String? _draggingProjectTaskId;
   String? _draggingPersonId;
 
@@ -386,16 +387,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         _expandedProjectTaskIds.remove(taskId);
       } else {
         _expandedProjectTaskIds.add(taskId);
-      }
-    });
-  }
-
-  void _togglePreviewSubtaskExpanded(String subTaskId) {
-    setState(() {
-      if (_expandedPreviewSubtaskIds.contains(subTaskId)) {
-        _expandedPreviewSubtaskIds.remove(subTaskId);
-      } else {
-        _expandedPreviewSubtaskIds.add(subTaskId);
       }
     });
   }
@@ -1449,11 +1440,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             ? thinkingTasks
             : planningTasks;
 
-    int insertionIndex = targetIndex;
-    if (sourceType == effectiveTargetType && sourceIndex < insertionIndex) {
-      insertionIndex -= 1;
-    }
-    insertionIndex = insertionIndex.clamp(0, destinationTasks.length);
+    final int insertionIndex = reorderInsertionIndex(
+      targetIndex: targetIndex,
+      destinationLength: destinationTasks.length,
+      sourceIndexInSameList:
+          sourceType == effectiveTargetType ? sourceIndex : null,
+    );
 
     final TaskItem movedTask = sourceTask.type == effectiveTargetType
         ? sourceTask
@@ -1539,12 +1531,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final TaskItem task = sourceList.removeAt(sourceIndex);
-    if (toTop) {
-      sourceList.insert(0, task);
-    } else {
-      sourceList.add(task);
-    }
+    moveItemToBoundary(
+      sourceList,
+      sourceIndex: sourceIndex,
+      toTop: toTop,
+    );
 
     setState(() {
       _replaceProjectTasks(
@@ -2667,13 +2658,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     setState(() {
-      final PersonItem movedPerson = project.people.removeAt(sourceIndex);
-      int insertionIndex = targetIndex;
-      if (sourceIndex < insertionIndex) {
-        insertionIndex -= 1;
-      }
-      insertionIndex = insertionIndex.clamp(0, project.people.length);
-      project.people.insert(insertionIndex, movedPerson);
+      moveItemWithinList(
+        project.people,
+        sourceIndex: sourceIndex,
+        targetIndex: targetIndex,
+      );
     });
     _notifyProjectDataChanged();
   }
@@ -2693,12 +2682,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     setState(() {
-      final PersonItem person = project.people.removeAt(sourceIndex);
-      if (toTop) {
-        project.people.insert(0, person);
-      } else {
-        project.people.add(person);
-      }
+      moveItemToBoundary(
+        project.people,
+        sourceIndex: sourceIndex,
+        toTop: toTop,
+      );
     });
     _notifyProjectDataChanged();
   }
@@ -3024,107 +3012,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           if (showNestedPreview && hasNestedItems && isExpanded)
             Padding(
               padding: const EdgeInsets.only(left: 16, right: 8, bottom: 8),
-              child: _buildPreviewSubtaskList(task.subtasks, 0),
-            ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPreviewSubtaskList(List<SubTaskItem> items, int depth) {
-    if (items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      children: items
-          .map(
-            (SubTaskItem item) => _buildPreviewSubtaskNode(item, depth),
-          )
-          .toList(growable: false),
-    );
-  }
-
-  Widget _buildPreviewSubtaskNode(SubTaskItem subTask, int depth) {
-    final bool hasChildren = subTask.children.isNotEmpty;
-    final bool isExpanded = _expandedPreviewSubtaskIds.contains(subTask.id);
-    final IconData? iconData = iconDataForKey(subTask.iconKey);
-    final List<Widget> trailingParts = <Widget>[
-      if (subTask.body.isNotEmpty)
-        const Tooltip(
-          message: 'Has text content',
-          child: Icon(
-            Icons.notes_outlined,
-            size: 18,
-          ),
-        ),
-      if (iconData != null)
-        Icon(
-          iconData,
-          size: 18,
-        ),
-    ];
-
-    return Padding(
-      padding: EdgeInsets.only(left: depth * 18.0, top: 4),
-      child: Column(
-        children: <Widget>[
-          Card(
-            margin: EdgeInsets.zero,
-            color:
-                subTask.colorValue == null ? null : Color(subTask.colorValue!),
-            child: ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 2,
+              child: SubtaskPreviewTree(
+                key: ValueKey<String>('project-task-preview-${task.id}'),
+                items: task.subtasks,
               ),
-              leading: hasChildren
-                  ? IconButton(
-                      onPressed: () =>
-                          _togglePreviewSubtaskExpanded(subTask.id),
-                      tooltip: isExpanded
-                          ? 'Collapse nested ideas'
-                          : 'Expand nested ideas',
-                      icon: Icon(
-                        isExpanded
-                            ? Icons.expand_more_outlined
-                            : Icons.chevron_right_outlined,
-                      ),
-                    )
-                  : Icon(
-                      iconData ?? Icons.subdirectory_arrow_right_outlined,
-                      size: 20,
-                    ),
-              title: Text(
-                subTask.title,
-                maxLines: null,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              subtitle: subTask.body.isEmpty
-                  ? null
-                  : Text(
-                      subTask.body,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-              trailing: trailingParts.isEmpty
-                  ? null
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        for (int i = 0;
-                            i < trailingParts.length;
-                            i++) ...<Widget>[
-                          if (i > 0) const SizedBox(width: 8),
-                          trailingParts[i],
-                        ],
-                      ],
-                    ),
             ),
-          ),
-          if (hasChildren && isExpanded)
-            _buildPreviewSubtaskList(subTask.children, depth + 1),
         ],
       ),
     );

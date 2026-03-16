@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 
 import '../../../app_version.dart';
 import '../data/task_storage.dart';
+import '../domain/list_reorder.dart';
 import '../domain/task_models.dart';
 import 'pages/project_detail_page.dart';
 import 'pages/settings_page.dart';
@@ -628,13 +629,11 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      final TaskItem movedTask = _incomingTasks.removeAt(sourceIndex);
-      int insertionIndex = targetIndex;
-      if (sourceIndex < insertionIndex) {
-        insertionIndex -= 1;
-      }
-      insertionIndex = insertionIndex.clamp(0, _incomingTasks.length);
-      _incomingTasks.insert(insertionIndex, movedTask);
+      moveItemWithinList(
+        _incomingTasks,
+        sourceIndex: sourceIndex,
+        targetIndex: targetIndex,
+      );
     });
     _persistState();
   }
@@ -650,12 +649,11 @@ class _TaskPageState extends State<TaskPage>
     }
 
     setState(() {
-      final TaskItem task = sourceTasks.removeAt(sourceIndex);
-      if (toTop) {
-        sourceTasks.insert(0, task);
-      } else {
-        sourceTasks.add(task);
-      }
+      moveItemToBoundary(
+        sourceTasks,
+        sourceIndex: sourceIndex,
+        toTop: toTop,
+      );
     });
     _persistState();
   }

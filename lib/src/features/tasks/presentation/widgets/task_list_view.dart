@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/task_models.dart';
 import 'card_layout.dart';
 import 'item_icon_picker_sheet.dart';
+import 'subtask_preview_tree.dart';
 
 class _TaskDragPayload {
   const _TaskDragPayload({
@@ -50,7 +51,6 @@ class TaskListView extends StatefulWidget {
 
 class _TaskListViewState extends State<TaskListView> {
   final Set<String> _expandedTaskIds = <String>{};
-  final Set<String> _expandedPreviewSubtaskIds = <String>{};
   String? _draggingTaskId;
 
   Widget? _buildLeading(TaskItem task) {
@@ -100,115 +100,6 @@ class _TaskListViewState extends State<TaskListView> {
         _expandedTaskIds.add(taskId);
       }
     });
-  }
-
-  void _togglePreviewSubtaskExpanded(String subTaskId) {
-    setState(() {
-      if (_expandedPreviewSubtaskIds.contains(subTaskId)) {
-        _expandedPreviewSubtaskIds.remove(subTaskId);
-      } else {
-        _expandedPreviewSubtaskIds.add(subTaskId);
-      }
-    });
-  }
-
-  Widget _buildPreviewSubtaskList(List<SubTaskItem> items, int depth) {
-    if (items.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      children: items
-          .map(
-            (SubTaskItem item) => _buildPreviewSubtaskNode(item, depth),
-          )
-          .toList(growable: false),
-    );
-  }
-
-  Widget _buildPreviewSubtaskNode(SubTaskItem subTask, int depth) {
-    final bool hasChildren = subTask.children.isNotEmpty;
-    final bool isExpanded = _expandedPreviewSubtaskIds.contains(subTask.id);
-    final IconData? iconData = iconDataForKey(subTask.iconKey);
-    final List<Widget> trailingParts = <Widget>[
-      if (subTask.body.isNotEmpty)
-        const Tooltip(
-          message: 'Has text content',
-          child: Icon(
-            Icons.notes_outlined,
-            size: 18,
-          ),
-        ),
-      if (iconData != null)
-        Icon(
-          iconData,
-          size: 18,
-        ),
-    ];
-
-    return Padding(
-      padding: EdgeInsets.only(left: depth * 18.0, top: 4),
-      child: Column(
-        children: <Widget>[
-          Card(
-            margin: EdgeInsets.zero,
-            color:
-                subTask.colorValue == null ? null : Color(subTask.colorValue!),
-            child: ListTile(
-              dense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                horizontal: 8,
-                vertical: 2,
-              ),
-              leading: hasChildren
-                  ? IconButton(
-                      onPressed: () =>
-                          _togglePreviewSubtaskExpanded(subTask.id),
-                      tooltip: isExpanded
-                          ? 'Collapse nested ideas'
-                          : 'Expand nested ideas',
-                      icon: Icon(
-                        isExpanded
-                            ? Icons.expand_more_outlined
-                            : Icons.chevron_right_outlined,
-                      ),
-                    )
-                  : Icon(
-                      iconData ?? Icons.subdirectory_arrow_right_outlined,
-                      size: 20,
-                    ),
-              title: Text(
-                subTask.title,
-                maxLines: null,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-              subtitle: subTask.body.isEmpty
-                  ? null
-                  : Text(
-                      subTask.body,
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-              trailing: trailingParts.isEmpty
-                  ? null
-                  : Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: <Widget>[
-                        for (int i = 0;
-                            i < trailingParts.length;
-                            i++) ...<Widget>[
-                          if (i > 0) const SizedBox(width: 8),
-                          trailingParts[i],
-                        ],
-                      ],
-                    ),
-            ),
-          ),
-          if (hasChildren && isExpanded)
-            _buildPreviewSubtaskList(subTask.children, depth + 1),
-        ],
-      ),
-    );
   }
 
   Widget? _buildTrailing(
@@ -339,7 +230,10 @@ class _TaskListViewState extends State<TaskListView> {
           if (showExpandedPreview && hasSubtasks && isExpanded)
             Padding(
               padding: const EdgeInsets.only(left: 16, right: 8, bottom: 8),
-              child: _buildPreviewSubtaskList(task.subtasks, 0),
+              child: SubtaskPreviewTree(
+                key: ValueKey<String>('task-preview-${task.id}'),
+                items: task.subtasks,
+              ),
             ),
         ],
       ),

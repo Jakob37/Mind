@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../domain/list_reorder.dart';
 import '../../domain/task_models.dart';
 import '../widgets/add_journal_entry_sheet.dart';
 import '../widgets/add_task_sheet.dart';
@@ -767,11 +768,12 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
 
-    final TaskItem movedTask = targetList.removeAt(sourceIndex);
-    if (toTop) {
-      targetList.insert(0, movedTask);
-    } else {
-      targetList.add(movedTask);
+    if (!moveItemToBoundary(
+      targetList,
+      sourceIndex: sourceIndex,
+      toTop: toTop,
+    )) {
+      return;
     }
 
     setState(() {
