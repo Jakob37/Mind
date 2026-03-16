@@ -320,7 +320,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 }
 
-class _SelectProjectSheet extends StatelessWidget {
+class _SelectProjectSheet extends StatefulWidget {
   const _SelectProjectSheet({
     required this.projects,
     required this.projectTypes,
@@ -331,10 +331,36 @@ class _SelectProjectSheet extends StatelessWidget {
   final List<ProjectTypeConfig> projectTypes;
   final String? currentProjectId;
 
+  @override
+  State<_SelectProjectSheet> createState() => _SelectProjectSheetState();
+}
+
+class _SelectProjectSheetState extends State<_SelectProjectSheet> {
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<ProjectItem> _filteredProjects() {
+    final String query = _searchController.text.trim().toLowerCase();
+    if (query.isEmpty) {
+      return widget.projects;
+    }
+
+    return widget.projects
+        .where(
+          (ProjectItem project) => project.name.toLowerCase().contains(query),
+        )
+        .toList(growable: false);
+  }
+
   ProjectTypeConfig _projectTypeFor(ProjectItem project) {
     final String targetId =
         project.projectTypeId ?? ProjectTypeDefaults.blankId;
-    for (final ProjectTypeConfig type in projectTypes) {
+    for (final ProjectTypeConfig type in widget.projectTypes) {
       if (type.id == targetId) {
         return type;
       }
@@ -344,40 +370,70 @@ class _SelectProjectSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final List<ProjectItem> filteredProjects = _filteredProjects();
+
     return SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        children: <Widget>[
-          const ListTile(
-            title: Text(
-              'Add task to',
-              style: TextStyle(fontWeight: FontWeight.w600),
-            ),
-          ),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.inbox_outlined),
-            title: const Text('Incoming'),
-            trailing: currentProjectId == null
-                ? const Icon(Icons.check_outlined)
-                : null,
-            onTap: () => Navigator.of(context).pop<String?>(null),
-          ),
-          const Divider(height: 1),
-          for (final ProjectItem project in projects)
-            ListTile(
-              leading: Icon(
-                iconDataForKey(project.iconKey) ??
-                    iconDataForKey(_projectTypeFor(project).iconKey) ??
-                    Icons.folder_outlined,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          0,
+          0,
+          0,
+          MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: ListView(
+          shrinkWrap: true,
+          children: <Widget>[
+            const ListTile(
+              title: Text(
+                'Add task to',
+                style: TextStyle(fontWeight: FontWeight.w600),
               ),
-              title: Text(project.name),
-              trailing: currentProjectId == project.id
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+              child: TextField(
+                controller: _searchController,
+                autofocus: true,
+                onChanged: (_) {
+                  setState(() {});
+                },
+                decoration: const InputDecoration(
+                  labelText: 'Search projects',
+                  hintText: 'Type part of a project name',
+                  prefixIcon: Icon(Icons.search_outlined),
+                ),
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.inbox_outlined),
+              title: const Text('Incoming'),
+              trailing: widget.currentProjectId == null
                   ? const Icon(Icons.check_outlined)
                   : null,
-              onTap: () => Navigator.of(context).pop<String?>(project.id),
+              onTap: () => Navigator.of(context).pop<String?>(null),
             ),
-        ],
+            const Divider(height: 1),
+            if (filteredProjects.isEmpty)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
+                child: Text('No matching projects.'),
+              ),
+            for (final ProjectItem project in filteredProjects)
+              ListTile(
+                leading: Icon(
+                  iconDataForKey(project.iconKey) ??
+                      iconDataForKey(_projectTypeFor(project).iconKey) ??
+                      Icons.folder_outlined,
+                ),
+                title: Text(project.name),
+                trailing: widget.currentProjectId == project.id
+                    ? const Icon(Icons.check_outlined)
+                    : null,
+                onTap: () => Navigator.of(context).pop<String?>(project.id),
+              ),
+          ],
+        ),
       ),
     );
   }

@@ -27,6 +27,8 @@ enum _PersonTaskMenuAction {
   edit,
   setIcon,
   setColor,
+  moveToTop,
+  moveToBottom,
   remove,
 }
 
@@ -82,7 +84,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
   }
 
   int _personIndex() {
-    return _people.indexWhere((PersonItem person) => person.id == widget.personId);
+    return _people
+        .indexWhere((PersonItem person) => person.id == widget.personId);
   }
 
   int _findTaskIndex(PersonItem person, String taskId) {
@@ -119,7 +122,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
               ListTile(
                 leading: const Icon(Icons.menu_book_outlined),
                 title: const Text('Journal entry'),
-                onTap: () => Navigator.of(context).pop(_PersonEntryKind.journal),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonEntryKind.journal),
               ),
               ListTile(
                 leading: const Icon(Icons.lightbulb_outline),
@@ -183,17 +187,20 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
               ListTile(
                 leading: const Icon(Icons.add_reaction_outlined),
                 title: const Text('Set icon'),
-                onTap: () => Navigator.of(context).pop(_PersonMenuAction.setIcon),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonMenuAction.setIcon),
               ),
               ListTile(
                 leading: const Icon(Icons.palette_outlined),
                 title: const Text('Set color'),
-                onTap: () => Navigator.of(context).pop(_PersonMenuAction.setColor),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonMenuAction.setColor),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: const Text('Remove person'),
-                onTap: () => Navigator.of(context).pop(_PersonMenuAction.remove),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonMenuAction.remove),
               ),
             ],
           ),
@@ -221,17 +228,20 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
               ListTile(
                 leading: const Icon(Icons.open_in_new_outlined),
                 title: const Text('Open task'),
-                onTap: () => Navigator.of(context).pop(_PersonTaskMenuAction.open),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonTaskMenuAction.open),
               ),
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
                 title: const Text('Edit task'),
-                onTap: () => Navigator.of(context).pop(_PersonTaskMenuAction.edit),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonTaskMenuAction.edit),
               ),
               ListTile(
                 leading: const Icon(Icons.add_reaction_outlined),
                 title: const Text('Set icon'),
-                onTap: () => Navigator.of(context).pop(_PersonTaskMenuAction.setIcon),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonTaskMenuAction.setIcon),
               ),
               ListTile(
                 leading: const Icon(Icons.palette_outlined),
@@ -240,9 +250,22 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
                     Navigator.of(context).pop(_PersonTaskMenuAction.setColor),
               ),
               ListTile(
+                leading: const Icon(Icons.vertical_align_top_outlined),
+                title: const Text('Move to top'),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonTaskMenuAction.moveToTop),
+              ),
+              ListTile(
+                leading: const Icon(Icons.vertical_align_bottom_outlined),
+                title: const Text('Move to bottom'),
+                onTap: () => Navigator.of(context)
+                    .pop(_PersonTaskMenuAction.moveToBottom),
+              ),
+              ListTile(
                 leading: const Icon(Icons.delete_outline),
                 title: const Text('Remove task'),
-                onTap: () => Navigator.of(context).pop(_PersonTaskMenuAction.remove),
+                onTap: () =>
+                    Navigator.of(context).pop(_PersonTaskMenuAction.remove),
               ),
             ],
           ),
@@ -389,7 +412,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
         isScrollControlled: true,
         builder: (_) => const AddJournalEntrySheet(
           title: 'New Interaction Entry',
-          hintText: 'Capture what happened, what mattered, and what to remember.',
+          hintText:
+              'Capture what happened, what mattered, and what to remember.',
           saveLabel: 'Save Interaction',
         ),
       );
@@ -439,8 +463,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
     final PersonItem person = _people[personIndex];
-    final List<TaskItem> updatedTasks =
-        person.tasks.map((TaskItem task) => task.clone()).toList(growable: true);
+    final List<TaskItem> updatedTasks = person.tasks
+        .map((TaskItem task) => task.clone())
+        .toList(growable: true);
     final TaskItem ideaTask = createdTask.task.copyWith(
       type: TaskItemType.thinking,
       entryType: TaskEntryType.note,
@@ -468,7 +493,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     }
 
     final TaskItem task = person.tasks[taskIndex];
-    final TaskDetailAction? action = await Navigator.of(context).push<TaskDetailAction>(
+    final TaskDetailAction? action =
+        await Navigator.of(context).push<TaskDetailAction>(
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
@@ -552,7 +578,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
 
-    final _PersonTaskMenuAction? action = await _showTaskMenu(person.tasks[taskIndex]);
+    final _PersonTaskMenuAction? action =
+        await _showTaskMenu(person.tasks[taskIndex]);
     if (action == null || !mounted) {
       return;
     }
@@ -571,6 +598,14 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     }
     if (action == _PersonTaskMenuAction.setColor) {
       await _setTaskColor(taskId);
+      return;
+    }
+    if (action == _PersonTaskMenuAction.moveToTop) {
+      _moveTaskToBoundary(taskId, toTop: true);
+      return;
+    }
+    if (action == _PersonTaskMenuAction.moveToBottom) {
+      _moveTaskToBoundary(taskId, toTop: false);
       return;
     }
     if (action == _PersonTaskMenuAction.remove) {
@@ -602,8 +637,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
 
-    final List<TaskItem> tasks =
-        person.tasks.map((TaskItem item) => item.clone()).toList(growable: true);
+    final List<TaskItem> tasks = person.tasks
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
     tasks[taskIndex] = task.copyWith(
       title: result.title,
       body: result.body,
@@ -636,8 +672,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
 
-    final List<TaskItem> tasks =
-        person.tasks.map((TaskItem item) => item.clone()).toList(growable: true);
+    final List<TaskItem> tasks = person.tasks
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
     tasks[taskIndex] = task.copyWith(
       iconKey: iconKey,
       clearIcon: iconKey == null,
@@ -672,8 +709,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
 
-    final List<TaskItem> tasks =
-        person.tasks.map((TaskItem item) => item.clone()).toList(growable: true);
+    final List<TaskItem> tasks = person.tasks
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
     tasks[taskIndex] = task.copyWith(
       colorValue: selection.colorValue,
       clearColor: selection.colorValue == null,
@@ -690,11 +728,59 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
     final PersonItem person = _people[personIndex];
-    final List<TaskItem> tasks =
-        person.tasks.map((TaskItem item) => item.clone()).toList(growable: true);
+    final List<TaskItem> tasks = person.tasks
+        .map((TaskItem item) => item.clone())
+        .toList(growable: true);
     tasks.removeWhere((TaskItem task) => task.id == taskId);
     setState(() {
       _people[personIndex] = person.copyWith(tasks: tasks);
+    });
+    _notifyPeopleChanged();
+  }
+
+  void _moveTaskToBoundary(
+    String taskId, {
+    required bool toTop,
+  }) {
+    final int personIndex = _personIndex();
+    if (personIndex < 0) {
+      return;
+    }
+    final PersonItem person = _people[personIndex];
+    final int taskIndex = _findTaskIndex(person, taskId);
+    if (taskIndex < 0) {
+      return;
+    }
+
+    final TaskItem task = person.tasks[taskIndex];
+    final List<TaskItem> journalEntries = _journalEntries(person).toList(
+      growable: true,
+    );
+    final List<TaskItem> ideaTasks = _ideaTasks(person).toList(
+      growable: true,
+    );
+    final List<TaskItem> targetList =
+        task.entryType == TaskEntryType.journal ? journalEntries : ideaTasks;
+    final int sourceIndex =
+        targetList.indexWhere((TaskItem entry) => entry.id == taskId);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    final TaskItem movedTask = targetList.removeAt(sourceIndex);
+    if (toTop) {
+      targetList.insert(0, movedTask);
+    } else {
+      targetList.add(movedTask);
+    }
+
+    setState(() {
+      _people[personIndex] = person.copyWith(
+        tasks: <TaskItem>[
+          ...journalEntries,
+          ...ideaTasks,
+        ],
+      );
     });
     _notifyPeopleChanged();
   }

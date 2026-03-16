@@ -181,6 +181,7 @@ class TaskItem {
     TaskItemType? type,
     TaskEntryType? entryType,
     this.isArchived = false,
+    this.isPinned = false,
     this.iconKey,
     List<SubTaskItem>? subtasks,
   })  : id = id ?? ModelIds.newTaskId(),
@@ -199,6 +200,7 @@ class TaskItem {
   final TaskItemType type;
   final TaskEntryType entryType;
   final bool isArchived;
+  final bool isPinned;
   final String? iconKey;
   final List<SubTaskItem> subtasks;
 
@@ -217,6 +219,7 @@ class TaskItem {
       type: type,
       entryType: entryType,
       isArchived: isArchived,
+      isPinned: isPinned,
       iconKey: iconKey,
       subtasks: subtasks.map((SubTaskItem item) => item.clone()).toList(),
     );
@@ -234,6 +237,7 @@ class TaskItem {
     TaskItemType? type,
     TaskEntryType? entryType,
     bool? isArchived,
+    bool? isPinned,
     String? iconKey,
     bool clearIcon = false,
     List<SubTaskItem>? subtasks,
@@ -249,6 +253,7 @@ class TaskItem {
       type: type ?? this.type,
       entryType: entryType ?? this.entryType,
       isArchived: isArchived ?? this.isArchived,
+      isPinned: isPinned ?? this.isPinned,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
       subtasks: subtasks ??
           this.subtasks.map((SubTaskItem item) => item.clone()).toList(),
@@ -266,6 +271,7 @@ class TaskItem {
       'type': type.name,
       'entryType': entryType.name,
       'archived': isArchived,
+      'pinned': isPinned,
       'icon': iconKey,
       'subtasks': subtasks.map((SubTaskItem item) => item.toJson()).toList(),
     };
@@ -283,6 +289,7 @@ class TaskItem {
       json['entryType'],
     );
     final bool isArchived = _readOptionalBool(json, 'archived');
+    final bool isPinned = _readOptionalBool(json, 'pinned');
     final String? iconKey = _readOptionalTrimmedString(json, 'icon');
     final List<dynamic> subtaskJson = _readOptionalList(json, 'subtasks');
 
@@ -296,6 +303,7 @@ class TaskItem {
       type: type,
       entryType: entryType,
       isArchived: isArchived,
+      isPinned: isPinned,
       iconKey: iconKey == null || iconKey.isEmpty ? null : iconKey,
       subtasks: subtaskJson
           .map(
@@ -392,8 +400,8 @@ class ProjectItem {
       projectTypeId:
           clearProjectType ? null : (projectTypeId ?? this.projectTypeId),
       tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
-      people:
-          people ?? this.people.map((PersonItem person) => person.clone()).toList(),
+      people: people ??
+          this.people.map((PersonItem person) => person.clone()).toList(),
     );
   }
 
@@ -636,9 +644,13 @@ enum ProjectLayoutKind {
     }
 
     return switch (rawValue.trim().toLowerCase()) {
-      'journalonly' || 'journal_only' || 'journal-only' =>
+      'journalonly' ||
+      'journal_only' ||
+      'journal-only' =>
         ProjectLayoutKind.journalOnly,
-      'peoplecontainer' || 'people_container' || 'people-container' =>
+      'peoplecontainer' ||
+      'people_container' ||
+      'people-container' =>
         ProjectLayoutKind.peopleContainer,
       _ => ProjectLayoutKind.standard,
     };

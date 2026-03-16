@@ -1038,6 +1038,7 @@ class TaskStorage {
           ? (task['entryType'] as String).trim().toLowerCase()
           : TaskEntryType.note.name;
       task['archived'] = task['archived'] is bool ? task['archived'] : false;
+      task['pinned'] = task['pinned'] is bool ? task['pinned'] : false;
       task['icon'] =
           task['icon'] is String && (task['icon'] as String).trim().isNotEmpty
               ? (task['icon'] as String).trim()
@@ -1109,8 +1110,9 @@ class TaskStorage {
               );
       final bool isPeopleProject =
           projectLayoutKind == ProjectLayoutKind.peopleContainer;
-      project['tasks'] =
-          isPeopleProject ? <Map<String, dynamic>>[] : _upgradeTaskShape(project['tasks']);
+      project['tasks'] = isPeopleProject
+          ? <Map<String, dynamic>>[]
+          : _upgradeTaskShape(project['tasks']);
       project['people'] = _upgradePersonShape(project['people']);
       projects.add(project);
     }
@@ -1142,7 +1144,8 @@ class TaskStorage {
               (person['icon'] as String).trim().isNotEmpty
           ? (person['icon'] as String).trim()
           : null;
-      person['archived'] = person['archived'] is bool ? person['archived'] : false;
+      person['archived'] =
+          person['archived'] is bool ? person['archived'] : false;
       person['tasks'] = _upgradeTaskShape(person['tasks']);
       people.add(person);
     }

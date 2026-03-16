@@ -51,6 +51,7 @@ class TaskListView extends StatefulWidget {
 class _TaskListViewState extends State<TaskListView> {
   final Set<String> _expandedTaskIds = <String>{};
   final Set<String> _expandedPreviewSubtaskIds = <String>{};
+  String? _draggingTaskId;
 
   Widget? _buildLeading(TaskItem task) {
     final IconData? iconData = iconDataForKey(task.iconKey);
@@ -272,10 +273,11 @@ class _TaskListViewState extends State<TaskListView> {
         List<dynamic> rejectedData,
       ) {
         final bool isActiveDropTarget = candidateData.isNotEmpty;
+        final bool isDragging = _draggingTaskId != null;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          height: isActiveDropTarget ? 22 : inactiveHeight,
-          margin: const EdgeInsets.symmetric(horizontal: 20),
+          height: isActiveDropTarget ? 28 : (isDragging ? 14 : inactiveHeight),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: isActiveDropTarget
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
@@ -415,6 +417,18 @@ class _TaskListViewState extends State<TaskListView> {
             padding: EdgeInsets.only(bottom: layout.listBottomSpacing),
             child: LongPressDraggable<_TaskDragPayload>(
               data: _TaskDragPayload(taskId: task.id),
+              onDragStarted: () {
+                setState(() {
+                  _draggingTaskId = task.id;
+                });
+              },
+              onDragEnd: (_) {
+                if (_draggingTaskId == task.id) {
+                  setState(() {
+                    _draggingTaskId = null;
+                  });
+                }
+              },
               feedback: Material(
                 color: Colors.transparent,
                 child: SizedBox(

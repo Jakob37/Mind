@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:sorted_out/src/app.dart';
+import 'package:sorted_out/src/features/tasks/domain/task_models.dart';
+import 'package:sorted_out/src/features/tasks/presentation/widgets/add_task_sheet.dart';
 
 void main() {
   setUp(() {
@@ -169,6 +171,35 @@ void main() {
         findsOneWidget);
     expect(
         find.text('Turn this into a simple two-step routine.'), findsOneWidget);
+  });
+
+  testWidgets('project picker supports free-text substring filtering',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: AddTaskSheet(
+            projects: <ProjectItem>[
+              ProjectItem(name: 'Summer project'),
+              ProjectItem(name: 'Big project'),
+              ProjectItem(name: 'Reading list'),
+            ],
+            projectTypes: ProjectTypeConfig.defaults(),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Project: Incoming'));
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).last, 'jec');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Summer project'), findsOneWidget);
+    expect(find.text('Big project'), findsOneWidget);
+    expect(find.text('Reading list'), findsNothing);
+    expect(find.text('Morning Routine'), findsNothing);
   });
 
   testWidgets('loads unversioned state from the previous storage key',
@@ -427,6 +458,79 @@ void main() {
     expect(find.widgetWithText(ListTile, 'Studio'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'Research'), findsOneWidget);
     expect(find.widgetWithText(ListTile, 'Archive'), findsOneWidget);
+  });
+
+  testWidgets('projects can be reordered inside an expanded stack by dragging',
+      (WidgetTester tester) async {
+    await tester.pumpWidget(const MindApp());
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Studio');
+    await tester.tap(find.text('Stack: No stack'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Create stack'));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'Focus Stack');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Stack'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Research');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    final Finder researchTile = find.widgetWithText(ListTile, 'Research');
+    final Finder studioTile = find.widgetWithText(ListTile, 'Studio');
+    final TestGesture groupingGesture =
+        await tester.startGesture(tester.getCenter(researchTile));
+    await tester.pump(kLongPressTimeout);
+    await groupingGesture.moveTo(tester.getCenter(studioTile));
+    await tester.pump();
+    await groupingGesture.up();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Group Projects'));
+    await tester.pumpAndSettle();
+
+    final Finder reorderedResearchTile =
+        find.widgetWithText(ListTile, 'Research');
+    final Finder reorderedStudioTile = find.widgetWithText(ListTile, 'Studio');
+    final bool researchStartsAboveStudio =
+        tester.getTopLeft(reorderedResearchTile).dy <
+            tester.getTopLeft(reorderedStudioTile).dy;
+    final Offset targetOffset = researchStartsAboveStudio
+        ? Offset(
+            tester.getCenter(reorderedStudioTile).dx,
+            tester.getBottomLeft(reorderedStudioTile).dy + 6,
+          )
+        : Offset(
+            tester.getCenter(reorderedStudioTile).dx,
+            tester.getTopLeft(reorderedStudioTile).dy - 6,
+          );
+    final TestGesture reorderGesture =
+        await tester.startGesture(tester.getCenter(reorderedResearchTile));
+    await tester.pump(kLongPressTimeout);
+    await reorderGesture.moveTo(targetOffset);
+    await tester.pump();
+    await reorderGesture.up();
+    await tester.pumpAndSettle();
+
+    final double researchY =
+        tester.getTopLeft(find.widgetWithText(ListTile, 'Research')).dy;
+    final double studioY =
+        tester.getTopLeft(find.widgetWithText(ListTile, 'Studio')).dy;
+    if (researchStartsAboveStudio) {
+      expect(researchY, greaterThan(studioY));
+    } else {
+      expect(researchY, lessThan(studioY));
+    }
   });
 
   testWidgets('uses custom color labels from settings in color picker',
@@ -968,8 +1072,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(ListTile, 'Alice'), findsOneWidget);
-    expect(find.textContaining('0 interactions'), findsOneWidget);
-    expect(find.textContaining('0 ideas'), findsOneWidget);
+    expect(find.textContaining('interaction'), findsNothing);
+    expect(find.textContaining('idea'), findsNothing);
 
     await tester.tap(find.widgetWithText(ListTile, 'Alice'));
     await tester.pumpAndSettle();
@@ -1011,8 +1115,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(ListTile, 'Alice'), findsOneWidget);
-    expect(find.textContaining('1 interaction'), findsOneWidget);
-    expect(find.textContaining('1 idea'), findsOneWidget);
+    expect(find.textContaining('interaction'), findsNothing);
+    expect(find.textContaining('idea'), findsNothing);
   });
 
   testWidgets('migrates versioned v2 payload and adds stable IDs',

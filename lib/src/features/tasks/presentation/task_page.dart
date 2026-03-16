@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../app_version.dart';
 import '../data/task_storage.dart';
 import '../domain/task_models.dart';
 import 'pages/project_detail_page.dart';
@@ -29,6 +30,8 @@ enum _ProjectMenuAction {
   setStack,
   setIcon,
   setColor,
+  moveToTop,
+  moveToBottom,
   togglePinned,
   archive,
   restore,
@@ -40,6 +43,8 @@ enum _IncomingTaskMenuAction {
   edit,
   setIcon,
   setColor,
+  moveToTop,
+  moveToBottom,
   moveToProject,
   remove,
 }
@@ -634,6 +639,27 @@ class _TaskPageState extends State<TaskPage>
     _persistState();
   }
 
+  void _moveTaskInListToBoundary(
+    List<TaskItem> sourceTasks,
+    String taskId, {
+    required bool toTop,
+  }) {
+    final int sourceIndex = _indexOfTaskById(sourceTasks, taskId);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    setState(() {
+      final TaskItem task = sourceTasks.removeAt(sourceIndex);
+      if (toTop) {
+        sourceTasks.insert(0, task);
+      } else {
+        sourceTasks.add(task);
+      }
+    });
+    _persistState();
+  }
+
   void _nestIncomingTaskUnderTask({
     required String sourceTaskId,
     required String targetTaskId,
@@ -700,6 +726,110 @@ class _TaskPageState extends State<TaskPage>
     setState(() {
       _replaceProjectData(
         projects: reorderedProjects,
+        projectStacks: _cloneProjectStacks(_projectStacks),
+        projectTypes: _cloneProjectTypes(_projectTypes),
+      );
+    });
+    _persistState();
+  }
+
+  void _moveVisibleProjectToBoundary(
+    String projectId, {
+    required bool toTop,
+  }) {
+    final List<ProjectItem> activeProjects = _projects
+        .where((ProjectItem project) => !project.isArchived)
+        .map((ProjectItem project) => project.clone())
+        .toList(growable: true);
+    final int sourceIndex = activeProjects
+        .indexWhere((ProjectItem project) => project.id == projectId);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    final ProjectItem project = activeProjects.removeAt(sourceIndex);
+    if (toTop) {
+      activeProjects.insert(0, project);
+    } else {
+      activeProjects.add(project);
+    }
+    _reorderVisibleProjects(
+      activeProjects
+          .map((ProjectItem activeProject) => activeProject.id)
+          .toList(growable: false),
+    );
+  }
+
+  void _moveProjectToStackPosition({
+    required String sourceProjectId,
+    required String targetStackId,
+    required int targetIndex,
+  }) {
+    final List<ProjectItem> activeProjects = _projects
+        .where((ProjectItem project) => !project.isArchived)
+        .map((ProjectItem project) => project.clone())
+        .toList(growable: true);
+    final int sourceIndex = activeProjects
+        .indexWhere((ProjectItem project) => project.id == sourceProjectId);
+    if (sourceIndex < 0) {
+      return;
+    }
+
+    final ProjectItem sourceProject = activeProjects[sourceIndex];
+    final List<String> targetStackProjectIdsBeforeMove = activeProjects
+        .where((ProjectItem project) => project.stackId == targetStackId)
+        .map((ProjectItem project) => project.id)
+        .toList(growable: false);
+    final int sourceStackIndexBeforeMove =
+        targetStackProjectIdsBeforeMove.indexOf(sourceProjectId);
+
+    final ProjectItem movedProject =
+        activeProjects.removeAt(sourceIndex).copyWith(stackId: targetStackId);
+    int adjustedTargetIndex = targetIndex;
+    if (sourceProject.stackId == targetStackId &&
+        sourceStackIndexBeforeMove >= 0 &&
+        sourceStackIndexBeforeMove < targetIndex) {
+      adjustedTargetIndex -= 1;
+    }
+
+    int insertionIndex = activeProjects.length;
+    int stackProjectCount = 0;
+    int? firstStackIndex;
+    int? lastStackIndex;
+    for (int index = 0; index < activeProjects.length; index += 1) {
+      if (activeProjects[index].stackId != targetStackId) {
+        continue;
+      }
+      firstStackIndex ??= index;
+      lastStackIndex = index;
+      if (stackProjectCount == adjustedTargetIndex) {
+        insertionIndex = index;
+        break;
+      }
+      stackProjectCount += 1;
+    }
+
+    if (adjustedTargetIndex <= 0 && firstStackIndex != null) {
+      insertionIndex = firstStackIndex;
+    } else if (adjustedTargetIndex >= stackProjectCount &&
+        lastStackIndex != null) {
+      insertionIndex = lastStackIndex + 1;
+    }
+
+    insertionIndex = insertionIndex.clamp(0, activeProjects.length);
+    activeProjects.insert(insertionIndex, movedProject);
+
+    final List<ProjectItem> archivedProjects = _projects
+        .where((ProjectItem project) => project.isArchived)
+        .map((ProjectItem project) => project.clone())
+        .toList(growable: false);
+
+    setState(() {
+      _replaceProjectData(
+        projects: <ProjectItem>[
+          ...activeProjects,
+          ...archivedProjects,
+        ],
         projectStacks: _cloneProjectStacks(_projectStacks),
         projectTypes: _cloneProjectTypes(_projectTypes),
       );
@@ -1038,6 +1168,18 @@ class _TaskPageState extends State<TaskPage>
                     Navigator.of(context).pop(_IncomingTaskMenuAction.setColor),
               ),
               ListTile(
+                leading: const Icon(Icons.vertical_align_top_outlined),
+                title: const Text('Move to top'),
+                onTap: () => Navigator.of(context)
+                    .pop(_IncomingTaskMenuAction.moveToTop),
+              ),
+              ListTile(
+                leading: const Icon(Icons.vertical_align_bottom_outlined),
+                title: const Text('Move to bottom'),
+                onTap: () => Navigator.of(context)
+                    .pop(_IncomingTaskMenuAction.moveToBottom),
+              ),
+              ListTile(
                 leading: const Icon(Icons.drive_file_move_outlined),
                 title: const Text('Move to project'),
                 onTap: () => Navigator.of(context)
@@ -1081,6 +1223,14 @@ class _TaskPageState extends State<TaskPage>
     }
     if (action == _IncomingTaskMenuAction.setColor) {
       await _setTaskColorInList(_incomingTasks, taskId);
+      return;
+    }
+    if (action == _IncomingTaskMenuAction.moveToTop) {
+      _moveTaskInListToBoundary(_incomingTasks, taskId, toTop: true);
+      return;
+    }
+    if (action == _IncomingTaskMenuAction.moveToBottom) {
+      _moveTaskInListToBoundary(_incomingTasks, taskId, toTop: false);
       return;
     }
     if (action == _IncomingTaskMenuAction.moveToProject) {
@@ -1142,6 +1292,20 @@ class _TaskPageState extends State<TaskPage>
                 onTap: () =>
                     Navigator.of(context).pop(_ProjectMenuAction.setColor),
               ),
+              if (!project.isArchived)
+                ListTile(
+                  leading: const Icon(Icons.vertical_align_top_outlined),
+                  title: const Text('Move to top'),
+                  onTap: () =>
+                      Navigator.of(context).pop(_ProjectMenuAction.moveToTop),
+                ),
+              if (!project.isArchived)
+                ListTile(
+                  leading: const Icon(Icons.vertical_align_bottom_outlined),
+                  title: const Text('Move to bottom'),
+                  onTap: () => Navigator.of(context)
+                      .pop(_ProjectMenuAction.moveToBottom),
+                ),
               if (!project.isArchived)
                 ListTile(
                   leading: Icon(
@@ -1211,6 +1375,14 @@ class _TaskPageState extends State<TaskPage>
     }
     if (action == _ProjectMenuAction.setColor) {
       await _setProjectColor(projectId);
+      return;
+    }
+    if (action == _ProjectMenuAction.moveToTop) {
+      _moveVisibleProjectToBoundary(projectId, toTop: true);
+      return;
+    }
+    if (action == _ProjectMenuAction.moveToBottom) {
+      _moveVisibleProjectToBoundary(projectId, toTop: false);
       return;
     }
     if (action == _ProjectMenuAction.togglePinned) {
@@ -2042,6 +2214,23 @@ class _TaskPageState extends State<TaskPage>
                 Icons.psychology_alt_outlined),
             const SizedBox(width: 10),
             const Text('Mind'),
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: Theme.of(context)
+                    .colorScheme
+                    .surfaceContainerHighest
+                    .withValues(alpha: 0.9),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                kMindVersionLabel,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                    ),
+              ),
+            ),
           ],
         ),
         actions: <Widget>[
@@ -2112,6 +2301,16 @@ class _TaskPageState extends State<TaskPage>
                 _stackProjectGroupsTogether(
               sourceProjectIds: sourceProjectIds,
               targetProjectIds: targetProjectIds,
+            ),
+            onProjectMoveToStackPosition: ({
+              required String sourceProjectId,
+              required String targetStackId,
+              required int targetIndex,
+            }) =>
+                _moveProjectToStackPosition(
+              sourceProjectId: sourceProjectId,
+              targetStackId: targetStackId,
+              targetIndex: targetIndex,
             ),
           ),
         ],

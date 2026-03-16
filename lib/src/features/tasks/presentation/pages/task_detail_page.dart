@@ -618,7 +618,9 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         final bool isActive = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          height: isActive ? 20 : inactiveHeight,
+          height: isActive
+              ? 28
+              : (_draggingSubTaskId == null ? inactiveHeight : 14),
           margin: EdgeInsets.only(left: depth * 18.0 + 12),
           decoration: BoxDecoration(
             color: isActive
@@ -761,6 +763,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
     required int indexInParent,
   }) {
     final bool hasChildren = _visibleChildren(subTask.children).isNotEmpty;
+    final bool hasBody = subTask.body.isNotEmpty;
     final bool isExpanded = _expandedSubtaskIds.contains(subTask.id);
     final double baseTitleFontSize =
         Theme.of(context).textTheme.titleMedium?.fontSize ?? 16;
@@ -794,7 +797,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
         child: Padding(
           padding: _layout.contentPadding,
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment:
+                hasBody ? CrossAxisAlignment.start : CrossAxisAlignment.center,
             children: <Widget>[
               if (_usesChecklistStyle)
                 Checkbox(
@@ -838,7 +842,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                         fontSize: baseTitleFontSize * _layout.titleScale,
                       ),
                     ),
-                    if (subTask.body.isNotEmpty) ...<Widget>[
+                    if (hasBody) ...<Widget>[
                       const SizedBox(height: 4),
                       Text(
                         subTask.body,

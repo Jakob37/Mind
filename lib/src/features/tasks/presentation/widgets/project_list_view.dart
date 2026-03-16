@@ -41,6 +41,7 @@ class ProjectListView extends StatefulWidget {
     required this.onProjectOptionsTap,
     required this.onProjectStackOptionsTap,
     required this.onProjectStackDrop,
+    required this.onProjectMoveToStackPosition,
   });
 
   final List<ProjectItem> projects;
@@ -58,6 +59,11 @@ class ProjectListView extends StatefulWidget {
     List<String> sourceProjectIds,
     List<String> targetProjectIds,
   ) onProjectStackDrop;
+  final void Function({
+    required String sourceProjectId,
+    required String targetStackId,
+    required int targetIndex,
+  }) onProjectMoveToStackPosition;
 
   @override
   State<ProjectListView> createState() => _ProjectListViewState();
@@ -67,6 +73,7 @@ class _ProjectListViewState extends State<ProjectListView> {
   late final Set<String> _collapsedStackIds =
       widget.projectStacks.map((ProjectStack stack) => stack.id).toSet();
   bool _showArchivedProjects = false;
+  bool _isDraggingProject = false;
 
   CardLayoutSpec get _layout =>
       cardLayoutSpecForPreset(widget.cardLayoutPreset);
@@ -271,8 +278,8 @@ class _ProjectListViewState extends State<ProjectListView> {
         final bool isActive = candidateData.isNotEmpty;
         return AnimatedContainer(
           duration: const Duration(milliseconds: 120),
-          height: isActive ? 22 : inactiveHeight,
-          margin: const EdgeInsets.symmetric(horizontal: 20),
+          height: isActive ? 28 : (_isDraggingProject ? 14 : inactiveHeight),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
           decoration: BoxDecoration(
             color: isActive
                 ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
@@ -558,6 +565,16 @@ class _ProjectListViewState extends State<ProjectListView> {
           project: project,
           child: LongPressDraggable<_ProjectDragPayload>(
             data: _ProjectDragPayload(projectIds: <String>[project.id]),
+            onDragStarted: () {
+              setState(() {
+                _isDraggingProject = true;
+              });
+            },
+            onDragEnd: (_) {
+              setState(() {
+                _isDraggingProject = false;
+              });
+            },
             feedback: Material(
               color: Colors.transparent,
               child: SizedBox(
@@ -574,6 +591,50 @@ class _ProjectListViewState extends State<ProjectListView> {
               child: row,
             ),
             child: row,
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildStackProjectDropSlot({
+    required String stackId,
+    required int targetIndex,
+    required double inactiveHeight,
+  }) {
+    return DragTarget<_ProjectDragPayload>(
+      onWillAcceptWithDetails: (
+        DragTargetDetails<_ProjectDragPayload> details,
+      ) {
+        return details.data.projectIds.length == 1;
+      },
+      onAcceptWithDetails: (
+        DragTargetDetails<_ProjectDragPayload> details,
+      ) {
+        if (details.data.projectIds.length != 1) {
+          return;
+        }
+        widget.onProjectMoveToStackPosition(
+          sourceProjectId: details.data.projectIds.single,
+          targetStackId: stackId,
+          targetIndex: targetIndex,
+        );
+      },
+      builder: (
+        BuildContext context,
+        List<_ProjectDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isActive = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: isActive ? 28 : (_isDraggingProject ? 14 : inactiveHeight),
+          margin: const EdgeInsets.symmetric(horizontal: 8),
+          decoration: BoxDecoration(
+            color: isActive
+                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
           ),
         );
       },
@@ -642,9 +703,23 @@ class _ProjectListViewState extends State<ProjectListView> {
               ),
             ),
             if (!isCollapsed) const Divider(height: 1),
-            if (!isCollapsed)
-              for (final ProjectItem project in group.projects)
-                _buildStackProjectRow(context, project),
+            if (!isCollapsed) ...<Widget>[
+              _buildStackProjectDropSlot(
+                stackId: stackId,
+                targetIndex: 0,
+                inactiveHeight: 0,
+              ),
+              for (int index = 0;
+                  index < group.projects.length;
+                  index += 1) ...<Widget>[
+                _buildStackProjectRow(context, group.projects[index]),
+                _buildStackProjectDropSlot(
+                  stackId: stackId,
+                  targetIndex: index + 1,
+                  inactiveHeight: 4,
+                ),
+              ],
+            ],
           ],
         ),
       ),
@@ -688,6 +763,16 @@ class _ProjectListViewState extends State<ProjectListView> {
 
                 return LongPressDraggable<_ProjectDragPayload>(
                   data: _ProjectDragPayload(projectIds: projectIds),
+                  onDragStarted: () {
+                    setState(() {
+                      _isDraggingProject = true;
+                    });
+                  },
+                  onDragEnd: (_) {
+                    setState(() {
+                      _isDraggingProject = false;
+                    });
+                  },
                   feedback: Material(
                     color: Colors.transparent,
                     child: SizedBox(
@@ -781,6 +866,16 @@ class _ProjectListViewState extends State<ProjectListView> {
           project: project,
           child: LongPressDraggable<_ProjectDragPayload>(
             data: _ProjectDragPayload(projectIds: <String>[project.id]),
+            onDragStarted: () {
+              setState(() {
+                _isDraggingProject = true;
+              });
+            },
+            onDragEnd: (_) {
+              setState(() {
+                _isDraggingProject = false;
+              });
+            },
             feedback: Material(
               color: Colors.transparent,
               child: SizedBox(

@@ -217,6 +217,7 @@ void main() {
     expect(firstIncoming['entryType'], 'note');
     expect(firstIncoming['createdAtMicros'], isNull);
     expect(firstIncoming['archived'], isFalse);
+    expect(firstIncoming['pinned'], isFalse);
     expect(firstIncoming['prompt'], '');
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));
@@ -252,6 +253,7 @@ void main() {
               entryType: TaskEntryType.journal,
               createdAtMicros: 987654321,
               isArchived: true,
+              isPinned: true,
               subtasks: <SubTaskItem>[
                 SubTaskItem(
                   id: 'subtask-1',
@@ -299,6 +301,7 @@ void main() {
     expect(imported.projectStacks.single.name, 'Imported stack');
     expect(imported.projectStacks.single.colorValue, 0xFFFFCDD2);
     expect(imported.projects.single.tasks.single.isArchived, isTrue);
+    expect(imported.projects.single.tasks.single.isPinned, isTrue);
     expect(imported.projects.single.tasks.single.prompt, 'Task level prompt');
     expect(
         imported.projects.single.tasks.single.entryType, TaskEntryType.journal);
