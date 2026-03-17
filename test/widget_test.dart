@@ -661,9 +661,13 @@ void main() {
     expect(find.text(topSubtask), findsOneWidget);
     expect(find.text(bottomSubtask), findsOneWidget);
 
-    await tester.tap(find.text('Second subtask'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Remove item'));
+    await tester.drag(
+      find.ancestor(
+        of: find.text('Second subtask'),
+        matching: find.byType(Dismissible),
+      ),
+      const Offset(-600, 0),
+    );
     await tester.pumpAndSettle();
     expect(find.text('Second subtask'), findsNothing);
   });

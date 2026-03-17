@@ -909,6 +909,37 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             child: card,
           ),
         );
+        final Widget dismissibleTile = Dismissible(
+          key: ValueKey<String>('subtask-swipe-${subTask.id}'),
+          direction: DismissDirection.endToStart,
+          onDismissed: (_) => _removeSubTask(subTask.id),
+          background: Padding(
+            padding: EdgeInsets.only(
+              left: depth * 18.0,
+              bottom: _layout.listBottomSpacing,
+            ),
+            child: const SizedBox.expand(),
+          ),
+          secondaryBackground: Padding(
+            padding: EdgeInsets.only(
+              left: depth * 18.0,
+              bottom: _layout.listBottomSpacing,
+            ),
+            child: Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.errorContainer,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+          child: tile,
+        );
 
         return Column(
           children: <Widget>[
@@ -940,7 +971,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                 opacity: 0.45,
                 child: tile,
               ),
-              child: tile,
+              child: dismissibleTile,
             ),
             if (hasChildren && isExpanded)
               _buildNestedList(
@@ -1046,8 +1077,8 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
           const SizedBox(height: 4),
           Text(
             _usesChecklistStyle
-                ? 'Use the checkbox to complete items. Tap an item for options and long press to drag.'
-                : 'Use the arrow to fold or expand child ideas. Tap an item for options and long press to drag.',
+                ? 'Use the checkbox to complete items. Swipe left to remove, tap an item for options, and long press to drag.'
+                : 'Use the arrow to fold or expand child ideas. Swipe left to remove, tap an item for options, and long press to drag.',
             style: Theme.of(context).textTheme.bodySmall,
           ),
         ],
