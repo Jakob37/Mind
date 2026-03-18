@@ -77,11 +77,6 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
             'Quick Capture',
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 8),
-          Text(
-            'Capturing into ${widget.sessionTitle}',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
           const SizedBox(height: 12),
           TextField(
             controller: _titleController,
@@ -94,7 +89,6 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
             decoration: const InputDecoration(
               labelText: 'Capture',
               alignLabelWithHint: true,
-              hintText: 'Key idea, quote, question, or connection',
             ),
           ),
           const SizedBox(height: 12),
@@ -105,7 +99,6 @@ class _QuickCaptureSheetState extends State<QuickCaptureSheet> {
             textInputAction: TextInputAction.newline,
             decoration: const InputDecoration(
               labelText: 'Details',
-              hintText: 'Optional context while it is still fresh',
               alignLabelWithHint: true,
             ),
           ),

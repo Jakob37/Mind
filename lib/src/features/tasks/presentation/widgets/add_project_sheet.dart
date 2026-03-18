@@ -152,7 +152,6 @@ class _AddProjectSheetState extends State<AddProjectSheet> {
             decoration: const InputDecoration(
               labelText: 'Project name',
               alignLabelWithHint: true,
-              hintText: 'Deep Focus',
             ),
           ),
           const SizedBox(height: 12),

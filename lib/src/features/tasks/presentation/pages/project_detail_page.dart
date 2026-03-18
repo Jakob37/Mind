@@ -2246,14 +2246,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               if (projectType.showsIdeas)
                 ListTile(
                   leading: const Icon(Icons.lightbulb_outline),
-                  title: const Text('Thinking (ideas)'),
+                  title: const Text('Ideas'),
                   onTap: () =>
                       Navigator.of(context).pop(_ProjectEntryKind.thinking),
                 ),
               if (projectType.showsPlanningTasks)
                 ListTile(
                   leading: const Icon(Icons.checklist_rtl_outlined),
-                  title: const Text('Planning (action items)'),
+                  title: const Text('Tasks'),
                   onTap: () =>
                       Navigator.of(context).pop(_ProjectEntryKind.planning),
                 ),
@@ -3079,7 +3079,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Widget _buildJournalSection({
     required String title,
-    required String emptyLabel,
+    String? emptyLabel,
     required List<TaskItem> entries,
     bool isArchivedSection = false,
   }) {
@@ -3091,7 +3091,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
-        if (entries.isEmpty)
+        if (entries.isEmpty && emptyLabel != null && emptyLabel.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
@@ -3199,7 +3199,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Widget _buildTaskSection({
     required String title,
-    required String emptyLabel,
+    String? emptyLabel,
     required List<TaskItem> tasks,
     required TaskItemType sectionType,
     bool showNestedPreview = false,
@@ -3213,7 +3213,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           style: Theme.of(context).textTheme.titleMedium,
         ),
         const SizedBox(height: 8),
-        if (tasks.isEmpty)
+        if (tasks.isEmpty && emptyLabel != null && emptyLabel.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: Text(
@@ -3503,8 +3503,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 children: <Widget>[
                   if (archivedJournalEntries.isNotEmpty)
                     _buildJournalSection(
-                      title: 'Archived journal',
-                      emptyLabel: 'No archived journal entries.',
+                      title: 'Journal',
                       entries: archivedJournalEntries,
                       isArchivedSection: true,
                     ),
@@ -3513,8 +3512,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     const SizedBox(height: 8),
                   if (archivedStandardTasks.isNotEmpty)
                     _buildTaskSection(
-                      title: 'Archived tasks',
-                      emptyLabel: 'No archived tasks.',
+                      title: 'Tasks',
                       tasks: archivedStandardTasks,
                       sectionType: TaskItemType.planning,
                       isArchivedSection: true,
@@ -3551,6 +3549,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final bool isKnowledgeProject =
         projectType.id == ProjectTypeDefaults.knowledgeId;
     final bool isPeopleProject = projectRules.isPeopleContainer;
+    final IconData? projectIconData =
+        iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
     final bool showProjectTypeLabel =
         projectType.id != ProjectTypeDefaults.blankId &&
             projectType.id != ProjectTypeDefaults.projectId;
@@ -3558,8 +3558,6 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         .textTheme
         .labelMedium
         ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
-    final IconData? projectIconData =
-        iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
 
     return Scaffold(
       appBar: AppBar(
@@ -3622,11 +3620,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ),
               children: <Widget>[
                 if (project.isArchived)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Text(
-                      'This project is archived. Restore it to bring it back into the main project list.',
-                      style: Theme.of(context).textTheme.bodyMedium,
+                  const Padding(
+                    padding: EdgeInsets.only(bottom: 12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Chip(label: Text('Archived')),
                     ),
                   ),
                 if (project.body.isNotEmpty ||
@@ -3666,8 +3664,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   ),
                 if (showsJournalSection)
                   _buildJournalSection(
-                    title: 'Diary',
-                    emptyLabel: 'No diary entries yet.',
+                    title: 'Journal',
                     entries: journalEntries,
                   ),
                 if (showsJournalSection &&
@@ -3675,12 +3672,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   const SizedBox(height: 8),
                 if (showsIdeasSection)
                   _buildTaskSection(
-                    title: isKnowledgeProject
-                        ? 'Knowledge notes'
-                        : 'Thinking (ideas)',
-                    emptyLabel: isKnowledgeProject
-                        ? 'No knowledge captured yet.'
-                        : 'No ideas in this project yet.',
+                    title: isKnowledgeProject ? 'Knowledge notes' : 'Ideas',
                     tasks: thinkingTasks,
                     sectionType: TaskItemType.thinking,
                     showNestedPreview: true,
@@ -3689,18 +3681,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   const SizedBox(height: 8),
                 if (showsPlanningSection)
                   _buildTaskSection(
-                    title: 'Planning (action items)',
-                    emptyLabel: 'No action items in this project yet.',
+                    title: 'Tasks',
                     tasks: planningTasks,
                     sectionType: TaskItemType.planning,
                     showNestedPreview: true,
-                  ),
-                if (!showsJournalSection &&
-                    !showsIdeasSection &&
-                    !showsPlanningSection)
-                  Text(
-                    'This project type is blank. Enable journal, ideas, or tasks in project type settings to add sections.',
-                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                 if (archivedTasks.isNotEmpty)
                   _buildArchivedTaskSection(archivedTasks),

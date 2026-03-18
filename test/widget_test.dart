@@ -17,6 +17,7 @@ void main() {
   testWidgets('moves tasks to projects and creates projects',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     expect(find.text('Incoming'), findsOneWidget);
     expect(find.text('Projects'), findsOneWidget);
@@ -92,7 +93,7 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'Morning Routine'));
     await tester.pumpAndSettle();
     expect(find.text('Do a 3-minute breathing check-in'), findsNothing);
-    expect(find.text('No ideas in this project yet.'), findsOneWidget);
+    expect(find.text('Ideas'), findsOneWidget);
 
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -114,6 +115,7 @@ void main() {
       'add task sheet supports direct project capture with body and prompt',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
@@ -225,6 +227,7 @@ void main() {
 
     await tester.pumpWidget(const MindApp());
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
     expect(find.text('Old key incoming'), findsOneWidget);
     expect(find.text('Old key favorite'), findsOneWidget);
@@ -261,6 +264,7 @@ void main() {
 
     await tester.pumpWidget(const MindApp());
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
     expect(find.text('String based task'), findsOneWidget);
     expect(find.text('Mapped favorite task'), findsOneWidget);
@@ -277,6 +281,7 @@ void main() {
   testWidgets('opens settings and shows JSON export',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Open settings'));
     await tester.pumpAndSettle();
@@ -297,6 +302,7 @@ void main() {
   testWidgets('pinned projects appear at the top of Incoming',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -321,6 +327,7 @@ void main() {
   testWidgets('stacked projects expose project options and can be pinned',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -378,6 +385,7 @@ void main() {
   testWidgets('creates stacks and groups projects by dragging',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -463,6 +471,7 @@ void main() {
   testWidgets('projects can be reordered inside an expanded stack by dragging',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -536,6 +545,7 @@ void main() {
   testWidgets('uses custom color labels from settings in color picker',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Open settings'));
     await tester.pumpAndSettle();
@@ -571,6 +581,7 @@ void main() {
   testWidgets('edits task and project through context menus',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
@@ -613,6 +624,7 @@ void main() {
   testWidgets('shows subtask count and supports subtask swipe/reorder',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
@@ -675,6 +687,7 @@ void main() {
   testWidgets('opens subtask menu to edit and set color',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
@@ -721,6 +734,7 @@ void main() {
   testWidgets('incoming cards expose direct controls without drag mode',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     expect(find.byTooltip('Enter drag mode'), findsNothing);
     expect(find.byTooltip('Done reordering'), findsNothing);
@@ -736,6 +750,7 @@ void main() {
   testWidgets('swipe left removes task with undo and project with confirmation',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.drag(
       find.widgetWithText(ListTile, 'Sit for 10 minutes in silence'),
@@ -762,6 +777,7 @@ void main() {
   testWidgets('swipe right quickly moves incoming task to project',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.drag(
       find.widgetWithText(ListTile, 'Sit for 10 minutes in silence'),
@@ -783,6 +799,7 @@ void main() {
   testWidgets('swipe right archives and restores project tasks and projects',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -847,6 +864,7 @@ void main() {
   testWidgets('deletes projects and sets colors from context menu',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -910,6 +928,7 @@ void main() {
   testWidgets('project types can be configured and change new project behavior',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.byTooltip('Open settings'));
     await tester.pumpAndSettle();
@@ -934,14 +953,15 @@ void main() {
     await tester.tap(find.widgetWithText(ListTile, 'Reference'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Planning (action items)'), findsOneWidget);
-    expect(find.text('Thinking (ideas)'), findsNothing);
+    expect(find.text('Tasks'), findsOneWidget);
+    expect(find.text('Ideas'), findsNothing);
     expect(find.byTooltip('Add project task'), findsOneWidget);
   });
 
   testWidgets('knowledge projects support sessions and quick capture',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -993,6 +1013,7 @@ void main() {
   testWidgets('diary projects create timestamped journal entries',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -1015,7 +1036,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Diary'), findsOneWidget);
-    expect(find.text('No diary entries yet.'), findsOneWidget);
+    expect(find.text('Journal'), findsOneWidget);
     expect(find.byTooltip('Add journal entry'), findsOneWidget);
 
     await tester.tap(find.byType(FloatingActionButton));
@@ -1038,6 +1059,7 @@ void main() {
   testWidgets('people projects contain people with interactions and ideas',
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -1083,13 +1105,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Interactions'), findsOneWidget);
-    expect(find.text('Thinking (ideas)'), findsWidgets);
+    expect(find.text('Ideas'), findsWidgets);
     expect(find.byTooltip('Add interaction or idea'), findsOneWidget);
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     expect(find.text('Journal entry'), findsOneWidget);
-    expect(find.text('Thinking (ideas)'), findsWidgets);
+    expect(find.text('Ideas'), findsWidgets);
     await tester.tap(find.text('Journal entry'));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -1106,7 +1128,7 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, 'Thinking (ideas)'));
+    await tester.tap(find.widgetWithText(ListTile, 'Ideas'));
     await tester.pumpAndSettle();
     await tester.enterText(
         find.byType(TextField), 'Invite Alice to hiking day');
@@ -1148,6 +1170,7 @@ void main() {
     });
 
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
     expect(find.text('Legacy v2 incoming'), findsOneWidget);
@@ -1198,6 +1221,7 @@ void main() {
 
     await tester.pumpWidget(const MindApp());
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
     expect(find.text('Legacy v3 incoming'), findsOneWidget);
 
     await tester.tap(find.byTooltip('Open settings'));
@@ -1240,14 +1264,15 @@ void main() {
 
     await tester.pumpWidget(const MindApp());
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(ListTile, 'Dual Mode Project'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Thinking (ideas)'), findsOneWidget);
-    expect(find.text('Planning (action items)'), findsOneWidget);
+    expect(find.text('Ideas'), findsOneWidget);
+    expect(find.text('Tasks'), findsOneWidget);
     expect(find.text('Legacy task'), findsOneWidget);
 
     await tester.tap(find.text('Legacy task'));
@@ -1257,7 +1282,7 @@ void main() {
     await tester.tap(find.text('Move to thinking'));
     await tester.pumpAndSettle();
 
-    expect(find.text('No action items in this project yet.'), findsOneWidget);
+    expect(find.text('Tasks'), findsOneWidget);
 
     await tester.tap(find.text('Legacy task'));
     await tester.pumpAndSettle();
@@ -1271,6 +1296,7 @@ void main() {
       (WidgetTester tester) async {
     await tester.pumpWidget(const MindApp());
     await tester.pumpAndSettle();
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Projects'));
     await tester.pumpAndSettle();
@@ -1279,7 +1305,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Add project task'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, 'Thinking (ideas)'));
+    await tester.tap(find.widgetWithText(ListTile, 'Ideas'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'Drag idea');
     await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
@@ -1288,7 +1314,7 @@ void main() {
 
     final Offset dragStart = tester.getCenter(find.text('Drag idea'));
     final Offset planningHeader = tester.getCenter(
-      find.text('Planning (action items)'),
+      find.text('Tasks'),
     );
     final TestGesture drag = await tester.startGesture(dragStart);
     await tester.pump(kLongPressTimeout);
@@ -1299,7 +1325,7 @@ void main() {
 
     await tester.tap(find.byTooltip('Add project task'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, 'Planning (action items)'));
+    await tester.tap(find.widgetWithText(ListTile, 'Tasks'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField).first, 'New action');
     await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
@@ -1317,6 +1343,7 @@ void main() {
     });
 
     await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
     await tester.pumpAndSettle();
 
     expect(

@@ -2254,7 +2254,7 @@ class _TaskPageState extends State<TaskPage>
                 ? null
                 : _buildPinnedProjectsSection(),
             tasks: _incomingTasks,
-            emptyLabel: 'No incoming tasks yet.',
+            emptyLabel: '',
             cardLayoutPreset: _cardLayoutPreset,
             onTaskTap: _openIncomingTaskView,
             onTaskOptionsTap: _openIncomingTaskMenu,

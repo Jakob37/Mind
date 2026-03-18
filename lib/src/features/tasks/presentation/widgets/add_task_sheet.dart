@@ -194,7 +194,6 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
             decoration: const InputDecoration(
               labelText: 'Title',
               alignLabelWithHint: true,
-              hintText: 'Capture a new idea or action',
             ),
           ),
           const SizedBox(height: 12),
@@ -399,7 +398,6 @@ class _SelectProjectSheetState extends State<_SelectProjectSheet> {
                 },
                 decoration: const InputDecoration(
                   labelText: 'Search projects',
-                  hintText: 'Type part of a project name',
                   prefixIcon: Icon(Icons.search_outlined),
                 ),
               ),
@@ -417,7 +415,7 @@ class _SelectProjectSheetState extends State<_SelectProjectSheet> {
             if (filteredProjects.isEmpty)
               const Padding(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 24),
-                child: Text('No matching projects.'),
+                child: Text('No results'),
               ),
             for (final ProjectItem project in filteredProjects)
               ListTile(

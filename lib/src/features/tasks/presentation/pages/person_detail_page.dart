@@ -128,7 +128,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.lightbulb_outline),
-                title: const Text('Thinking (ideas)'),
+                title: const Text('Ideas'),
                 onTap: () => Navigator.of(context).pop(_PersonEntryKind.idea),
               ),
             ],
@@ -891,29 +891,13 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (journalEntries.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                'No interactions captured yet.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
           for (final TaskItem task in journalEntries) _buildJournalCard(task),
           const SizedBox(height: 8),
           Text(
-            'Thinking (ideas)',
+            'Ideas',
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (ideaTasks.isEmpty)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Text(
-                'No ideas for this person yet.',
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
           for (final TaskItem task in ideaTasks) _buildIdeaCard(task),
         ],
       ),

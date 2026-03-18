@@ -959,7 +959,7 @@ class _ProjectListViewState extends State<ProjectListView> {
   @override
   Widget build(BuildContext context) {
     if (widget.projects.isEmpty) {
-      return const Center(child: Text('No projects yet.'));
+      return const SizedBox.shrink();
     }
 
     final List<ProjectItem> activeProjects = _visibleProjects();
@@ -973,14 +973,6 @@ class _ProjectListViewState extends State<ProjectListView> {
     return ListView(
       padding: EdgeInsets.fromLTRB(12, 12, 12, fabClearance),
       children: <Widget>[
-        if (activeGroups.isEmpty)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: Text(
-              'No active projects.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
-          ),
         if (activeGroups.isNotEmpty)
           _buildGroupDropSlot(
             context,

@@ -1018,8 +1018,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   Widget build(BuildContext context) {
     final bool hasBody = _task.body.trim().isNotEmpty;
     final bool hasPrompt = _task.prompt.trim().isNotEmpty;
-    final String sectionLabel =
-        _usesChecklistStyle ? 'Nested checklist' : 'Nested ideas';
+    final String sectionLabel = _usesChecklistStyle ? 'Checklist' : 'Ideas';
 
     return Scaffold(
       appBar: AppBar(
@@ -1041,11 +1040,6 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             Text(
               _task.body,
               style: Theme.of(context).textTheme.bodyLarge,
-            )
-          else
-            Text(
-              'No details added yet.',
-              style: Theme.of(context).textTheme.bodyMedium,
             ),
           if (hasPrompt) ...<Widget>[
             const SizedBox(height: 16),
@@ -1065,22 +1059,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
             style: Theme.of(context).textTheme.titleMedium,
           ),
           const SizedBox(height: 8),
-          if (_task.subtasks.isEmpty)
-            Text(
-              _usesChecklistStyle
-                  ? 'No checklist items yet.'
-                  : 'No nested ideas yet.',
-              style: Theme.of(context).textTheme.bodyMedium,
-            )
-          else
-            _buildNestedList(_task.subtasks, 0),
-          const SizedBox(height: 4),
-          Text(
-            _usesChecklistStyle
-                ? 'Use the checkbox to complete items. Swipe left to remove, tap an item for options, and long press to drag.'
-                : 'Use the arrow to fold or expand child ideas. Swipe left to remove, tap an item for options, and long press to drag.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          if (_task.subtasks.isNotEmpty) _buildNestedList(_task.subtasks, 0),
         ],
       ),
       floatingActionButton: FloatingActionButton(
