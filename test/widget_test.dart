@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -745,6 +746,38 @@ void main() {
 
     expect(find.text('Task options'), findsOneWidget);
     expect(find.text('Edit task'), findsOneWidget);
+  });
+
+  testWidgets('task menu can copy task text to the clipboard',
+      (WidgetTester tester) async {
+    String? copiedText;
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.platform,
+            (MethodCall methodCall) async {
+      if (methodCall.method == 'Clipboard.setData') {
+        copiedText = (methodCall.arguments as Map<Object?, Object?>?)?['text']
+            as String?;
+      }
+      return null;
+    });
+    addTearDown(() {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null);
+    });
+
+    await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Task options').first);
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip('Copy task text'), findsOneWidget);
+
+    await tester.tap(find.byTooltip('Copy task text'));
+    await tester.pumpAndSettle();
+
+    expect(copiedText, 'Sit for 10 minutes in silence');
+    expect(find.text('Task text copied.'), findsOneWidget);
   });
 
   testWidgets('swipe left removes task with undo and project with confirmation',

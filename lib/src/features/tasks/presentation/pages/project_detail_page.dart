@@ -4,6 +4,7 @@ import 'package:share_plus/share_plus.dart';
 
 import '../../domain/list_reorder.dart';
 import '../../domain/task_models.dart';
+import '../task_text_clipboard.dart';
 import '../widgets/add_journal_entry_sheet.dart';
 import '../widgets/add_person_sheet.dart';
 import '../widgets/add_session_sheet.dart';
@@ -1052,6 +1053,16 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: const Text('Task options'),
+                trailing: IconButton(
+                  tooltip: 'Copy task text',
+                  icon: const Icon(Icons.copy_outlined),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      copyTaskTextToClipboard(this.context, task);
+                    });
+                  },
+                ),
               ),
               const Divider(height: 1),
               ListTile(

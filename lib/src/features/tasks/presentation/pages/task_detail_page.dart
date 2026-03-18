@@ -5,6 +5,7 @@ import '../widgets/card_layout.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
+import '../task_text_clipboard.dart';
 
 enum TaskDetailAction {
   edit,
@@ -128,6 +129,16 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: const Text('Task options'),
+                trailing: IconButton(
+                  tooltip: 'Copy task text',
+                  icon: const Icon(Icons.copy_outlined),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      copyTaskTextToClipboard(this.context, _task);
+                    });
+                  },
+                ),
               ),
               const Divider(height: 1),
               for (final TaskDetailMenuItem item in widget.menuItems)

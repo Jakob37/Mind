@@ -10,6 +10,7 @@ import '../domain/task_models.dart';
 import 'pages/project_detail_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/task_detail_page.dart';
+import 'task_text_clipboard.dart';
 import 'widgets/add_project_sheet.dart';
 import 'widgets/add_task_sheet.dart';
 import 'widgets/card_layout.dart';
@@ -1139,6 +1140,16 @@ class _TaskPageState extends State<TaskPage>
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
                 subtitle: const Text('Task options'),
+                trailing: IconButton(
+                  tooltip: 'Copy task text',
+                  icon: const Icon(Icons.copy_outlined),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      copyTaskTextToClipboard(this.context, task);
+                    });
+                  },
+                ),
               ),
               const Divider(height: 1),
               ListTile(
