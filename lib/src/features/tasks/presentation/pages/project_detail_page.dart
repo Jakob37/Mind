@@ -3551,6 +3551,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final bool isKnowledgeProject =
         projectType.id == ProjectTypeDefaults.knowledgeId;
     final bool isPeopleProject = projectRules.isPeopleContainer;
+    final bool showProjectTypeLabel =
+        projectType.id != ProjectTypeDefaults.blankId &&
+            projectType.id != ProjectTypeDefaults.projectId;
+    final TextStyle? appBarSubtitleStyle = Theme.of(context)
+        .textTheme
+        .labelMedium
+        ?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
     final IconData? projectIconData =
         iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
 
@@ -3562,7 +3569,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               Icon(projectIconData),
               const SizedBox(width: 10),
             ],
-            Expanded(child: Text(project.name)),
+            Expanded(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  Text(project.name),
+                  if (showProjectTypeLabel)
+                    Text(
+                      projectType.name,
+                      style: appBarSubtitleStyle,
+                    ),
+                ],
+              ),
+            ),
           ],
         ),
         actions: <Widget>[

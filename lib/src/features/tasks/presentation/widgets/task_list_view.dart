@@ -361,10 +361,13 @@ class _TaskListViewState extends State<TaskListView> {
           const SizedBox(height: 12),
         ],
         if (widget.tasks.isEmpty)
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Center(child: Text(widget.emptyLabel)),
-          )
+          if (widget.emptyLabel.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: Center(child: Text(widget.emptyLabel)),
+            )
+          else
+            const SizedBox.shrink()
         else ...<Widget>[
           _buildDropSlot(
             context,
