@@ -10,3 +10,5 @@
 ## Git Usage
 - Prefer non-interactive git commands.
 - Use clear commit messages that describe the completed feature or fix.
+- When the user asks to push, push the completed local commits after verification.
+- Do not rewrite published history unless the user explicitly requests it.
