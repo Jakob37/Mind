@@ -13,6 +13,7 @@ dependencies:
   file_selector: ^1.0.3
   font_awesome_flutter: ^11.0.0
   flutter_file_dialog: ^3.0.2
+  path_provider: ^2.1.5
   shared_preferences: ^2.5.3
   share_plus: ^12.0.1
 

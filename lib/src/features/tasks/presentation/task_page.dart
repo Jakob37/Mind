@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../../app_version.dart';
+import '../data/task_backup_preferences.dart';
+import '../data/task_backup_service.dart';
 import '../data/task_storage.dart';
 import '../domain/list_reorder.dart';
 import '../domain/task_models.dart';
@@ -71,6 +73,9 @@ class _TaskPageState extends State<TaskPage>
   );
 
   final TaskStorage _taskStorage = const TaskStorage();
+  final TaskBackupService _taskBackupService = const TaskBackupService();
+  final TaskBackupPreferences _taskBackupPreferences =
+      const TaskBackupPreferences();
   final TaskBoardState _defaultState = TaskBoardState.defaults();
 
   late final List<TaskItem> _incomingTasks;
@@ -85,6 +90,7 @@ class _TaskPageState extends State<TaskPage>
   bool _isPersistencePaused = false;
   bool _hasShownPersistencePausedMessage = false;
   bool _hideCompletedProjectItems = false;
+  bool _automaticBackupsEnabled = false;
   CardLayoutPreset _cardLayoutPreset = CardLayoutPreset.standard;
 
   @override
@@ -105,6 +111,7 @@ class _TaskPageState extends State<TaskPage>
       });
     });
     _setupWidgetActionHandling();
+    _loadBackupPreferences();
     _loadPersistedState();
   }
 
@@ -2086,6 +2093,7 @@ class _TaskPageState extends State<TaskPage>
   Future<void> _persistSnapshot(TaskBoardState snapshot) async {
     try {
       await _taskStorage.save(snapshot);
+      await _createAutomaticBackupIfEnabled(snapshot);
     } catch (error, stackTrace) {
       _isPersistencePaused = true;
       _reportPersistenceError(
@@ -2095,6 +2103,28 @@ class _TaskPageState extends State<TaskPage>
       );
       _showPersistencePausedMessage(
         'Changes could not be saved. Autosave is paused until restart.',
+      );
+    }
+  }
+
+  Future<void> _createAutomaticBackupIfEnabled(
+    TaskBoardState snapshot, {
+    bool force = false,
+  }) async {
+    if (!_automaticBackupsEnabled) {
+      return;
+    }
+
+    try {
+      await _taskBackupService.saveAutomaticBackup(
+        _taskStorage.export(snapshot),
+        force: force,
+      );
+    } catch (error, stackTrace) {
+      _reportPersistenceError(
+        error: error,
+        stackTrace: stackTrace,
+        context: 'while creating automatic backup',
       );
     }
   }
@@ -2192,6 +2222,65 @@ class _TaskPageState extends State<TaskPage>
     }
   }
 
+  Future<void> _loadBackupPreferences() async {
+    final bool automaticBackupsEnabled =
+        await _taskBackupPreferences.loadAutomaticBackupsEnabled();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _automaticBackupsEnabled = automaticBackupsEnabled;
+    });
+  }
+
+  Future<String?> _updateAutomaticBackupsEnabled(bool enabled) async {
+    try {
+      if (enabled) {
+        await _taskBackupService.saveAutomaticBackup(
+          _taskStorage.export(_createSnapshot()),
+          force: true,
+        );
+      }
+
+      await _taskBackupPreferences.saveAutomaticBackupsEnabled(enabled);
+      if (!mounted) {
+        return null;
+      }
+
+      setState(() {
+        _automaticBackupsEnabled = enabled;
+      });
+      return null;
+    } catch (error, stackTrace) {
+      _reportPersistenceError(
+        error: error,
+        stackTrace: stackTrace,
+        context: 'while updating automatic backup settings',
+      );
+      return 'Automatic backup setting could not be saved: $error';
+    }
+  }
+
+  Future<List<TaskBackupEntry>> _listAutomaticBackups() {
+    return _taskBackupService.listBackups();
+  }
+
+  Future<String?> _restoreAutomaticBackup(String backupId) async {
+    try {
+      final String backupJson = await _taskBackupService.readBackup(backupId);
+      final String? errorMessage = await _importData(backupJson);
+      if (errorMessage != null) {
+        return errorMessage;
+      }
+
+      await _createAutomaticBackupIfEnabled(_createSnapshot(), force: true);
+      return null;
+    } catch (error) {
+      return 'Automatic backup restore failed: $error';
+    }
+  }
+
   Future<void> _openSettingsPage() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -2206,6 +2295,10 @@ class _TaskPageState extends State<TaskPage>
           onColorLabelsChanged: _updateColorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,
           onHideCompletedProjectItemsChanged: _updateHideCompletedProjectItems,
+          automaticBackupsEnabled: _automaticBackupsEnabled,
+          onAutomaticBackupsEnabledChanged: _updateAutomaticBackupsEnabled,
+          listAutomaticBackups: _listAutomaticBackups,
+          onRestoreAutomaticBackup: _restoreAutomaticBackup,
           cardLayoutPreset: _cardLayoutPreset,
           onCardLayoutPresetChanged: _updateCardLayoutPreset,
         ),

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter/services.dart';
 
+import '../../data/task_backup_service.dart';
 import '../../domain/task_models.dart';
 import '../widgets/card_layout.dart';
 import '../widgets/edit_project_type_sheet.dart';
@@ -24,6 +25,10 @@ class SettingsPage extends StatefulWidget {
     required this.onColorLabelsChanged,
     required this.hideCompletedProjectItems,
     required this.onHideCompletedProjectItemsChanged,
+    required this.automaticBackupsEnabled,
+    required this.onAutomaticBackupsEnabledChanged,
+    required this.listAutomaticBackups,
+    required this.onRestoreAutomaticBackup,
     required this.cardLayoutPreset,
     required this.onCardLayoutPresetChanged,
   });
@@ -37,6 +42,10 @@ class SettingsPage extends StatefulWidget {
   final void Function(Map<int, String> colorLabels) onColorLabelsChanged;
   final bool hideCompletedProjectItems;
   final ValueChanged<bool> onHideCompletedProjectItemsChanged;
+  final bool automaticBackupsEnabled;
+  final Future<String?> Function(bool enabled) onAutomaticBackupsEnabledChanged;
+  final Future<List<TaskBackupEntry>> Function() listAutomaticBackups;
+  final Future<String?> Function(String backupId) onRestoreAutomaticBackup;
   final CardLayoutPreset cardLayoutPreset;
   final ValueChanged<CardLayoutPreset> onCardLayoutPresetChanged;
 
@@ -52,6 +61,7 @@ class _SettingsPageState extends State<SettingsPage> {
     widget.colorLabels,
   );
   late bool _hideCompletedProjectItems = widget.hideCompletedProjectItems;
+  late bool _automaticBackupsEnabled = widget.automaticBackupsEnabled;
   late CardLayoutPreset _cardLayoutPreset = widget.cardLayoutPreset;
 
   bool get _isAndroidDevice =>
@@ -604,6 +614,136 @@ class _SettingsPageState extends State<SettingsPage> {
     return shouldImport ?? false;
   }
 
+  Future<void> _toggleAutomaticBackups(bool enabled) async {
+    final String? errorMessage =
+        await widget.onAutomaticBackupsEnabledChanged(enabled);
+    if (!mounted) {
+      return;
+    }
+
+    if (errorMessage != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(errorMessage)),
+      );
+      return;
+    }
+
+    setState(() {
+      _automaticBackupsEnabled = enabled;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          enabled
+              ? 'Automatic backups enabled.'
+              : 'Automatic backups disabled.',
+        ),
+      ),
+    );
+  }
+
+  String _backupTimeLabel(BuildContext context, DateTime savedAt) {
+    final MaterialLocalizations localizations = MaterialLocalizations.of(
+      context,
+    );
+    return '${localizations.formatFullDate(savedAt)} at '
+        '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(savedAt))}';
+  }
+
+  Future<bool> _confirmAutomaticBackupRestore(TaskBackupEntry backup) async {
+    final bool? shouldRestore = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Restore backup'),
+          content: Text(
+            'Restore "${backup.fileName}"? This replaces the current board state.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Restore'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldRestore ?? false;
+  }
+
+  Future<void> _restoreAutomaticBackup() async {
+    final List<TaskBackupEntry> backups = await widget.listAutomaticBackups();
+    if (!mounted) {
+      return;
+    }
+
+    if (backups.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+            content: Text('No automatic backups are available yet.')),
+      );
+      return;
+    }
+
+    final TaskBackupEntry? selectedBackup =
+        await showModalBottomSheet<TaskBackupEntry>(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: ListView(
+            shrinkWrap: true,
+            children: <Widget>[
+              const ListTile(
+                title: Text(
+                  'Restore Automatic Backup',
+                  style: TextStyle(fontWeight: FontWeight.w600),
+                ),
+                subtitle: Text('Choose a recent local JSON snapshot'),
+              ),
+              const Divider(height: 1),
+              for (final TaskBackupEntry backup in backups)
+                ListTile(
+                  leading: const Icon(Icons.history_outlined),
+                  title: Text(_backupTimeLabel(context, backup.savedAt)),
+                  subtitle: Text(backup.fileName),
+                  onTap: () => Navigator.of(context).pop(backup),
+                ),
+            ],
+          ),
+        );
+      },
+    );
+
+    if (!mounted || selectedBackup == null) {
+      return;
+    }
+
+    final bool shouldRestore =
+        await _confirmAutomaticBackupRestore(selectedBackup);
+    if (!mounted || !shouldRestore) {
+      return;
+    }
+
+    final String? errorMessage =
+        await widget.onRestoreAutomaticBackup(selectedBackup.id);
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          errorMessage ??
+              'Automatic backup restored. Current data was replaced.',
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -626,6 +766,25 @@ class _SettingsPageState extends State<SettingsPage> {
               'Choose a previous JSON export file and replace current data',
             ),
             onTap: () => _showJsonImport(context),
+          ),
+          const Divider(height: 1),
+          SwitchListTile(
+            secondary: const Icon(Icons.backup_outlined),
+            title: const Text('Automatic JSON backups'),
+            subtitle: const Text(
+              'Keep up to 20 recent local snapshots and update them automatically',
+            ),
+            value: _automaticBackupsEnabled,
+            onChanged: _toggleAutomaticBackups,
+          ),
+          const Divider(height: 1),
+          ListTile(
+            leading: const Icon(Icons.restore_outlined),
+            title: const Text('Restore from automatic backup'),
+            subtitle: const Text(
+              'Choose one of the recent local snapshots and replace current data',
+            ),
+            onTap: _restoreAutomaticBackup,
           ),
           const Divider(height: 1),
           ListTile(
