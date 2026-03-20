@@ -7,8 +7,10 @@ import '../../../app_version.dart';
 import '../data/task_backup_preferences.dart';
 import '../data/task_backup_service.dart';
 import '../data/task_storage.dart';
+import '../data/task_sync_service.dart';
 import '../domain/list_reorder.dart';
 import '../domain/task_models.dart';
+import '../../auth/presentation/sign_in_page.dart';
 import 'pages/project_detail_page.dart';
 import 'pages/settings_page.dart';
 import 'pages/task_detail_page.dart';
@@ -76,6 +78,7 @@ class _TaskPageState extends State<TaskPage>
   final TaskBackupService _taskBackupService = const TaskBackupService();
   final TaskBackupPreferences _taskBackupPreferences =
       const TaskBackupPreferences();
+  final TaskSyncService _taskSyncService = TaskSyncService();
   final TaskBoardState _defaultState = TaskBoardState.defaults();
 
   late final List<TaskItem> _incomingTasks;
@@ -91,6 +94,9 @@ class _TaskPageState extends State<TaskPage>
   bool _hasShownPersistencePausedMessage = false;
   bool _hideCompletedProjectItems = false;
   bool _automaticBackupsEnabled = false;
+  TaskSyncAccountState _cloudAccountState = const TaskSyncAccountState(
+    isConfigured: false,
+  );
   CardLayoutPreset _cardLayoutPreset = CardLayoutPreset.standard;
 
   @override
@@ -100,6 +106,7 @@ class _TaskPageState extends State<TaskPage>
     _projects = List<ProjectItem>.from(_defaultState.projects);
     _projectStacks = List<ProjectStack>.from(_defaultState.projectStacks);
     _projectTypes = List<ProjectTypeConfig>.from(_defaultState.projectTypes);
+    _cloudAccountState = _taskSyncService.accountState;
 
     _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
@@ -2281,6 +2288,48 @@ class _TaskPageState extends State<TaskPage>
     }
   }
 
+  Future<TaskSyncAccountState> _openCloudAccount() async {
+    if (!_taskSyncService.isConfigured) {
+      return _taskSyncService.accountState;
+    }
+
+    await Navigator.of(context).push<bool>(
+      MaterialPageRoute<bool>(
+        builder: (_) => SignInPage(syncService: _taskSyncService),
+      ),
+    );
+
+    if (!mounted) {
+      return _taskSyncService.accountState;
+    }
+
+    final TaskSyncAccountState accountState = _taskSyncService.accountState;
+    setState(() {
+      _cloudAccountState = accountState;
+    });
+    return accountState;
+  }
+
+  Future<TaskSyncAccountState> _signOutCloudAccount() async {
+    try {
+      await _taskSyncService.signOut();
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not sign out: $error')));
+      }
+    }
+
+    final TaskSyncAccountState accountState = _taskSyncService.accountState;
+    if (mounted) {
+      setState(() {
+        _cloudAccountState = accountState;
+      });
+    }
+    return accountState;
+  }
+
   Future<void> _openSettingsPage() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -2299,11 +2348,22 @@ class _TaskPageState extends State<TaskPage>
           onAutomaticBackupsEnabledChanged: _updateAutomaticBackupsEnabled,
           listAutomaticBackups: _listAutomaticBackups,
           onRestoreAutomaticBackup: _restoreAutomaticBackup,
+          cloudAccountState: _cloudAccountState,
+          onManageCloudAccount: _openCloudAccount,
+          onSignOutCloudAccount: _signOutCloudAccount,
           cardLayoutPreset: _cardLayoutPreset,
           onCardLayoutPresetChanged: _updateCardLayoutPreset,
         ),
       ),
     );
+
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _cloudAccountState = _taskSyncService.accountState;
+    });
   }
 
   @override

@@ -7,6 +7,7 @@ A Flutter task board app focused on quickly moving ideas into projects.
 - Two-tab board:
   - `Incoming` for unassigned tasks
   - `Projects` for named project containers
+- Optional Supabase account setup scaffold for future cloud sync
 - Task and project creation via bottom sheets.
 - Context menus for task/project actions:
   - edit title/body
@@ -71,6 +72,17 @@ A Flutter task board app focused on quickly moving ideas into projects.
    flutter run -d linux
    ```
    The Linux window opens at `412x915` and is non-resizable for phone-like layout testing.
+
+Optional cloud account setup:
+
+```bash
+flutter run \
+  --dart-define=SUPABASE_URL=https://<project-ref>.supabase.co \
+  --dart-define=SUPABASE_ANON_KEY=<anon-key>
+```
+
+The initial Supabase schema is scaffolded in
+`supabase/migrations/20260320120000_create_boards.sql`.
 
 ## Quality checks
 

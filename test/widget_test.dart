@@ -965,6 +965,10 @@ void main() {
 
     await tester.tap(find.byTooltip('Open settings'));
     await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ListTile, 'Blank'),
+      300,
+    );
     await tester.tap(find.widgetWithText(ListTile, 'Blank'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Show tasks section'));

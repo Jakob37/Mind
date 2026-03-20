@@ -7,6 +7,7 @@ import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter/services.dart';
 
 import '../../data/task_backup_service.dart';
+import '../../data/task_sync_service.dart';
 import '../../domain/task_models.dart';
 import '../widgets/card_layout.dart';
 import '../widgets/edit_project_type_sheet.dart';
@@ -29,6 +30,9 @@ class SettingsPage extends StatefulWidget {
     required this.onAutomaticBackupsEnabledChanged,
     required this.listAutomaticBackups,
     required this.onRestoreAutomaticBackup,
+    required this.cloudAccountState,
+    required this.onManageCloudAccount,
+    required this.onSignOutCloudAccount,
     required this.cardLayoutPreset,
     required this.onCardLayoutPresetChanged,
   });
@@ -46,6 +50,9 @@ class SettingsPage extends StatefulWidget {
   final Future<String?> Function(bool enabled) onAutomaticBackupsEnabledChanged;
   final Future<List<TaskBackupEntry>> Function() listAutomaticBackups;
   final Future<String?> Function(String backupId) onRestoreAutomaticBackup;
+  final TaskSyncAccountState cloudAccountState;
+  final Future<TaskSyncAccountState> Function() onManageCloudAccount;
+  final Future<TaskSyncAccountState> Function() onSignOutCloudAccount;
   final CardLayoutPreset cardLayoutPreset;
   final ValueChanged<CardLayoutPreset> onCardLayoutPresetChanged;
 
@@ -62,6 +69,7 @@ class _SettingsPageState extends State<SettingsPage> {
   );
   late bool _hideCompletedProjectItems = widget.hideCompletedProjectItems;
   late bool _automaticBackupsEnabled = widget.automaticBackupsEnabled;
+  late TaskSyncAccountState _cloudAccountState = widget.cloudAccountState;
   late CardLayoutPreset _cardLayoutPreset = widget.cardLayoutPreset;
 
   bool get _isAndroidDevice =>
@@ -642,6 +650,33 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<void> _manageCloudAccount() async {
+    final TaskSyncAccountState accountState =
+        await widget.onManageCloudAccount();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _cloudAccountState = accountState;
+    });
+  }
+
+  Future<void> _signOutCloudAccount() async {
+    final TaskSyncAccountState accountState =
+        await widget.onSignOutCloudAccount();
+    if (!mounted) {
+      return;
+    }
+
+    setState(() {
+      _cloudAccountState = accountState;
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Signed out of cloud account.')),
+    );
+  }
+
   String _backupTimeLabel(BuildContext context, DateTime savedAt) {
     final MaterialLocalizations localizations = MaterialLocalizations.of(
       context,
@@ -750,6 +785,46 @@ class _SettingsPageState extends State<SettingsPage> {
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: <Widget>[
+          if (!_cloudAccountState.isConfigured) ...<Widget>[
+            const ListTile(
+              leading: Icon(Icons.cloud_off_outlined),
+              title: Text('Cloud account unavailable'),
+              subtitle: Text(
+                'Launch with SUPABASE_URL and SUPABASE_ANON_KEY to enable '
+                'account setup.',
+              ),
+            ),
+            const Divider(height: 1),
+          ] else if (_cloudAccountState.isSignedIn) ...<Widget>[
+            ListTile(
+              leading: const Icon(Icons.cloud_done_outlined),
+              title: const Text('Cloud account connected'),
+              subtitle: Text(
+                _cloudAccountState.email == null
+                    ? 'Signed in. Cloud sync wiring comes next.'
+                    : 'Signed in as ${_cloudAccountState.email}. '
+                        'Cloud sync wiring comes next.',
+              ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.logout_outlined),
+              title: const Text('Sign out of cloud account'),
+              subtitle: const Text('Keep using the app locally on this device'),
+              onTap: _signOutCloudAccount,
+            ),
+            const Divider(height: 1),
+          ] else ...<Widget>[
+            ListTile(
+              leading: const Icon(Icons.account_circle_outlined),
+              title: const Text('Set up cloud account'),
+              subtitle: const Text(
+                'Create an account or sign in with email and password',
+              ),
+              onTap: _manageCloudAccount,
+            ),
+            const Divider(height: 1),
+          ],
           ListTile(
             leading: const Icon(Icons.file_upload_outlined),
             title: const Text('Export data as JSON'),
