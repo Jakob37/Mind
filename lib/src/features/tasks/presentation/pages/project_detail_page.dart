@@ -24,17 +24,13 @@ import 'person_detail_page.dart';
 import 'task_detail_page.dart';
 
 class _TaskSectionDragPayload {
-  const _TaskSectionDragPayload({
-    required this.taskId,
-  });
+  const _TaskSectionDragPayload({required this.taskId});
 
   final String taskId;
 }
 
 class _PersonDragPayload {
-  const _PersonDragPayload({
-    required this.personId,
-  });
+  const _PersonDragPayload({required this.personId});
 
   final String personId;
 }
@@ -65,16 +61,9 @@ enum _ProjectMenuAction {
   remove,
 }
 
-enum _GeneratePromptAction {
-  allTasks,
-  filterByColor,
-}
+enum _GeneratePromptAction { allTasks, filterByColor }
 
-enum _ProjectEntryKind {
-  journal,
-  thinking,
-  planning,
-}
+enum _ProjectEntryKind { journal, thinking, planning }
 
 enum _PersonCardMenuAction {
   open,
@@ -109,7 +98,8 @@ class ProjectDetailPage extends StatefulWidget {
   final void Function(
     List<ProjectItem> projects,
     List<ProjectStack> projectStacks,
-  ) onProjectDataChanged;
+  )
+  onProjectDataChanged;
 
   @override
   State<ProjectDetailPage> createState() => _ProjectDetailPageState();
@@ -192,12 +182,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     bool includeArchived = false,
   }) {
     return _tasksByType(
-      project,
-      TaskItemType.thinking,
-      includeArchived: includeArchived,
-    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
-          growable: false,
-        );
+          project,
+          TaskItemType.thinking,
+          includeArchived: includeArchived,
+        )
+        .where((TaskItem task) => task.entryType != TaskEntryType.journal)
+        .toList(growable: false);
   }
 
   List<TaskItem> _planningTasks(
@@ -205,12 +195,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     bool includeArchived = false,
   }) {
     return _tasksByType(
-      project,
-      TaskItemType.planning,
-      includeArchived: includeArchived,
-    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
-          growable: false,
-        );
+          project,
+          TaskItemType.planning,
+          includeArchived: includeArchived,
+        )
+        .where((TaskItem task) => task.entryType != TaskEntryType.journal)
+        .toList(growable: false);
   }
 
   List<TaskItem> _archivedTasks(ProjectItem project) {
@@ -273,9 +263,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   List<TaskItem> _sessionTasks(ProjectItem project) {
     return _thinkingTasks(project)
-        .where(
-          (TaskItem task) => task.entryType == TaskEntryType.session,
-        )
+        .where((TaskItem task) => task.entryType == TaskEntryType.session)
         .toList(growable: false);
   }
 
@@ -306,8 +294,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return customLabel.trim();
     }
 
-    final String hexValue =
-        colorValue.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
+    final String hexValue = colorValue
+        .toRadixString(16)
+        .padLeft(8, '0')
+        .substring(2)
+        .toUpperCase();
     return '#$hexValue';
   }
 
@@ -378,8 +369,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   int _findPersonIndex(ProjectItem project, String personId) {
-    return project.people
-        .indexWhere((PersonItem person) => person.id == personId);
+    return project.people.indexWhere(
+      (PersonItem person) => person.id == personId,
+    );
   }
 
   void _toggleProjectTaskExpanded(String taskId) {
@@ -409,31 +401,28 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final AddSessionResult? result =
         await showModalBottomSheet<AddSessionResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const AddSessionSheet(),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const AddSessionSheet(),
+        );
 
     if (!mounted || result == null) {
       return;
     }
 
-    final List<TaskItem> thinkingTasks = _tasksByType(
+    final List<TaskItem> thinkingTasks =
+        _tasksByType(project, TaskItemType.thinking, includeArchived: false)
+            .where((TaskItem task) => task.entryType != TaskEntryType.journal)
+            .toList(growable: true);
+    final List<TaskItem> planningTasks = _planningTasks(
       project,
-      TaskItemType.thinking,
-      includeArchived: false,
-    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
-          growable: true,
-        );
-    final List<TaskItem> planningTasks = _planningTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> journalEntries = _journalEntries(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-      growable: true,
-    );
+    ).toList(growable: true);
+    final List<TaskItem> journalEntries = _journalEntries(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> archivedTasks = _archivedTasks(
+      project,
+    ).toList(growable: true);
 
     final TaskItem sessionTask = TaskItem(
       title: result.title,
@@ -477,12 +466,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final TaskItem targetSession = sessions.first;
     final QuickCaptureResult? result =
         await showModalBottomSheet<QuickCaptureResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => QuickCaptureSheet(
-        sessionTitle: targetSession.title,
-      ),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => QuickCaptureSheet(sessionTitle: targetSession.title),
+        );
 
     if (!mounted || result == null) {
       return;
@@ -497,10 +484,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       final TaskItem sessionTask = project.tasks[sessionIndex];
       project.tasks[sessionIndex] = sessionTask.copyWith(
         subtasks: <SubTaskItem>[
-          SubTaskItem(
-            title: result.title,
-            body: result.body,
-          ),
+          SubTaskItem(title: result.title, body: result.body),
           ...sessionTask.subtasks.map((SubTaskItem item) => item.clone()),
         ],
       );
@@ -510,8 +494,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   String _createJournalEntryTitle(int createdAtMicros) {
-    final DateTime createdAt =
-        DateTime.fromMicrosecondsSinceEpoch(createdAtMicros);
+    final DateTime createdAt = DateTime.fromMicrosecondsSinceEpoch(
+      createdAtMicros,
+    );
     final String month = createdAt.month.toString().padLeft(2, '0');
     final String day = createdAt.day.toString().padLeft(2, '0');
     final String hour = createdAt.hour.toString().padLeft(2, '0');
@@ -547,18 +532,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     TaskItem task, {
     required bool insertAtTop,
   }) {
-    final List<TaskItem> journalEntries = _journalEntries(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> thinkingTasks = _thinkingTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> planningTasks = _planningTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-      growable: true,
-    );
+    final List<TaskItem> journalEntries = _journalEntries(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> thinkingTasks = _thinkingTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _planningTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> archivedTasks = _archivedTasks(
+      project,
+    ).toList(growable: true);
     final TaskItem adjustedTask = _projectRulesFor(project).normalizeTask(task);
 
     if (adjustedTask.entryType == TaskEntryType.journal) {
@@ -610,19 +595,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 leading: const Icon(Icons.memory_outlined),
                 title: const Text('Use all prompt tasks'),
                 subtitle: const Text(
-                    'Include every non-archived task with a prompt.'),
-                onTap: () => Navigator.of(context).pop(
-                  _GeneratePromptAction.allTasks,
+                  'Include every non-archived task with a prompt.',
                 ),
+                onTap: () =>
+                    Navigator.of(context).pop(_GeneratePromptAction.allTasks),
               ),
               ListTile(
                 leading: const Icon(Icons.palette_outlined),
                 title: const Text('Filter by colors'),
                 subtitle: const Text(
-                    'Generate from prompt tasks matching selected card colors.'),
-                onTap: () => Navigator.of(context).pop(
-                  _GeneratePromptAction.filterByColor,
+                  'Generate from prompt tasks matching selected card colors.',
                 ),
+                onTap: () => Navigator.of(
+                  context,
+                ).pop(_GeneratePromptAction.filterByColor),
               ),
             ],
           ),
@@ -635,7 +621,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final List<int> availableColors = _availablePromptTaskColors(project);
     if (availableColors.isEmpty) {
       _showMessage(
-          'No colored tasks with prompts are available for this project.');
+        'No colored tasks with prompts are available for this project.',
+      );
       return null;
     }
 
@@ -646,74 +633,77 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       builder: (BuildContext context) {
         final Set<int> selectedColors = <int>{...initialSelection};
         return StatefulBuilder(
-          builder: (BuildContext context,
-              void Function(void Function()) setModalState) {
-            return SafeArea(
-              child: Padding(
-                padding: EdgeInsets.fromLTRB(
-                  16,
-                  16,
-                  16,
-                  16 + MediaQuery.of(context).viewInsets.bottom,
-                ),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: <Widget>[
-                    const Row(
+          builder:
+              (
+                BuildContext context,
+                void Function(void Function()) setModalState,
+              ) {
+                return SafeArea(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(
+                      16,
+                      16,
+                      16,
+                      16 + MediaQuery.of(context).viewInsets.bottom,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: <Widget>[
-                        Icon(Icons.memory_outlined),
-                        SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            'Filter Prompt Tasks',
-                            style: TextStyle(fontWeight: FontWeight.w600),
+                        const Row(
+                          children: <Widget>[
+                            Icon(Icons.memory_outlined),
+                            SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                'Filter Prompt Tasks',
+                                style: TextStyle(fontWeight: FontWeight.w600),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Flexible(
+                          child: ListView(
+                            shrinkWrap: true,
+                            children: <Widget>[
+                              for (final int colorValue in availableColors)
+                                CheckboxListTile(
+                                  value: selectedColors.contains(colorValue),
+                                  contentPadding: EdgeInsets.zero,
+                                  secondary: CircleAvatar(
+                                    radius: 10,
+                                    backgroundColor: Color(colorValue),
+                                  ),
+                                  title: Text(_colorLabel(colorValue)),
+                                  onChanged: (bool? value) {
+                                    setModalState(() {
+                                      if (value ?? false) {
+                                        selectedColors.add(colorValue);
+                                      } else {
+                                        selectedColors.remove(colorValue);
+                                      }
+                                    });
+                                  },
+                                ),
+                            ],
                           ),
+                        ),
+                        const SizedBox(height: 12),
+                        FilledButton.icon(
+                          onPressed: selectedColors.isEmpty
+                              ? null
+                              : () => Navigator.of(
+                                  context,
+                                ).pop(<int>{...selectedColors}),
+                          icon: const Icon(Icons.memory_outlined),
+                          label: const Text('Generate Prompt'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 12),
-                    Flexible(
-                      child: ListView(
-                        shrinkWrap: true,
-                        children: <Widget>[
-                          for (final int colorValue in availableColors)
-                            CheckboxListTile(
-                              value: selectedColors.contains(colorValue),
-                              contentPadding: EdgeInsets.zero,
-                              secondary: CircleAvatar(
-                                radius: 10,
-                                backgroundColor: Color(colorValue),
-                              ),
-                              title: Text(_colorLabel(colorValue)),
-                              onChanged: (bool? value) {
-                                setModalState(() {
-                                  if (value ?? false) {
-                                    selectedColors.add(colorValue);
-                                  } else {
-                                    selectedColors.remove(colorValue);
-                                  }
-                                });
-                              },
-                            ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    FilledButton.icon(
-                      onPressed: selectedColors.isEmpty
-                          ? null
-                          : () => Navigator.of(context).pop(
-                                <int>{...selectedColors},
-                              ),
-                      icon: const Icon(Icons.memory_outlined),
-                      label: const Text('Generate Prompt'),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
+                  ),
+                );
+              },
         );
       },
     );
@@ -743,8 +733,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         ..writeln();
     }
     if (selectedColors != null && selectedColors.isNotEmpty) {
-      final List<String> labels =
-          selectedColors.map(_colorLabel).toList(growable: false);
+      final List<String> labels = selectedColors
+          .map(_colorLabel)
+          .toList(growable: false);
       buffer
         ..writeln('Selected colors: ${labels.join(', ')}')
         ..writeln();
@@ -883,10 +874,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     if (action == _GeneratePromptAction.allTasks) {
       await _showGeneratedPromptSheet(
-        _buildGeneratedPrompt(
-          project: project,
-          tasks: promptTasks,
-        ),
+        _buildGeneratedPrompt(project: project, tasks: promptTasks),
       );
       return;
     }
@@ -932,73 +920,75 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final ProjectRules projectRules = _projectRulesFor(project);
     final bool canMoveBetweenSections =
         task.entryType != TaskEntryType.session &&
-            task.entryType != TaskEntryType.journal &&
-            projectRules.canMoveBetweenTaskSections;
-    final TaskDetailAction? action = await Navigator.of(
-      context,
-    ).push<TaskDetailAction>(
-      MaterialPageRoute<TaskDetailAction>(
-        builder: (_) => TaskDetailPage(
-          task: task,
-          cardLayoutPreset: widget.cardLayoutPreset,
-          colorLabels: widget.colorLabels,
-          onTaskChanged: (TaskItem updatedTask) {
-            final ProjectItem? activeProject = _findProject();
-            if (activeProject == null) {
-              return;
-            }
-            final int sourceTaskIndex = _findTaskIndex(activeProject, taskId);
-            if (sourceTaskIndex < 0) {
-              return;
-            }
-            setState(() {
-              activeProject.tasks[sourceTaskIndex] = updatedTask.clone();
-            });
-            _notifyProjectDataChanged();
-          },
-          menuItems: <TaskDetailMenuItem>[
-            const TaskDetailMenuItem(
-              action: TaskDetailAction.edit,
-              icon: Icons.edit_outlined,
-              label: 'Edit task',
+        task.entryType != TaskEntryType.journal &&
+        projectRules.canMoveBetweenTaskSections;
+    final TaskDetailAction? action = await Navigator.of(context)
+        .push<TaskDetailAction>(
+          MaterialPageRoute<TaskDetailAction>(
+            builder: (_) => TaskDetailPage(
+              task: task,
+              cardLayoutPreset: widget.cardLayoutPreset,
+              colorLabels: widget.colorLabels,
+              onTaskChanged: (TaskItem updatedTask) {
+                final ProjectItem? activeProject = _findProject();
+                if (activeProject == null) {
+                  return;
+                }
+                final int sourceTaskIndex = _findTaskIndex(
+                  activeProject,
+                  taskId,
+                );
+                if (sourceTaskIndex < 0) {
+                  return;
+                }
+                setState(() {
+                  activeProject.tasks[sourceTaskIndex] = updatedTask.clone();
+                });
+                _notifyProjectDataChanged();
+              },
+              menuItems: <TaskDetailMenuItem>[
+                const TaskDetailMenuItem(
+                  action: TaskDetailAction.edit,
+                  icon: Icons.edit_outlined,
+                  label: 'Edit task',
+                ),
+                const TaskDetailMenuItem(
+                  action: TaskDetailAction.setIcon,
+                  icon: Icons.add_reaction_outlined,
+                  label: 'Set icon',
+                ),
+                const TaskDetailMenuItem(
+                  action: TaskDetailAction.setColor,
+                  icon: Icons.palette_outlined,
+                  label: 'Set color',
+                ),
+                if (canMoveBetweenSections)
+                  TaskDetailMenuItem(
+                    action: task.type == TaskItemType.thinking
+                        ? TaskDetailAction.moveToPlanning
+                        : TaskDetailAction.moveToThinking,
+                    icon: task.type == TaskItemType.thinking
+                        ? Icons.checklist_rtl_outlined
+                        : Icons.lightbulb_outline,
+                    label: task.type == TaskItemType.thinking
+                        ? 'Move to planning'
+                        : 'Move to thinking',
+                  ),
+                const TaskDetailMenuItem(
+                  action: TaskDetailAction.moveToProject,
+                  icon: Icons.drive_file_move_outlined,
+                  label: 'Move to project',
+                ),
+                const TaskDetailMenuItem(
+                  action: TaskDetailAction.remove,
+                  icon: Icons.delete_outline,
+                  label: 'Remove task',
+                ),
+              ],
+              hideCompletedProjectItems: widget.hideCompletedProjectItems,
             ),
-            const TaskDetailMenuItem(
-              action: TaskDetailAction.setIcon,
-              icon: Icons.add_reaction_outlined,
-              label: 'Set icon',
-            ),
-            const TaskDetailMenuItem(
-              action: TaskDetailAction.setColor,
-              icon: Icons.palette_outlined,
-              label: 'Set color',
-            ),
-            if (canMoveBetweenSections)
-              TaskDetailMenuItem(
-                action: task.type == TaskItemType.thinking
-                    ? TaskDetailAction.moveToPlanning
-                    : TaskDetailAction.moveToThinking,
-                icon: task.type == TaskItemType.thinking
-                    ? Icons.checklist_rtl_outlined
-                    : Icons.lightbulb_outline,
-                label: task.type == TaskItemType.thinking
-                    ? 'Move to planning'
-                    : 'Move to thinking',
-              ),
-            const TaskDetailMenuItem(
-              action: TaskDetailAction.moveToProject,
-              icon: Icons.drive_file_move_outlined,
-              label: 'Move to project',
-            ),
-            const TaskDetailMenuItem(
-              action: TaskDetailAction.remove,
-              icon: Icons.delete_outline,
-              label: 'Remove task',
-            ),
-          ],
-          hideCompletedProjectItems: widget.hideCompletedProjectItems,
-        ),
-      ),
-    );
+          ),
+        );
     if (!mounted || action == null) {
       return;
     }
@@ -1034,9 +1024,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Future<_ProjectTaskMenuAction?> _showTaskMenu(TaskItem task) {
     final ProjectItem? project = _findProject();
-    final ProjectRules? projectRules =
-        project == null ? null : _projectRulesFor(project);
-    final bool canMoveToOtherSection = project != null &&
+    final ProjectRules? projectRules = project == null
+        ? null
+        : _projectRulesFor(project);
+    final bool canMoveToOtherSection =
+        project != null &&
         task.entryType != TaskEntryType.session &&
         task.entryType != TaskEntryType.journal &&
         projectRules!.canMoveBetweenTaskSections;
@@ -1093,15 +1085,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 ListTile(
                   leading: const Icon(Icons.vertical_align_top_outlined),
                   title: const Text('Move to top'),
-                  onTap: () => Navigator.of(context)
-                      .pop(_ProjectTaskMenuAction.moveToTop),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(_ProjectTaskMenuAction.moveToTop),
                 ),
               if (!task.isArchived)
                 ListTile(
                   leading: const Icon(Icons.vertical_align_bottom_outlined),
                   title: const Text('Move to bottom'),
-                  onTap: () => Navigator.of(context)
-                      .pop(_ProjectTaskMenuAction.moveToBottom),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(_ProjectTaskMenuAction.moveToBottom),
                 ),
               if (canMoveToOtherSection)
                 ListTile(
@@ -1115,25 +1109,26 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                         ? 'Move to action items'
                         : 'Move to ideas',
                   ),
-                  onTap: () => Navigator.of(context)
-                      .pop(_ProjectTaskMenuAction.moveBetweenSections),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(_ProjectTaskMenuAction.moveBetweenSections),
                 ),
               ListTile(
                 leading: const Icon(Icons.drive_file_move_outlined),
                 title: const Text('Move to project'),
-                onTap: () => Navigator.of(context)
-                    .pop(_ProjectTaskMenuAction.moveToProject),
+                onTap: () => Navigator.of(
+                  context,
+                ).pop(_ProjectTaskMenuAction.moveToProject),
               ),
               if (!task.isArchived)
                 ListTile(
                   leading: Icon(
                     task.isPinned ? Icons.push_pin_outlined : Icons.push_pin,
                   ),
-                  title: Text(
-                    task.isPinned ? 'Unpin task' : 'Pin task',
-                  ),
-                  onTap: () => Navigator.of(context)
-                      .pop(_ProjectTaskMenuAction.togglePinned),
+                  title: Text(task.isPinned ? 'Unpin task' : 'Pin task'),
+                  onTap: () => Navigator.of(
+                    context,
+                  ).pop(_ProjectTaskMenuAction.togglePinned),
                 ),
               ListTile(
                 leading: Icon(
@@ -1141,9 +1136,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                       ? Icons.unarchive_outlined
                       : Icons.archive_outlined,
                 ),
-                title: Text(
-                  task.isArchived ? 'Restore task' : 'Archive task',
-                ),
+                title: Text(task.isArchived ? 'Restore task' : 'Archive task'),
                 onTap: () => Navigator.of(context).pop(
                   task.isArchived
                       ? _ProjectTaskMenuAction.restore
@@ -1252,7 +1245,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         initialTitle: task.title,
         initialBody: task.body,
         initialPrompt: task.prompt,
+        initialFlashcardPrompt: task.flashcardPrompt,
         showPromptField: _isLlmProject(project),
+        showFlashcardField: true,
       ),
     );
 
@@ -1265,6 +1260,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         title: result.title,
         body: result.body,
         prompt: result.prompt,
+        flashcardPrompt: result.flashcardPrompt,
       );
     });
     _notifyProjectDataChanged();
@@ -1284,9 +1280,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final String? iconKey = await showModalBottomSheet<String?>(
       context: context,
-      builder: (_) => ItemIconPickerSheet(
-        currentIconKey: task.iconKey,
-      ),
+      builder: (_) => ItemIconPickerSheet(currentIconKey: task.iconKey),
     );
 
     if (!mounted) {
@@ -1319,12 +1313,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-      context: context,
-      builder: (_) => ItemColorPickerSheet(
-        currentColorValue: task.colorValue,
-        customLabels: widget.colorLabels,
-      ),
-    );
+          context: context,
+          builder: (_) => ItemColorPickerSheet(
+            currentColorValue: task.colorValue,
+            customLabels: widget.colorLabels,
+          ),
+        );
 
     if (selection == null) {
       return;
@@ -1359,18 +1353,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final List<TaskItem> journalEntries = _journalEntries(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> thinkingTasks = _thinkingTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> planningTasks = _planningTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-      growable: true,
-    );
+    final List<TaskItem> journalEntries = _journalEntries(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> thinkingTasks = _thinkingTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _planningTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> archivedTasks = _archivedTasks(
+      project,
+    ).toList(growable: true);
 
     if (task.type == TaskItemType.thinking) {
       thinkingTasks.removeWhere((TaskItem entry) => entry.id == taskId);
@@ -1406,32 +1400,32 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final List<TaskItem> thinkingTasks = _tasksByType(
+    final List<TaskItem> thinkingTasks =
+        _tasksByType(project, TaskItemType.thinking)
+            .where((TaskItem task) => task.entryType != TaskEntryType.journal)
+            .toList(growable: true);
+    final List<TaskItem> planningTasks = _planningTasks(
       project,
-      TaskItemType.thinking,
-    ).where((TaskItem task) => task.entryType != TaskEntryType.journal).toList(
-          growable: true,
-        );
-    final List<TaskItem> planningTasks = _planningTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> journalEntries = _journalEntries(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-      growable: true,
-    );
+    ).toList(growable: true);
+    final List<TaskItem> journalEntries = _journalEntries(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> archivedTasks = _archivedTasks(
+      project,
+    ).toList(growable: true);
 
     TaskItem? sourceTask;
     TaskItemType? sourceType;
-    int sourceIndex =
-        thinkingTasks.indexWhere((TaskItem task) => task.id == taskId);
+    int sourceIndex = thinkingTasks.indexWhere(
+      (TaskItem task) => task.id == taskId,
+    );
     if (sourceIndex >= 0) {
       sourceTask = thinkingTasks.removeAt(sourceIndex);
       sourceType = TaskItemType.thinking;
     } else {
-      sourceIndex =
-          planningTasks.indexWhere((TaskItem task) => task.id == taskId);
+      sourceIndex = planningTasks.indexWhere(
+        (TaskItem task) => task.id == taskId,
+      );
       if (sourceIndex >= 0) {
         sourceTask = planningTasks.removeAt(sourceIndex);
         sourceType = TaskItemType.planning;
@@ -1444,18 +1438,19 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final TaskItemType effectiveTargetType =
         sourceTask.entryType == TaskEntryType.session
-            ? TaskItemType.thinking
-            : targetType;
+        ? TaskItemType.thinking
+        : targetType;
     final List<TaskItem> destinationTasks =
         effectiveTargetType == TaskItemType.thinking
-            ? thinkingTasks
-            : planningTasks;
+        ? thinkingTasks
+        : planningTasks;
 
     final int insertionIndex = reorderInsertionIndex(
       targetIndex: targetIndex,
       destinationLength: destinationTasks.length,
-      sourceIndexInSameList:
-          sourceType == effectiveTargetType ? sourceIndex : null,
+      sourceIndexInSameList: sourceType == effectiveTargetType
+          ? sourceIndex
+          : null,
     );
 
     final TaskItem movedTask = sourceTask.type == effectiveTargetType
@@ -1465,6 +1460,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             title: sourceTask.title,
             body: sourceTask.body,
             prompt: sourceTask.prompt,
+            flashcardPrompt: sourceTask.flashcardPrompt,
             createdAtMicros: sourceTask.createdAtMicros,
             colorValue: sourceTask.colorValue,
             type: effectiveTargetType,
@@ -1491,41 +1487,41 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _notifyProjectDataChanged();
   }
 
-  void _moveTaskToBoundary(
-    String taskId, {
-    required bool toTop,
-  }) {
+  void _moveTaskToBoundary(String taskId, {required bool toTop}) {
     final ProjectItem? project = _findProject();
     if (project == null) {
       return;
     }
 
-    final List<TaskItem> journalEntries = _journalEntries(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> thinkingTasks = _thinkingTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> planningTasks = _planningTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-      growable: true,
-    );
+    final List<TaskItem> journalEntries = _journalEntries(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> thinkingTasks = _thinkingTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _planningTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> archivedTasks = _archivedTasks(
+      project,
+    ).toList(growable: true);
 
     List<TaskItem>? sourceList;
-    final int journalIndex =
-        journalEntries.indexWhere((TaskItem task) => task.id == taskId);
+    final int journalIndex = journalEntries.indexWhere(
+      (TaskItem task) => task.id == taskId,
+    );
     if (journalIndex >= 0) {
       sourceList = journalEntries;
     } else {
-      final int thinkingIndex =
-          thinkingTasks.indexWhere((TaskItem task) => task.id == taskId);
+      final int thinkingIndex = thinkingTasks.indexWhere(
+        (TaskItem task) => task.id == taskId,
+      );
       if (thinkingIndex >= 0) {
         sourceList = thinkingTasks;
       } else {
-        final int planningIndex =
-            planningTasks.indexWhere((TaskItem task) => task.id == taskId);
+        final int planningIndex = planningTasks.indexWhere(
+          (TaskItem task) => task.id == taskId,
+        );
         if (planningIndex >= 0) {
           sourceList = planningTasks;
         }
@@ -1536,17 +1532,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final int sourceIndex =
-        sourceList.indexWhere((TaskItem task) => task.id == taskId);
+    final int sourceIndex = sourceList.indexWhere(
+      (TaskItem task) => task.id == taskId,
+    );
     if (sourceIndex < 0) {
       return;
     }
 
-    moveItemToBoundary(
-      sourceList,
-      sourceIndex: sourceIndex,
-      toTop: toTop,
-    );
+    moveItemToBoundary(sourceList, sourceIndex: sourceIndex, toTop: toTop);
 
     setState(() {
       _replaceProjectTasks(
@@ -1575,18 +1568,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       project.tasks[taskIndex] = project.tasks[taskIndex].copyWith(
         isPinned: !project.tasks[taskIndex].isPinned,
       );
-      final List<TaskItem> journalEntries = _journalEntries(project).toList(
-        growable: true,
-      );
-      final List<TaskItem> thinkingTasks = _thinkingTasks(project).toList(
-        growable: true,
-      );
-      final List<TaskItem> planningTasks = _planningTasks(project).toList(
-        growable: true,
-      );
-      final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-        growable: true,
-      );
+      final List<TaskItem> journalEntries = _journalEntries(
+        project,
+      ).toList(growable: true);
+      final List<TaskItem> thinkingTasks = _thinkingTasks(
+        project,
+      ).toList(growable: true);
+      final List<TaskItem> planningTasks = _planningTasks(
+        project,
+      ).toList(growable: true);
+      final List<TaskItem> archivedTasks = _archivedTasks(
+        project,
+      ).toList(growable: true);
       _replaceProjectTasks(
         project: project,
         journalEntries: journalEntries,
@@ -1630,8 +1623,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     setState(() {
       project.tasks.removeAt(sourceIndex);
-      final int adjustedTargetIndex =
-          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
+      final int adjustedTargetIndex = sourceIndex < targetIndex
+          ? targetIndex - 1
+          : targetIndex;
       final TaskItem adjustedTarget = project.tasks[adjustedTargetIndex];
       project.tasks[adjustedTargetIndex] = adjustedTarget.copyWith(
         subtasks: <SubTaskItem>[
@@ -1693,18 +1687,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final List<TaskItem> journalEntries = _journalEntries(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> thinkingTasks = _thinkingTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> planningTasks = _planningTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-      growable: true,
-    );
+    final List<TaskItem> journalEntries = _journalEntries(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> thinkingTasks = _thinkingTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _planningTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> archivedTasks = _archivedTasks(
+      project,
+    ).toList(growable: true);
     journalEntries.removeWhere((TaskItem entry) => entry.id == taskId);
     thinkingTasks.removeWhere((TaskItem entry) => entry.id == taskId);
     planningTasks.removeWhere((TaskItem entry) => entry.id == taskId);
@@ -1744,18 +1738,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final List<TaskItem> journalEntries = _journalEntries(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> thinkingTasks = _thinkingTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> planningTasks = _planningTasks(project).toList(
-      growable: true,
-    );
-    final List<TaskItem> archivedTasks = _archivedTasks(project).toList(
-      growable: true,
-    );
+    final List<TaskItem> journalEntries = _journalEntries(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> thinkingTasks = _thinkingTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> planningTasks = _planningTasks(
+      project,
+    ).toList(growable: true);
+    final List<TaskItem> archivedTasks = _archivedTasks(
+      project,
+    ).toList(growable: true);
     archivedTasks.removeWhere((TaskItem entry) => entry.id == taskId);
     final TaskItem restoredTask = task.copyWith(isArchived: false);
     if (restoredTask.entryType == TaskEntryType.journal) {
@@ -1786,8 +1780,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final bool nextArchived = !project.isArchived;
     setState(() {
-      final int projectIndex =
-          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      final int projectIndex = _projects.indexWhere(
+        (ProjectItem item) => item.id == project.id,
+      );
       if (projectIndex < 0) {
         return;
       }
@@ -1921,23 +1916,24 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final ProjectEditResult? result =
         await showModalBottomSheet<ProjectEditResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => EditProjectSheet(
-        initialName: project.name,
-        initialBody: project.body,
-        initialPrompt: project.prompt,
-        showPromptField: _isLlmProject(project),
-      ),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => EditProjectSheet(
+            initialName: project.name,
+            initialBody: project.body,
+            initialPrompt: project.prompt,
+            showPromptField: _isLlmProject(project),
+          ),
+        );
 
     if (result == null) {
       return;
     }
 
     setState(() {
-      final int projectIndex =
-          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      final int projectIndex = _projects.indexWhere(
+        (ProjectItem item) => item.id == project.id,
+      );
       if (projectIndex < 0) {
         return;
       }
@@ -1958,9 +1954,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final String? iconKey = await showModalBottomSheet<String?>(
       context: context,
-      builder: (_) => ItemIconPickerSheet(
-        currentIconKey: project.iconKey,
-      ),
+      builder: (_) => ItemIconPickerSheet(currentIconKey: project.iconKey),
     );
 
     if (!mounted || iconKey == project.iconKey) {
@@ -1968,8 +1962,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     setState(() {
-      final int projectIndex =
-          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      final int projectIndex = _projects.indexWhere(
+        (ProjectItem item) => item.id == project.id,
+      );
       if (projectIndex < 0) {
         return;
       }
@@ -1989,20 +1984,21 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-      context: context,
-      builder: (_) => ItemColorPickerSheet(
-        currentColorValue: project.colorValue,
-        customLabels: widget.colorLabels,
-      ),
-    );
+          context: context,
+          builder: (_) => ItemColorPickerSheet(
+            currentColorValue: project.colorValue,
+            customLabels: widget.colorLabels,
+          ),
+        );
 
     if (selection == null) {
       return;
     }
 
     setState(() {
-      final int projectIndex =
-          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      final int projectIndex = _projects.indexWhere(
+        (ProjectItem item) => item.id == project.id,
+      );
       if (projectIndex < 0) {
         return;
       }
@@ -2034,8 +2030,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     setState(() {
-      final int projectIndex =
-          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      final int projectIndex = _projects.indexWhere(
+        (ProjectItem item) => item.id == project.id,
+      );
       if (projectIndex < 0) {
         return;
       }
@@ -2055,13 +2052,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         : ProjectStackSelection.existing(stackId: project.stackId!);
     final ProjectStackSelection? selection =
         await showModalBottomSheet<ProjectStackSelection>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => SelectProjectStackSheet(
-        projectStacks: _projectStacks,
-        initialSelection: initialSelection,
-      ),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => SelectProjectStackSheet(
+            projectStacks: _projectStacks,
+            initialSelection: initialSelection,
+          ),
+        );
 
     if (!mounted || selection == null) {
       return;
@@ -2069,8 +2066,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final String? stackId = _resolveStackIdForSelection(selection);
     setState(() {
-      final int projectIndex =
-          _projects.indexWhere((ProjectItem item) => item.id == project.id);
+      final int projectIndex = _projects.indexWhere(
+        (ProjectItem item) => item.id == project.id,
+      );
       if (projectIndex < 0) {
         return;
       }
@@ -2106,8 +2104,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   void _removeProject() {
-    final int projectIndex = _projects
-        .indexWhere((ProjectItem project) => project.id == widget.projectId);
+    final int projectIndex = _projects.indexWhere(
+      (ProjectItem project) => project.id == widget.projectId,
+    );
     if (projectIndex < 0) {
       return;
     }
@@ -2150,10 +2149,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               Expanded(child: Text(message)),
             ],
           ),
-          action: SnackBarAction(
-            label: 'Revert?',
-            onPressed: onUndo,
-          ),
+          action: SnackBarAction(label: 'Revert?', onPressed: onUndo),
         ),
       );
   }
@@ -2200,11 +2196,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     setState(() {
       final TaskItem task = sourceProject.tasks.removeAt(sourceTaskIndex);
       final ProjectItem targetProject = _projects[targetProjectIndex];
-      _insertTaskIntoProject(
-        targetProject,
-        task,
-        insertAtTop: true,
-      );
+      _insertTaskIntoProject(targetProject, task, insertAtTop: true);
     });
     _notifyProjectDataChanged();
   }
@@ -2291,8 +2283,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       }
       final ProjectRules projectRules = _projectRulesFor(project);
 
-      final AddJournalEntryResult? createdEntry =
-          await showModalBottomSheet<AddJournalEntryResult>(
+      final AddJournalEntryResult?
+      createdEntry = await showModalBottomSheet<AddJournalEntryResult>(
         context: context,
         isScrollControlled: true,
         builder: (_) => AddJournalEntrySheet(
@@ -2331,10 +2323,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final AddTaskResult? createdTask =
         await showModalBottomSheet<AddTaskResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const AddTaskSheet(),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const AddTaskSheet(),
+        );
 
     if (createdTask == null) {
       return;
@@ -2353,6 +2345,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       title: createdTask.task.title,
       body: createdTask.task.body,
       prompt: createdTask.task.prompt,
+      flashcardPrompt: createdTask.task.flashcardPrompt,
       createdAtMicros: createdTask.task.createdAtMicros,
       colorValue: createdTask.task.colorValue,
       type: selectedKind == _ProjectEntryKind.planning
@@ -2394,12 +2387,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     setState(() {
-      project.people.add(
-        PersonItem(
-          name: result.name,
-          body: result.body,
-        ),
-      );
+      project.people.add(PersonItem(name: result.name, body: result.body));
     });
     _notifyProjectDataChanged();
   }
@@ -2481,8 +2469,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ListTile(
                 leading: const Icon(Icons.vertical_align_bottom_outlined),
                 title: const Text('Move to bottom'),
-                onTap: () => Navigator.of(context)
-                    .pop(_PersonCardMenuAction.moveToBottom),
+                onTap: () => Navigator.of(
+                  context,
+                ).pop(_PersonCardMenuAction.moveToBottom),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
@@ -2508,8 +2497,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final _PersonCardMenuAction? action =
-        await _showPersonCardMenu(project.people[personIndex]);
+    final _PersonCardMenuAction? action = await _showPersonCardMenu(
+      project.people[personIndex],
+    );
     if (action == null || !mounted) {
       return;
     }
@@ -2557,13 +2547,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final PersonItem person = project.people[personIndex];
     final PersonEditResult? result =
         await showModalBottomSheet<PersonEditResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => EditPersonSheet(
-        initialName: person.name,
-        initialBody: person.body,
-      ),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => EditPersonSheet(
+            initialName: person.name,
+            initialBody: person.body,
+          ),
+        );
 
     if (result == null) {
       return;
@@ -2592,9 +2582,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final PersonItem person = project.people[personIndex];
     final String? iconKey = await showModalBottomSheet<String?>(
       context: context,
-      builder: (_) => ItemIconPickerSheet(
-        currentIconKey: person.iconKey,
-      ),
+      builder: (_) => ItemIconPickerSheet(currentIconKey: person.iconKey),
     );
     if (!mounted || iconKey == person.iconKey) {
       return;
@@ -2623,12 +2611,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final PersonItem person = project.people[personIndex];
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-      context: context,
-      builder: (_) => ItemColorPickerSheet(
-        currentColorValue: person.colorValue,
-        customLabels: widget.colorLabels,
-      ),
-    );
+          context: context,
+          builder: (_) => ItemColorPickerSheet(
+            currentColorValue: person.colorValue,
+            customLabels: widget.colorLabels,
+          ),
+        );
     if (selection == null) {
       return;
     }
@@ -2678,10 +2666,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     _notifyProjectDataChanged();
   }
 
-  void _movePersonToBoundary(
-    String personId, {
-    required bool toTop,
-  }) {
+  void _movePersonToBoundary(String personId, {required bool toTop}) {
     final ProjectItem? project = _findProject();
     if (project == null) {
       return;
@@ -2707,9 +2692,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     required double inactiveHeight,
   }) {
     return DragTarget<_PersonDragPayload>(
-      onWillAcceptWithDetails: (
-        DragTargetDetails<_PersonDragPayload> details,
-      ) {
+      onWillAcceptWithDetails: (DragTargetDetails<_PersonDragPayload> details) {
         return true;
       },
       onAcceptWithDetails: (DragTargetDetails<_PersonDragPayload> details) {
@@ -2718,24 +2701,28 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           targetIndex: targetIndex,
         );
       },
-      builder: (
-        BuildContext context,
-        List<_PersonDragPayload?> candidateData,
-        List<dynamic> rejectedData,
-      ) {
-        final bool isActive = candidateData.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          height:
-              isActive ? 28 : (_draggingPersonId == null ? inactiveHeight : 14),
-          decoration: BoxDecoration(
-            color: isActive
-                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-      },
+      builder:
+          (
+            BuildContext context,
+            List<_PersonDragPayload?> candidateData,
+            List<dynamic> rejectedData,
+          ) {
+            final bool isActive = candidateData.isNotEmpty;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              height: isActive
+                  ? 28
+                  : (_draggingPersonId == null ? inactiveHeight : 14),
+              decoration: BoxDecoration(
+                color: isActive
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.22)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            );
+          },
     );
   }
 
@@ -2744,17 +2731,15 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       color: person.colorValue == null ? null : Color(person.colorValue!),
       child: ListTile(
         contentPadding: _layout.contentPadding,
-        leading: Icon(
-          iconDataForKey(person.iconKey) ?? Icons.person_outline,
-        ),
+        leading: Icon(iconDataForKey(person.iconKey) ?? Icons.person_outline),
         title: Text(
           person.name,
           maxLines: null,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                fontSize:
-                    (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
-                        _layout.titleScale,
-              ),
+            fontSize:
+                (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
+                _layout.titleScale,
+          ),
         ),
         trailing: IconButton(
           onPressed: () => _openPersonCardMenu(person.id),
@@ -2806,10 +2791,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               child: tile,
             ),
           ),
-          childWhenDragging: Opacity(
-            opacity: 0.35,
-            child: tile,
-          ),
+          childWhenDragging: Opacity(opacity: 0.35, child: tile),
           child: tile,
         ),
       ),
@@ -2846,10 +2828,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ),
             ),
           ),
-        Text(
-          'People',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('People', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (people.isEmpty)
           Text(
@@ -2857,16 +2836,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         if (people.isNotEmpty)
-          _buildPersonDropSlot(
-            targetIndex: 0,
-            inactiveHeight: 0,
-          ),
+          _buildPersonDropSlot(targetIndex: 0, inactiveHeight: 0),
         for (int index = 0; index < people.length; index += 1) ...<Widget>[
           _buildPeopleProjectCard(people[index]),
-          _buildPersonDropSlot(
-            targetIndex: index + 1,
-            inactiveHeight: 4,
-          ),
+          _buildPersonDropSlot(targetIndex: index + 1, inactiveHeight: 4),
         ],
       ],
     );
@@ -2879,22 +2852,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     bool showOptionsButton = false,
     double bottomPadding = 4,
   }) {
-    final IconData? iconData = iconDataForKey(task.iconKey) ??
+    final IconData? iconData =
+        iconDataForKey(task.iconKey) ??
         (task.entryType == TaskEntryType.session
             ? Icons.headset_outlined
             : task.entryType == TaskEntryType.journal
-                ? Icons.menu_book_outlined
-                : null);
+            ? Icons.menu_book_outlined
+            : null);
     final bool hasNestedItems = task.subtasks.isNotEmpty;
     final bool isExpanded = _expandedProjectTaskIds.contains(task.id);
     final List<Widget> trailingParts = <Widget>[
       if (task.isPinned)
         const Tooltip(
           message: 'Pinned to top of this section',
-          child: Icon(
-            Icons.push_pin_outlined,
-            size: 18,
-          ),
+          child: Icon(Icons.push_pin_outlined, size: 18),
         ),
       if (task.entryType == TaskEntryType.session)
         Container(
@@ -2906,9 +2877,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           child: Text(
             'Session',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onTertiaryContainer,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: Theme.of(context).colorScheme.onTertiaryContainer,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       if (showNestedPreview && hasNestedItems)
@@ -2935,9 +2906,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             child: Text(
               '${task.subtasks.length}',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                    color: Theme.of(context).colorScheme.onSecondaryContainer,
-                    fontWeight: FontWeight.w600,
-                  ),
+                color: Theme.of(context).colorScheme.onSecondaryContainer,
+                fontWeight: FontWeight.w600,
+              ),
             ),
           ),
         ),
@@ -2951,26 +2922,20 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           child: Text(
             'Journal',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimaryContainer,
-                  fontWeight: FontWeight.w700,
-                ),
+              color: Theme.of(context).colorScheme.onPrimaryContainer,
+              fontWeight: FontWeight.w700,
+            ),
           ),
         ),
       if (task.body.isNotEmpty)
         const Tooltip(
           message: 'Has text content',
-          child: Icon(
-            Icons.notes_outlined,
-            size: 18,
-          ),
+          child: Icon(Icons.notes_outlined, size: 18),
         ),
       if (task.prompt.isNotEmpty)
         const Tooltip(
           message: 'Has prompt',
-          child: Icon(
-            Icons.memory_outlined,
-            size: 18,
-          ),
+          child: Icon(Icons.memory_outlined, size: 18),
         ),
       if (showOptionsButton)
         IconButton(
@@ -3006,13 +2971,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 title: Text(
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontSize: (Theme.of(context)
-                                    .textTheme
-                                    .titleMedium
-                                    ?.fontSize ??
-                                16) *
-                            _layout.titleScale,
-                      ),
+                    fontSize:
+                        (Theme.of(context).textTheme.titleMedium?.fontSize ??
+                            16) *
+                        _layout.titleScale,
+                  ),
                   maxLines: null,
                 ),
                 trailing: effectiveTrailing,
@@ -3065,8 +3028,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     child: Text(
                       _journalTimestampLabel(task),
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   IconButton(
@@ -3077,10 +3040,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(
-                bodyText,
-                style: Theme.of(context).textTheme.bodyLarge,
-              ),
+              Text(bodyText, style: Theme.of(context).textTheme.bodyLarge),
             ],
           ),
         ),
@@ -3097,10 +3057,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (entries.isEmpty && emptyLabel != null && emptyLabel.isNotEmpty)
           Padding(
@@ -3153,10 +3110,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
                   ),
-                  child: _buildJournalEntryCard(
-                    task,
-                    isArchivedSection: true,
-                  ),
+                  child: _buildJournalEntryCard(task, isArchivedSection: true),
                 )
               : Dismissible(
                   key: ValueKey<String>('project-journal-swipe-${task.id}'),
@@ -3199,10 +3153,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                       color: Theme.of(context).colorScheme.onErrorContainer,
                     ),
                   ),
-                  child: _buildJournalEntryCard(
-                    task,
-                    isArchivedSection: false,
-                  ),
+                  child: _buildJournalEntryCard(task, isArchivedSection: false),
                 ),
       ],
     );
@@ -3219,10 +3170,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        Text(
-          title,
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (tasks.isEmpty && emptyLabel != null && emptyLabel.isNotEmpty)
           Padding(
@@ -3241,8 +3189,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         for (int index = 0; index < tasks.length; index += 1) ...<Widget>[
           isArchivedSection
               ? Dismissible(
-                  key:
-                      ValueKey<String>('project-task-swipe-${tasks[index].id}'),
+                  key: ValueKey<String>(
+                    'project-task-swipe-${tasks[index].id}',
+                  ),
                   direction: DismissDirection.horizontal,
                   confirmDismiss: (DismissDirection direction) async {
                     if (direction == DismissDirection.startToEnd) {
@@ -3311,39 +3260,40 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     required double inactiveHeight,
   }) {
     return DragTarget<_TaskSectionDragPayload>(
-      onWillAcceptWithDetails: (
-        DragTargetDetails<_TaskSectionDragPayload> details,
-      ) {
-        return true;
-      },
-      onAcceptWithDetails: (
-        DragTargetDetails<_TaskSectionDragPayload> details,
-      ) {
-        _moveTaskToPosition(
-          taskId: details.data.taskId,
-          targetType: sectionType,
-          targetIndex: targetIndex,
-        );
-      },
-      builder: (
-        BuildContext context,
-        List<_TaskSectionDragPayload?> candidateData,
-        List<dynamic> rejectedData,
-      ) {
-        final bool isActiveDropTarget = candidateData.isNotEmpty;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 120),
-          height: isActiveDropTarget
-              ? 30
-              : (_draggingProjectTaskId == null ? inactiveHeight : 14),
-          decoration: BoxDecoration(
-            color: isActiveDropTarget
-                ? Theme.of(context).colorScheme.primary.withValues(alpha: 0.22)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-          ),
-        );
-      },
+      onWillAcceptWithDetails:
+          (DragTargetDetails<_TaskSectionDragPayload> details) {
+            return true;
+          },
+      onAcceptWithDetails:
+          (DragTargetDetails<_TaskSectionDragPayload> details) {
+            _moveTaskToPosition(
+              taskId: details.data.taskId,
+              targetType: sectionType,
+              targetIndex: targetIndex,
+            );
+          },
+      builder:
+          (
+            BuildContext context,
+            List<_TaskSectionDragPayload?> candidateData,
+            List<dynamic> rejectedData,
+          ) {
+            final bool isActiveDropTarget = candidateData.isNotEmpty;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 120),
+              height: isActiveDropTarget
+                  ? 30
+                  : (_draggingProjectTaskId == null ? inactiveHeight : 14),
+              decoration: BoxDecoration(
+                color: isActiveDropTarget
+                    ? Theme.of(
+                        context,
+                      ).colorScheme.primary.withValues(alpha: 0.22)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(8),
+              ),
+            );
+          },
     );
   }
 
@@ -3354,120 +3304,118 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return DragTarget<_TaskSectionDragPayload>(
       onWillAcceptWithDetails:
           (DragTargetDetails<_TaskSectionDragPayload> details) {
-        return details.data.taskId != task.id;
-      },
+            return details.data.taskId != task.id;
+          },
       onAcceptWithDetails:
           (DragTargetDetails<_TaskSectionDragPayload> details) {
-        _nestTaskUnderTask(
-          sourceTaskId: details.data.taskId,
-          targetTaskId: task.id,
-        );
-      },
-      builder: (
-        BuildContext context,
-        List<_TaskSectionDragPayload?> candidateData,
-        List<dynamic> rejectedData,
-      ) {
-        final bool isHovering = candidateData.isNotEmpty;
-        final Widget tile = Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              border: isHovering
-                  ? Border.all(
-                      color: Theme.of(context).colorScheme.primary,
-                      width: 2,
-                    )
-                  : null,
-            ),
-            child: _buildTaskCard(
-              task: task,
-              onTap: () => _openTaskView(task.id),
-              showNestedPreview: showNestedPreview,
-              showOptionsButton: true,
-              bottomPadding: 0,
-            ),
-          ),
-        );
-        return Dismissible(
-          key: ValueKey<String>('project-task-swipe-${task.id}'),
-          direction: DismissDirection.horizontal,
-          confirmDismiss: (DismissDirection direction) async {
-            if (direction == DismissDirection.startToEnd) {
-              _archiveTask(task.id);
-              return true;
-            }
-            return true;
+            _nestTaskUnderTask(
+              sourceTaskId: details.data.taskId,
+              targetTaskId: task.id,
+            );
           },
-          onDismissed: (DismissDirection direction) {
-            if (direction == DismissDirection.endToStart) {
-              _deleteTask(task.id);
-            }
-          },
-          background: Container(
-            margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.tertiaryContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.centerLeft,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Icon(
-              Icons.archive_outlined,
-              color: Theme.of(context).colorScheme.onTertiaryContainer,
-            ),
-          ),
-          secondaryBackground: Container(
-            margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
-            decoration: BoxDecoration(
-              color: Theme.of(context).colorScheme.errorContainer,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.centerRight,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: Icon(
-              Icons.delete_outline,
-              color: Theme.of(context).colorScheme.onErrorContainer,
-            ),
-          ),
-          child: Padding(
-            padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
-            child: LongPressDraggable<_TaskSectionDragPayload>(
-              data: _TaskSectionDragPayload(taskId: task.id),
-              onDragStarted: () {
-                setState(() {
-                  _draggingProjectTaskId = task.id;
-                });
-              },
-              onDragEnd: (_) {
-                if (_draggingProjectTaskId == task.id) {
-                  setState(() {
-                    _draggingProjectTaskId = null;
-                  });
-                }
-              },
-              feedback: Material(
-                color: Colors.transparent,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: _buildTaskCard(
-                    task: task,
-                    onTap: null,
-                    showNestedPreview: showNestedPreview,
-                    bottomPadding: 0,
-                  ),
+      builder:
+          (
+            BuildContext context,
+            List<_TaskSectionDragPayload?> candidateData,
+            List<dynamic> rejectedData,
+          ) {
+            final bool isHovering = candidateData.isNotEmpty;
+            final Widget tile = Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  border: isHovering
+                      ? Border.all(
+                          color: Theme.of(context).colorScheme.primary,
+                          width: 2,
+                        )
+                      : null,
+                ),
+                child: _buildTaskCard(
+                  task: task,
+                  onTap: () => _openTaskView(task.id),
+                  showNestedPreview: showNestedPreview,
+                  showOptionsButton: true,
+                  bottomPadding: 0,
                 ),
               ),
-              childWhenDragging: Opacity(
-                opacity: 0.45,
-                child: tile,
+            );
+            return Dismissible(
+              key: ValueKey<String>('project-task-swipe-${task.id}'),
+              direction: DismissDirection.horizontal,
+              confirmDismiss: (DismissDirection direction) async {
+                if (direction == DismissDirection.startToEnd) {
+                  _archiveTask(task.id);
+                  return true;
+                }
+                return true;
+              },
+              onDismissed: (DismissDirection direction) {
+                if (direction == DismissDirection.endToStart) {
+                  _deleteTask(task.id);
+                }
+              },
+              background: Container(
+                margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.tertiaryContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Icon(
+                  Icons.archive_outlined,
+                  color: Theme.of(context).colorScheme.onTertiaryContainer,
+                ),
               ),
-              child: tile,
-            ),
-          ),
-        );
-      },
+              secondaryBackground: Container(
+                margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                decoration: BoxDecoration(
+                  color: Theme.of(context).colorScheme.errorContainer,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: Icon(
+                  Icons.delete_outline,
+                  color: Theme.of(context).colorScheme.onErrorContainer,
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+                child: LongPressDraggable<_TaskSectionDragPayload>(
+                  data: _TaskSectionDragPayload(taskId: task.id),
+                  onDragStarted: () {
+                    setState(() {
+                      _draggingProjectTaskId = task.id;
+                    });
+                  },
+                  onDragEnd: (_) {
+                    if (_draggingProjectTaskId == task.id) {
+                      setState(() {
+                        _draggingProjectTaskId = null;
+                      });
+                    }
+                  },
+                  feedback: Material(
+                    color: Colors.transparent,
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 320),
+                      child: _buildTaskCard(
+                        task: task,
+                        onTap: null,
+                        showNestedPreview: showNestedPreview,
+                        bottomPadding: 0,
+                      ),
+                    ),
+                  ),
+                  childWhenDragging: Opacity(opacity: 0.45, child: tile),
+                  child: tile,
+                ),
+              ),
+            );
+          },
     );
   }
 
@@ -3564,7 +3512,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
     final bool showProjectTypeLabel =
         projectType.id != ProjectTypeDefaults.blankId &&
-            projectType.id != ProjectTypeDefaults.projectId;
+        projectType.id != ProjectTypeDefaults.projectId;
     final TextStyle? appBarSubtitleStyle = Theme.of(context)
         .textTheme
         .labelMedium
@@ -3585,10 +3533,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 children: <Widget>[
                   Text(project.name),
                   if (showProjectTypeLabel)
-                    Text(
-                      projectType.name,
-                      style: appBarSubtitleStyle,
-                    ),
+                    Text(projectType.name, style: appBarSubtitleStyle),
                 ],
               ),
             ),
@@ -3704,22 +3649,22 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       floatingActionButton: project.isArchived
           ? null
           : isPeopleProject
-              ? FloatingActionButton(
-                  onPressed: _addPerson,
-                  tooltip: 'Add person',
-                  child: const Icon(Icons.add),
-                )
-              : !canCreateEntries
-                  ? null
-                  : FloatingActionButton(
-                      onPressed: _addTaskToProject,
-                      tooltip: projectRules.defaultsToJournalEntry
-                          ? 'Add journal entry'
-                          : isKnowledgeProject
-                              ? 'Add knowledge note'
-                              : 'Add project task',
-                      child: const Icon(Icons.add),
-                    ),
+          ? FloatingActionButton(
+              onPressed: _addPerson,
+              tooltip: 'Add person',
+              child: const Icon(Icons.add),
+            )
+          : !canCreateEntries
+          ? null
+          : FloatingActionButton(
+              onPressed: _addTaskToProject,
+              tooltip: projectRules.defaultsToJournalEntry
+                  ? 'Add journal entry'
+                  : isKnowledgeProject
+                  ? 'Add knowledge note'
+                  : 'Add project task',
+              child: const Icon(Icons.add),
+            ),
     );
   }
 }

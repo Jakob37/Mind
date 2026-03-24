@@ -12,25 +12,19 @@ class TaskLoadResult {
     this.stackTrace,
   });
 
-  const TaskLoadResult.empty()
-      : this._(
-          hadPersistedData: false,
-        );
+  const TaskLoadResult.empty() : this._(hadPersistedData: false);
 
   const TaskLoadResult.success(TaskBoardState loadedState)
-      : this._(
-          hadPersistedData: true,
-          state: loadedState,
-        );
+    : this._(hadPersistedData: true, state: loadedState);
 
   const TaskLoadResult.failure({
     required Object loadError,
     required StackTrace loadStackTrace,
   }) : this._(
-          hadPersistedData: true,
-          error: loadError,
-          stackTrace: loadStackTrace,
-        );
+         hadPersistedData: true,
+         error: loadError,
+         stackTrace: loadStackTrace,
+       );
 
   final bool hadPersistedData;
   final TaskBoardState? state;
@@ -47,9 +41,9 @@ class TaskStorage {
 
   static const String _stateKey = 'task_board_state';
   static const String _legacyStateKey = 'task_board_state_v1';
-  static const int _currentSchemaVersion = 22;
+  static const int _currentSchemaVersion = 23;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
-      _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
+  _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
     2: _migrateV2ToV3,
     3: _migrateV3ToV4,
@@ -71,16 +65,15 @@ class TaskStorage {
     19: _migrateV19ToV20,
     20: _migrateV20ToV21,
     21: _migrateV21ToV22,
+    22: _migrateV22ToV23,
   };
   static Future<void> _saveQueue = Future<void>.value();
 
   String export(TaskBoardState state) {
-    return const JsonEncoder.withIndent('  ').convert(
-      <String, dynamic>{
-        'version': _currentSchemaVersion,
-        'data': state.toJson(),
-      },
-    );
+    return const JsonEncoder.withIndent('  ').convert(<String, dynamic>{
+      'version': _currentSchemaVersion,
+      'data': state.toJson(),
+    });
   }
 
   TaskBoardState import(String rawJson) {
@@ -144,15 +137,14 @@ class TaskStorage {
   }
 
   Future<void> save(TaskBoardState state) {
-    final String versionedPayload = jsonEncode(
-      <String, dynamic>{
-        'version': _currentSchemaVersion,
-        'data': state.toJson(),
-      },
-    );
+    final String versionedPayload = jsonEncode(<String, dynamic>{
+      'version': _currentSchemaVersion,
+      'data': state.toJson(),
+    });
 
-    _saveQueue =
-        _saveQueue.catchError((Object _, StackTrace __) {}).then((_) async {
+    _saveQueue = _saveQueue.catchError((Object _, StackTrace __) {}).then((
+      _,
+    ) async {
       final SharedPreferences prefs = await SharedPreferences.getInstance();
       await prefs.setString(_stateKey, versionedPayload);
       await prefs.remove(_legacyStateKey);
@@ -311,12 +303,11 @@ class TaskStorage {
         .map((Map<String, dynamic> type) => type['id'])
         .whereType<String>()
         .toSet();
-    final Set<String> stackIds = _upgradeProjectStackShape(
-      payload['projectStacks'],
-    )
-        .map((Map<String, dynamic> stack) => stack['id'])
-        .whereType<String>()
-        .toSet();
+    final Set<String> stackIds =
+        _upgradeProjectStackShape(payload['projectStacks'])
+            .map((Map<String, dynamic> stack) => stack['id'])
+            .whereType<String>()
+            .toSet();
 
     return <String, dynamic>{
       'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
@@ -657,6 +648,38 @@ class TaskStorage {
     };
   }
 
+  static Map<String, dynamic> _migrateV22ToV23(Map<String, dynamic> payload) {
+    final List<Map<String, dynamic>> projectTypes = _upgradeProjectTypeShape(
+      payload['projectTypes'],
+    );
+    final Set<String> typeIds = projectTypes
+        .map((Map<String, dynamic> type) => type['id'])
+        .whereType<String>()
+        .toSet();
+    final Map<String, ProjectLayoutKind> typeLayouts = _projectTypeLayoutsById(
+      projectTypes,
+    );
+
+    return <String, dynamic>{
+      'incomingTasks': _upgradeTaskShape(payload['incomingTasks']),
+      'projects': _upgradeProjectShape(
+        payload['projects'],
+        validProjectTypeIds: typeIds,
+        fallbackProjectTypeId: ProjectTypeDefaults.projectId,
+        projectLayoutsByTypeId: typeLayouts,
+      ),
+      'projectStacks': _upgradeProjectStackShape(payload['projectStacks']),
+      'projectTypes': projectTypes,
+      'colorLabels': _normalizeColorLabels(payload['colorLabels']),
+      'hideCompletedProjectItems': payload['hideCompletedProjectItems'] is bool
+          ? payload['hideCompletedProjectItems']
+          : false,
+      'cardLayoutPreset': payload['cardLayoutPreset'] is String
+          ? payload['cardLayoutPreset']
+          : CardLayoutPreset.standard.name,
+    };
+  }
+
   static List<Map<String, dynamic>> _normalizeTaskList(Object? rawTasks) {
     if (rawTasks is! List<dynamic>) {
       return <Map<String, dynamic>>[];
@@ -709,13 +732,11 @@ class TaskStorage {
       if (rawProject is String) {
         final String name = rawProject.trim();
         if (name.isNotEmpty) {
-          projects.add(
-            <String, dynamic>{
-              'name': name,
-              'tasks': <Map<String, dynamic>>[],
-              'people': <Map<String, dynamic>>[],
-            },
-          );
+          projects.add(<String, dynamic>{
+            'name': name,
+            'tasks': <Map<String, dynamic>>[],
+            'people': <Map<String, dynamic>>[],
+          });
         }
         continue;
       }
@@ -729,13 +750,11 @@ class TaskStorage {
         continue;
       }
 
-      projects.add(
-        <String, dynamic>{
-          'name': name,
-          'tasks': _normalizeTaskList(rawProject['tasks']),
-          'people': <Map<String, dynamic>>[],
-        },
-      );
+      projects.add(<String, dynamic>{
+        'name': name,
+        'tasks': _normalizeTaskList(rawProject['tasks']),
+        'people': <Map<String, dynamic>>[],
+      });
     }
 
     return projects;
@@ -771,8 +790,9 @@ class TaskStorage {
       if (rawProject is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> project =
-          Map<String, dynamic>.from(rawProject);
+      final Map<String, dynamic> project = Map<String, dynamic>.from(
+        rawProject,
+      );
       final String? id = (project['id'] as String?)?.trim();
       if (id == null || id.isEmpty) {
         project['id'] = ModelIds.newProjectId();
@@ -812,8 +832,9 @@ class TaskStorage {
       if (rawProject is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> project =
-          Map<String, dynamic>.from(rawProject);
+      final Map<String, dynamic> project = Map<String, dynamic>.from(
+        rawProject,
+      );
       final Object? rawBody = project['body'];
       project['body'] = rawBody is String ? rawBody.trim() : '';
       project['tasks'] = _addTaskBodies(project['tasks']);
@@ -851,8 +872,9 @@ class TaskStorage {
       if (rawProject is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> project =
-          Map<String, dynamic>.from(rawProject);
+      final Map<String, dynamic> project = Map<String, dynamic>.from(
+        rawProject,
+      );
       final Object? rawColor = project['color'];
       project['color'] = rawColor is int ? rawColor : null;
       project['tasks'] = _addTaskColors(project['tasks']);
@@ -917,8 +939,9 @@ class TaskStorage {
       if (rawProject is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> project =
-          Map<String, dynamic>.from(rawProject);
+      final Map<String, dynamic> project = Map<String, dynamic>.from(
+        rawProject,
+      );
       project['tasks'] = _addTaskTypes(project['tasks']);
       projects.add(project);
     }
@@ -954,8 +977,9 @@ class TaskStorage {
       if (rawProject is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> project =
-          Map<String, dynamic>.from(rawProject);
+      final Map<String, dynamic> project = Map<String, dynamic>.from(
+        rawProject,
+      );
       project['tasks'] = _addTaskSubtasks(project['tasks']);
       projects.add(project);
     }
@@ -997,8 +1021,9 @@ class TaskStorage {
       } else {
         subtask['id'] = ModelIds.newSubTaskId();
       }
-      subtask['color'] =
-          rawSubtask['color'] is int ? rawSubtask['color'] : null;
+      subtask['color'] = rawSubtask['color'] is int
+          ? rawSubtask['color']
+          : null;
       subtask['completed'] = false;
       subtask['icon'] = null;
       subtask['children'] = <Map<String, dynamic>>[];
@@ -1022,18 +1047,25 @@ class TaskStorage {
       if (id == null || id.isEmpty) {
         task['id'] = ModelIds.newTaskId();
       }
-      task['body'] =
-          task['body'] is String ? (task['body'] as String).trim() : '';
-      task['prompt'] =
-          task['prompt'] is String ? (task['prompt'] as String).trim() : '';
-      task['createdAtMicros'] =
-          task['createdAtMicros'] is int ? task['createdAtMicros'] : null;
+      task['body'] = task['body'] is String
+          ? (task['body'] as String).trim()
+          : '';
+      task['prompt'] = task['prompt'] is String
+          ? (task['prompt'] as String).trim()
+          : '';
+      task['flashcardPrompt'] = task['flashcardPrompt'] is String
+          ? (task['flashcardPrompt'] as String).trim()
+          : '';
+      task['createdAtMicros'] = task['createdAtMicros'] is int
+          ? task['createdAtMicros']
+          : null;
       task['color'] = task['color'] is int ? task['color'] : null;
       task['type'] =
           task['type'] is String && (task['type'] as String).trim().isNotEmpty
-              ? (task['type'] as String).trim().toLowerCase()
-              : TaskItemType.planning.name;
-      task['entryType'] = task['entryType'] is String &&
+          ? (task['type'] as String).trim().toLowerCase()
+          : TaskItemType.planning.name;
+      task['entryType'] =
+          task['entryType'] is String &&
               (task['entryType'] as String).trim().isNotEmpty
           ? (task['entryType'] as String).trim().toLowerCase()
           : TaskEntryType.note.name;
@@ -1041,8 +1073,8 @@ class TaskStorage {
       task['pinned'] = task['pinned'] is bool ? task['pinned'] : false;
       task['icon'] =
           task['icon'] is String && (task['icon'] as String).trim().isNotEmpty
-              ? (task['icon'] as String).trim()
-              : null;
+          ? (task['icon'] as String).trim()
+          : null;
       task['subtasks'] = _upgradeSubtaskShape(task['subtasks']);
       tasks.add(task);
     }
@@ -1065,49 +1097,56 @@ class TaskStorage {
       if (rawProject is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> project =
-          Map<String, dynamic>.from(rawProject);
+      final Map<String, dynamic> project = Map<String, dynamic>.from(
+        rawProject,
+      );
       final String? id = (project['id'] as String?)?.trim();
       if (id == null || id.isEmpty) {
         project['id'] = ModelIds.newProjectId();
       }
-      project['body'] =
-          project['body'] is String ? (project['body'] as String).trim() : '';
+      project['body'] = project['body'] is String
+          ? (project['body'] as String).trim()
+          : '';
       project['prompt'] = project['prompt'] is String
           ? (project['prompt'] as String).trim()
           : '';
       project['color'] = project['color'] is int ? project['color'] : null;
-      project['icon'] = project['icon'] is String &&
+      project['icon'] =
+          project['icon'] is String &&
               (project['icon'] as String).trim().isNotEmpty
           ? (project['icon'] as String).trim()
           : null;
-      project['archived'] =
-          project['archived'] is bool ? project['archived'] : false;
+      project['archived'] = project['archived'] is bool
+          ? project['archived']
+          : false;
       project['pinned'] = project['pinned'] is bool ? project['pinned'] : false;
-      final String? stackId = project['stackId'] is String &&
+      final String? stackId =
+          project['stackId'] is String &&
               (project['stackId'] as String).trim().isNotEmpty
           ? (project['stackId'] as String).trim()
           : null;
-      project['stackId'] = validStackIds == null ||
+      project['stackId'] =
+          validStackIds == null ||
               stackId == null ||
               validStackIds.contains(stackId)
           ? stackId
           : null;
-      final String? projectTypeId = project['projectTypeId'] is String &&
+      final String? projectTypeId =
+          project['projectTypeId'] is String &&
               (project['projectTypeId'] as String).trim().isNotEmpty
           ? (project['projectTypeId'] as String).trim()
           : null;
       project['projectTypeId'] = validProjectTypeIds == null
           ? projectTypeId
           : (projectTypeId != null &&
-                  validProjectTypeIds.contains(projectTypeId)
-              ? projectTypeId
-              : fallbackProjectTypeId);
+                    validProjectTypeIds.contains(projectTypeId)
+                ? projectTypeId
+                : fallbackProjectTypeId);
       final ProjectLayoutKind projectLayoutKind =
           projectLayoutsByTypeId?[project['projectTypeId']] ??
-              ProjectTypeConfig.defaultLayoutKindForId(
-                project['projectTypeId'] as String?,
-              );
+          ProjectTypeConfig.defaultLayoutKindForId(
+            project['projectTypeId'] as String?,
+          );
       final bool isPeopleProject =
           projectLayoutKind == ProjectLayoutKind.peopleContainer;
       project['tasks'] = isPeopleProject
@@ -1137,15 +1176,18 @@ class TaskStorage {
       person['name'] = name;
       final String? id = (person['id'] as String?)?.trim();
       person['id'] = id == null || id.isEmpty ? ModelIds.newPersonId() : id;
-      person['body'] =
-          person['body'] is String ? (person['body'] as String).trim() : '';
+      person['body'] = person['body'] is String
+          ? (person['body'] as String).trim()
+          : '';
       person['color'] = person['color'] is int ? person['color'] : null;
-      person['icon'] = person['icon'] is String &&
+      person['icon'] =
+          person['icon'] is String &&
               (person['icon'] as String).trim().isNotEmpty
           ? (person['icon'] as String).trim()
           : null;
-      person['archived'] =
-          person['archived'] is bool ? person['archived'] : false;
+      person['archived'] = person['archived'] is bool
+          ? person['archived']
+          : false;
       person['tasks'] = _upgradeTaskShape(person['tasks']);
       people.add(person);
     }
@@ -1164,18 +1206,21 @@ class TaskStorage {
       if (rawProjectStack is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> projectStack =
-          Map<String, dynamic>.from(rawProjectStack);
+      final Map<String, dynamic> projectStack = Map<String, dynamic>.from(
+        rawProjectStack,
+      );
       final String? name = (projectStack['name'] as String?)?.trim();
       if (name == null || name.isEmpty) {
         continue;
       }
       projectStack['name'] = name;
       final String? id = (projectStack['id'] as String?)?.trim();
-      projectStack['id'] =
-          id == null || id.isEmpty ? ModelIds.newProjectStackId() : id;
-      projectStack['color'] =
-          projectStack['color'] is int ? projectStack['color'] : null;
+      projectStack['id'] = id == null || id.isEmpty
+          ? ModelIds.newProjectStackId()
+          : id;
+      projectStack['color'] = projectStack['color'] is int
+          ? projectStack['color']
+          : null;
       projectStacks.add(projectStack);
     }
     return projectStacks;
@@ -1188,8 +1233,9 @@ class TaskStorage {
         ProjectTypeConfig.defaults();
     final Map<String, ProjectTypeConfig> defaultsById =
         <String, ProjectTypeConfig>{
-      for (final ProjectTypeConfig type in defaultProjectTypes) type.id: type,
-    };
+          for (final ProjectTypeConfig type in defaultProjectTypes)
+            type.id: type,
+        };
 
     final Map<String, Map<String, dynamic>> normalizedById =
         <String, Map<String, dynamic>>{};
@@ -1198,8 +1244,9 @@ class TaskStorage {
         if (rawProjectType is! Map<dynamic, dynamic>) {
           continue;
         }
-        final Map<String, dynamic> projectType =
-            Map<String, dynamic>.from(rawProjectType);
+        final Map<String, dynamic> projectType = Map<String, dynamic>.from(
+          rawProjectType,
+        );
         final String? id = (projectType['id'] as String?)?.trim();
         final String? name = (projectType['name'] as String?)?.trim();
         if (id == null || id.isEmpty || name == null || name.isEmpty) {
@@ -1207,24 +1254,26 @@ class TaskStorage {
         }
         projectType['id'] = id;
         projectType['name'] = name;
-        projectType['icon'] = projectType['icon'] is String &&
+        projectType['icon'] =
+            projectType['icon'] is String &&
                 (projectType['icon'] as String).trim().isNotEmpty
             ? (projectType['icon'] as String).trim()
             : null;
-        projectType['layoutKind'] = projectType['layoutKind'] is String &&
+        projectType['layoutKind'] =
+            projectType['layoutKind'] is String &&
                 (projectType['layoutKind'] as String).trim().isNotEmpty
             ? ProjectLayoutKind.fromJsonValue(projectType['layoutKind']).name
             : (defaultsById[id]?.layoutKind ??
-                    ProjectTypeConfig.defaultLayoutKindForId(id))
-                .name;
+                      ProjectTypeConfig.defaultLayoutKindForId(id))
+                  .name;
         projectType['showsJournalEntries'] =
             projectType['showsJournalEntries'] is bool
-                ? projectType['showsJournalEntries']
-                : defaultsById[id]?.showsJournalEntries ?? false;
+            ? projectType['showsJournalEntries']
+            : defaultsById[id]?.showsJournalEntries ?? false;
         projectType['showsPlanningTasks'] =
             projectType['showsPlanningTasks'] is bool
-                ? projectType['showsPlanningTasks']
-                : defaultsById[id]?.showsPlanningTasks ?? false;
+            ? projectType['showsPlanningTasks']
+            : defaultsById[id]?.showsPlanningTasks ?? false;
         projectType['showsIdeas'] = projectType['showsIdeas'] is bool
             ? projectType['showsIdeas']
             : defaultsById[id]?.showsIdeas ?? false;
@@ -1234,8 +1283,9 @@ class TaskStorage {
 
     final List<Map<String, dynamic>> normalized = <Map<String, dynamic>>[];
     for (final ProjectTypeConfig defaultType in defaultProjectTypes) {
-      final Map<String, dynamic>? existing =
-          normalizedById.remove(defaultType.id);
+      final Map<String, dynamic>? existing = normalizedById.remove(
+        defaultType.id,
+      );
       normalized.add(existing ?? defaultType.toJson());
     }
     normalized.addAll(normalizedById.values);
@@ -1281,8 +1331,9 @@ class TaskStorage {
         continue;
       }
 
-      final Map<String, dynamic> subtask =
-          Map<String, dynamic>.from(rawSubtask);
+      final Map<String, dynamic> subtask = Map<String, dynamic>.from(
+        rawSubtask,
+      );
       final String? title = (subtask['title'] as String?)?.trim();
       if (title == null || title.isEmpty) {
         continue;
@@ -1290,12 +1341,15 @@ class TaskStorage {
       subtask['title'] = title;
       final String? id = (subtask['id'] as String?)?.trim();
       subtask['id'] = id == null || id.isEmpty ? ModelIds.newSubTaskId() : id;
-      subtask['body'] =
-          subtask['body'] is String ? (subtask['body'] as String).trim() : '';
+      subtask['body'] = subtask['body'] is String
+          ? (subtask['body'] as String).trim()
+          : '';
       subtask['color'] = subtask['color'] is int ? subtask['color'] : null;
-      subtask['completed'] =
-          subtask['completed'] is bool ? subtask['completed'] : false;
-      subtask['icon'] = subtask['icon'] is String &&
+      subtask['completed'] = subtask['completed'] is bool
+          ? subtask['completed']
+          : false;
+      subtask['icon'] =
+          subtask['icon'] is String &&
               (subtask['icon'] as String).trim().isNotEmpty
           ? (subtask['icon'] as String).trim()
           : null;
@@ -1408,8 +1462,9 @@ class TaskStorage {
   ) {
     final String indent = '  ' * depth;
     for (final SubTaskItem subtask in subtasks) {
-      final String iconPrefix =
-          subtask.iconKey == null ? '' : '[${subtask.iconKey}] ';
+      final String iconPrefix = subtask.iconKey == null
+          ? ''
+          : '[${subtask.iconKey}] ';
       final String checkboxPrefix = subtask.isCompleted ? '[x] ' : '[ ] ';
       buffer.writeln('$indent- $checkboxPrefix$iconPrefix${subtask.title}');
       _writeSubtasks(buffer, subtask.children, depth + 1);

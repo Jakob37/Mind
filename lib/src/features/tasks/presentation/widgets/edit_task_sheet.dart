@@ -5,11 +5,13 @@ class TaskEditResult {
     required this.title,
     required this.body,
     required this.prompt,
+    required this.flashcardPrompt,
   });
 
   final String title;
   final String body;
   final String prompt;
+  final String flashcardPrompt;
 }
 
 class EditTaskSheet extends StatefulWidget {
@@ -18,13 +20,17 @@ class EditTaskSheet extends StatefulWidget {
     required this.initialTitle,
     required this.initialBody,
     this.initialPrompt = '',
+    this.initialFlashcardPrompt = '',
     this.showPromptField = false,
+    this.showFlashcardField = false,
   });
 
   final String initialTitle;
   final String initialBody;
   final String initialPrompt;
+  final String initialFlashcardPrompt;
   final bool showPromptField;
+  final bool showFlashcardField;
 
   @override
   State<EditTaskSheet> createState() => _EditTaskSheetState();
@@ -34,6 +40,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
   late final TextEditingController _titleController;
   late final TextEditingController _bodyController;
   late final TextEditingController _promptController;
+  late final TextEditingController _flashcardPromptController;
 
   @override
   void initState() {
@@ -41,6 +48,9 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     _titleController = TextEditingController(text: widget.initialTitle);
     _bodyController = TextEditingController(text: widget.initialBody);
     _promptController = TextEditingController(text: widget.initialPrompt);
+    _flashcardPromptController = TextEditingController(
+      text: widget.initialFlashcardPrompt,
+    );
   }
 
   @override
@@ -48,6 +58,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     _titleController.dispose();
     _bodyController.dispose();
     _promptController.dispose();
+    _flashcardPromptController.dispose();
     super.dispose();
   }
 
@@ -61,6 +72,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
         title: title,
         body: _bodyController.text.trim(),
         prompt: _promptController.text.trim(),
+        flashcardPrompt: _flashcardPromptController.text.trim(),
       ),
     );
   }
@@ -78,10 +90,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'Edit Task',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('Edit Task', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           TextField(
             controller: _titleController,
@@ -115,11 +124,20 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
               ),
             ),
           ],
+          if (widget.showFlashcardField) ...<Widget>[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _flashcardPromptController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Flashcard prompt',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
           const SizedBox(height: 12),
-          FilledButton(
-            onPressed: _save,
-            child: const Text('Save Task'),
-          ),
+          FilledButton(onPressed: _save, child: const Text('Save Task')),
         ],
       ),
     );

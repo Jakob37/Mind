@@ -34,10 +34,13 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   final TextEditingController _titleController = TextEditingController();
   final TextEditingController _bodyController = TextEditingController();
   final TextEditingController _promptController = TextEditingController();
+  final TextEditingController _flashcardPromptController =
+      TextEditingController();
   final FocusNode _titleFocusNode = FocusNode();
   bool _insertAtTop = false;
   bool _showBodyField = false;
   bool _showPromptField = false;
+  bool _showFlashcardField = false;
   int? _colorValue;
   String? _iconKey;
   String? _targetProjectId;
@@ -58,6 +61,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     _titleController.dispose();
     _bodyController.dispose();
     _promptController.dispose();
+    _flashcardPromptController.dispose();
     _titleFocusNode.dispose();
     super.dispose();
   }
@@ -65,9 +69,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   Future<void> _pickIcon() async {
     final String? iconKey = await showModalBottomSheet<String?>(
       context: context,
-      builder: (_) => ItemIconPickerSheet(
-        currentIconKey: _iconKey,
-      ),
+      builder: (_) => ItemIconPickerSheet(currentIconKey: _iconKey),
     );
     if (!mounted) {
       return;
@@ -80,11 +82,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   Future<void> _pickColor() async {
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-      context: context,
-      builder: (_) => ItemColorPickerSheet(
-        currentColorValue: _colorValue,
-      ),
-    );
+          context: context,
+          builder: (_) => ItemColorPickerSheet(currentColorValue: _colorValue),
+        );
     if (selection == null || !mounted) {
       return;
     }
@@ -130,10 +130,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         color: Theme.of(context).colorScheme.onSurfaceVariant,
       );
     }
-    return CircleAvatar(
-      radius: 10,
-      backgroundColor: Color(_colorValue!),
-    );
+    return CircleAvatar(radius: 10, backgroundColor: Color(_colorValue!));
   }
 
   String _iconLabel() {
@@ -156,6 +153,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           title: title,
           body: _bodyController.text.trim(),
           prompt: _promptController.text.trim(),
+          flashcardPrompt: _flashcardPromptController.text.trim(),
           colorValue: _colorValue,
           iconKey: _iconKey,
         ),
@@ -178,10 +176,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          Text(
-            'New Task',
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          Text('New Task', style: Theme.of(context).textTheme.titleLarge),
           const SizedBox(height: 12),
           TextField(
             controller: _titleController,
@@ -258,6 +253,21 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                   ),
                   label: Text(_showPromptField ? 'Hide prompt' : 'Show prompt'),
                 ),
+                TextButton.icon(
+                  onPressed: () {
+                    setState(() {
+                      _showFlashcardField = !_showFlashcardField;
+                    });
+                  },
+                  icon: Icon(
+                    _showFlashcardField
+                        ? Icons.visibility_off_outlined
+                        : Icons.style_outlined,
+                  ),
+                  label: Text(
+                    _showFlashcardField ? 'Hide flashcard' : 'Show flashcard',
+                  ),
+                ),
               ],
             ),
           ),
@@ -281,6 +291,18 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
               maxLines: 6,
               decoration: const InputDecoration(
                 labelText: 'Prompt',
+                alignLabelWithHint: true,
+              ),
+            ),
+          ],
+          if (_showFlashcardField) ...<Widget>[
+            const SizedBox(height: 12),
+            TextField(
+              controller: _flashcardPromptController,
+              minLines: 2,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Flashcard prompt',
                 alignLabelWithHint: true,
               ),
             ),

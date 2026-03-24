@@ -12,50 +12,50 @@ void main() {
     SharedPreferences.setMockInitialValues(<String, Object>{});
   });
 
-  test('load migrates v6 payload to v7 with default planning task types',
-      () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      'task_board_state': jsonEncode(<String, dynamic>{
-        'version': 6,
-        'data': <String, dynamic>{
-          'incomingTasks': <Map<String, dynamic>>[
-            <String, dynamic>{'id': 'incoming-1', 'title': 'Incoming task'},
-          ],
-          'favoriteTasks': <Map<String, dynamic>>[
-            <String, dynamic>{'id': 'favorite-1', 'title': 'Favorite task'},
-          ],
-          'projects': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'id': 'project-1',
-              'name': 'Project one',
-              'tasks': <Map<String, dynamic>>[
-                <String, dynamic>{'id': 'project-task-1', 'title': 'Do it'},
-              ],
-            },
-          ],
-          'colorLabels': <String, String>{
-            '4294951112': 'Warm',
+  test(
+    'load migrates v6 payload to v7 with default planning task types',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'task_board_state': jsonEncode(<String, dynamic>{
+          'version': 6,
+          'data': <String, dynamic>{
+            'incomingTasks': <Map<String, dynamic>>[
+              <String, dynamic>{'id': 'incoming-1', 'title': 'Incoming task'},
+            ],
+            'favoriteTasks': <Map<String, dynamic>>[
+              <String, dynamic>{'id': 'favorite-1', 'title': 'Favorite task'},
+            ],
+            'projects': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'project-1',
+                'name': 'Project one',
+                'tasks': <Map<String, dynamic>>[
+                  <String, dynamic>{'id': 'project-task-1', 'title': 'Do it'},
+                ],
+              },
+            ],
+            'colorLabels': <String, String>{'4294951112': 'Warm'},
           },
-        },
-      }),
-    });
+        }),
+      });
 
-    final TaskLoadResult result = await storage.load();
+      final TaskLoadResult result = await storage.load();
 
-    expect(result.isSuccess, isTrue);
-    final TaskBoardState state = result.state!;
-    expect(state.incomingTasks, hasLength(2));
-    expect(state.incomingTasks.first.title, 'Incoming task');
-    expect(state.incomingTasks.last.title, 'Favorite task');
-    expect(
-      state.incomingTasks.every(
-        (TaskItem task) => task.type == TaskItemType.planning,
-      ),
-      isTrue,
-    );
-    expect(state.projects.single.tasks.single.type, TaskItemType.planning);
-    expect(state.colorLabels[4294951112], 'Warm');
-  });
+      expect(result.isSuccess, isTrue);
+      final TaskBoardState state = result.state!;
+      expect(state.incomingTasks, hasLength(2));
+      expect(state.incomingTasks.first.title, 'Incoming task');
+      expect(state.incomingTasks.last.title, 'Favorite task');
+      expect(
+        state.incomingTasks.every(
+          (TaskItem task) => task.type == TaskItemType.planning,
+        ),
+        isTrue,
+      );
+      expect(state.projects.single.tasks.single.type, TaskItemType.planning);
+      expect(state.colorLabels[4294951112], 'Warm');
+    },
+  );
 
   test('load preserves thinking aliases while migrating from v6', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
@@ -142,18 +142,12 @@ void main() {
 
     final TaskBoardState state = TaskBoardState(
       incomingTasks: <TaskItem>[
-        TaskItem(
-          id: 'task-1',
-          title: 'New task',
-          type: TaskItemType.thinking,
-        ),
+        TaskItem(id: 'task-1', title: 'New task', type: TaskItemType.thinking),
       ],
       projects: const <ProjectItem>[],
       projectStacks: const <ProjectStack>[],
       projectTypes: const <ProjectTypeConfig>[],
-      colorLabels: const <int, String>{
-        4294951112: 'Warm',
-      },
+      colorLabels: const <int, String>{4294951112: 'Warm'},
       hideCompletedProjectItems: false,
       cardLayoutPreset: CardLayoutPreset.standard,
     );
@@ -166,10 +160,11 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 22);
+    expect(decoded['version'], 23);
 
-    final List<dynamic> incoming = (decoded['data']
-        as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
+    final List<dynamic> incoming =
+        (decoded['data'] as Map<String, dynamic>)['incomingTasks']
+            as List<dynamic>;
     expect((incoming.first as Map<String, dynamic>)['type'], 'thinking');
     expect(
       (decoded['data'] as Map<String, dynamic>).containsKey('favoriteTasks'),
@@ -186,11 +181,7 @@ void main() {
           title: 'Planned',
           type: TaskItemType.planning,
           subtasks: <SubTaskItem>[
-            SubTaskItem(
-              id: 'subtask-1',
-              title: 'Child card',
-              body: 'Details',
-            ),
+            SubTaskItem(id: 'subtask-1', title: 'Child card', body: 'Details'),
           ],
         ),
       ],
@@ -210,8 +201,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 22,'), isTrue);
-    expect(decoded['version'], 22);
+    expect(exported.contains('\n  "version": 23,'), isTrue);
+    expect(decoded['version'], 23);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -219,6 +210,7 @@ void main() {
     expect(firstIncoming['archived'], isFalse);
     expect(firstIncoming['pinned'], isFalse);
     expect(firstIncoming['prompt'], '');
+    expect(firstIncoming['flashcardPrompt'], '');
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));
     final Map<String, dynamic> firstSubtask =
@@ -255,10 +247,7 @@ void main() {
               isArchived: true,
               isPinned: true,
               subtasks: <SubTaskItem>[
-                SubTaskItem(
-                  id: 'subtask-1',
-                  title: 'Imported child',
-                ),
+                SubTaskItem(id: 'subtask-1', title: 'Imported child'),
               ],
             ),
           ],
@@ -303,12 +292,12 @@ void main() {
     expect(imported.projects.single.tasks.single.isArchived, isTrue);
     expect(imported.projects.single.tasks.single.isPinned, isTrue);
     expect(imported.projects.single.tasks.single.prompt, 'Task level prompt');
+    expect(imported.projects.single.tasks.single.flashcardPrompt, '');
     expect(
-        imported.projects.single.tasks.single.entryType, TaskEntryType.journal);
-    expect(
-      imported.projects.single.tasks.single.createdAtMicros,
-      987654321,
+      imported.projects.single.tasks.single.entryType,
+      TaskEntryType.journal,
     );
+    expect(imported.projects.single.tasks.single.createdAtMicros, 987654321);
     expect(
       imported.projects.single.tasks.single.subtasks.single.title,
       'Imported child',
@@ -325,17 +314,17 @@ void main() {
     );
   });
 
-  test('load migrates v18 payload and adds nullable created timestamps',
-      () async {
+  test('load migrates v22 payload and adds empty flashcard prompts', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'task_board_state': jsonEncode(<String, dynamic>{
-        'version': 18,
+        'version': 22,
         'data': <String, dynamic>{
           'incomingTasks': <Map<String, dynamic>>[
             <String, dynamic>{
               'id': 'incoming-1',
-              'title': 'Incoming task',
-              'entryType': 'journal',
+              'title': 'Incoming idea',
+              'type': 'thinking',
+              'entryType': 'note',
             },
           ],
           'projects': <Map<String, dynamic>>[
@@ -343,9 +332,15 @@ void main() {
               'id': 'project-1',
               'name': 'Project one',
               'projectTypeId': ProjectTypeDefaults.projectId,
-              'prompt': '',
-              'archived': false,
-              'tasks': <Map<String, dynamic>>[],
+              'tasks': <Map<String, dynamic>>[
+                <String, dynamic>{
+                  'id': 'project-task-1',
+                  'title': 'Project idea',
+                  'type': 'thinking',
+                  'entryType': 'note',
+                },
+              ],
+              'people': <Map<String, dynamic>>[],
             },
           ],
           'projectStacks': <Map<String, dynamic>>[],
@@ -363,23 +358,67 @@ void main() {
 
     expect(result.isSuccess, isTrue);
     final TaskBoardState state = result.state!;
-    expect(state.incomingTasks.single.entryType, TaskEntryType.journal);
-    expect(state.incomingTasks.single.createdAtMicros, isNull);
-    expect(state.projects.single.isPinned, isFalse);
-    expect(state.projects.single.tasks, isEmpty);
-    expect(
-      state.projectTypes.any(
-        (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.diaryId,
-      ),
-      isTrue,
-    );
-    expect(
-      state.projectTypes.any(
-        (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.peopleId,
-      ),
-      isTrue,
-    );
+    expect(state.incomingTasks.single.flashcardPrompt, '');
+    expect(state.projects.single.tasks.single.flashcardPrompt, '');
   });
+
+  test(
+    'load migrates v18 payload and adds nullable created timestamps',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'task_board_state': jsonEncode(<String, dynamic>{
+          'version': 18,
+          'data': <String, dynamic>{
+            'incomingTasks': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'incoming-1',
+                'title': 'Incoming task',
+                'entryType': 'journal',
+              },
+            ],
+            'projects': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'project-1',
+                'name': 'Project one',
+                'projectTypeId': ProjectTypeDefaults.projectId,
+                'prompt': '',
+                'archived': false,
+                'tasks': <Map<String, dynamic>>[],
+              },
+            ],
+            'projectStacks': <Map<String, dynamic>>[],
+            'projectTypes': ProjectTypeConfig.defaults()
+                .map((ProjectTypeConfig type) => type.toJson())
+                .toList(),
+            'colorLabels': <String, String>{},
+            'hideCompletedProjectItems': false,
+            'cardLayoutPreset': 'standard',
+          },
+        }),
+      });
+
+      final TaskLoadResult result = await storage.load();
+
+      expect(result.isSuccess, isTrue);
+      final TaskBoardState state = result.state!;
+      expect(state.incomingTasks.single.entryType, TaskEntryType.journal);
+      expect(state.incomingTasks.single.createdAtMicros, isNull);
+      expect(state.projects.single.isPinned, isFalse);
+      expect(state.projects.single.tasks, isEmpty);
+      expect(
+        state.projectTypes.any(
+          (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.diaryId,
+        ),
+        isTrue,
+      );
+      expect(
+        state.projectTypes.any(
+          (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.peopleId,
+        ),
+        isTrue,
+      );
+    },
+  );
 
   test('load migrates v19 payload and adds journal visibility flags', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
@@ -424,49 +463,51 @@ void main() {
     expect(peopleType.showsJournalEntries, isTrue);
   });
 
-  test('load migrates v20 people projects and discards legacy root entries',
-      () async {
-    SharedPreferences.setMockInitialValues(<String, Object>{
-      'task_board_state': jsonEncode(<String, dynamic>{
-        'version': 20,
-        'data': <String, dynamic>{
-          'incomingTasks': <Map<String, dynamic>>[],
-          'projects': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'id': 'project-1',
-              'name': 'People project',
-              'projectTypeId': ProjectTypeDefaults.peopleId,
-              'prompt': '',
-              'archived': false,
-              'tasks': <Map<String, dynamic>>[
-                <String, dynamic>{
-                  'id': 'task-1',
-                  'title': 'Legacy interaction',
-                  'type': 'thinking',
-                  'entryType': 'journal',
-                },
-              ],
-            },
-          ],
-          'projectStacks': <Map<String, dynamic>>[],
-          'projectTypes': ProjectTypeConfig.defaults()
-              .map((ProjectTypeConfig type) => type.toJson())
-              .toList(),
-          'colorLabels': <String, String>{},
-          'hideCompletedProjectItems': false,
-          'cardLayoutPreset': 'standard',
-        },
-      }),
-    });
+  test(
+    'load migrates v20 people projects and discards legacy root entries',
+    () async {
+      SharedPreferences.setMockInitialValues(<String, Object>{
+        'task_board_state': jsonEncode(<String, dynamic>{
+          'version': 20,
+          'data': <String, dynamic>{
+            'incomingTasks': <Map<String, dynamic>>[],
+            'projects': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'project-1',
+                'name': 'People project',
+                'projectTypeId': ProjectTypeDefaults.peopleId,
+                'prompt': '',
+                'archived': false,
+                'tasks': <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'id': 'task-1',
+                    'title': 'Legacy interaction',
+                    'type': 'thinking',
+                    'entryType': 'journal',
+                  },
+                ],
+              },
+            ],
+            'projectStacks': <Map<String, dynamic>>[],
+            'projectTypes': ProjectTypeConfig.defaults()
+                .map((ProjectTypeConfig type) => type.toJson())
+                .toList(),
+            'colorLabels': <String, String>{},
+            'hideCompletedProjectItems': false,
+            'cardLayoutPreset': 'standard',
+          },
+        }),
+      });
 
-    final TaskLoadResult result = await storage.load();
+      final TaskLoadResult result = await storage.load();
 
-    expect(result.isSuccess, isTrue);
-    final TaskBoardState state = result.state!;
-    expect(state.projects.single.projectTypeId, ProjectTypeDefaults.peopleId);
-    expect(state.projects.single.tasks, isEmpty);
-    expect(state.projects.single.people, isEmpty);
-  });
+      expect(result.isSuccess, isTrue);
+      final TaskBoardState state = result.state!;
+      expect(state.projects.single.projectTypeId, ProjectTypeDefaults.peopleId);
+      expect(state.projects.single.tasks, isEmpty);
+      expect(state.projects.single.people, isEmpty);
+    },
+  );
 
   test('load migrates v21 project types and adds layout kinds', () async {
     SharedPreferences.setMockInitialValues(<String, Object>{
@@ -723,10 +764,7 @@ void main() {
             },
           ],
           'projectStacks': <Map<String, dynamic>>[
-            <String, dynamic>{
-              'id': 'stack-1',
-              'name': 'Focus',
-            },
+            <String, dynamic>{'id': 'stack-1', 'name': 'Focus'},
           ],
           'projectTypes': ProjectTypeConfig.defaults()
               .map((ProjectTypeConfig type) => type.toJson())

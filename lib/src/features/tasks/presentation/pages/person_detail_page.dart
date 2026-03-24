@@ -11,17 +11,9 @@ import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
 import 'task_detail_page.dart';
 
-enum _PersonEntryKind {
-  journal,
-  idea,
-}
+enum _PersonEntryKind { journal, idea }
 
-enum _PersonMenuAction {
-  edit,
-  setIcon,
-  setColor,
-  remove,
-}
+enum _PersonMenuAction { edit, setIcon, setColor, remove }
 
 enum _PersonTaskMenuAction {
   open,
@@ -85,8 +77,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
   }
 
   int _personIndex() {
-    return _people
-        .indexWhere((PersonItem person) => person.id == widget.personId);
+    return _people.indexWhere(
+      (PersonItem person) => person.id == widget.personId,
+    );
   }
 
   int _findTaskIndex(PersonItem person, String taskId) {
@@ -155,8 +148,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
   }
 
   String _createJournalEntryTitle(int createdAtMicros) {
-    final DateTime createdAt =
-        DateTime.fromMicrosecondsSinceEpoch(createdAtMicros);
+    final DateTime createdAt = DateTime.fromMicrosecondsSinceEpoch(
+      createdAtMicros,
+    );
     final String month = createdAt.month.toString().padLeft(2, '0');
     final String day = createdAt.day.toString().padLeft(2, '0');
     final String hour = createdAt.hour.toString().padLeft(2, '0');
@@ -269,8 +263,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
               ListTile(
                 leading: const Icon(Icons.vertical_align_bottom_outlined),
                 title: const Text('Move to bottom'),
-                onTap: () => Navigator.of(context)
-                    .pop(_PersonTaskMenuAction.moveToBottom),
+                onTap: () => Navigator.of(
+                  context,
+                ).pop(_PersonTaskMenuAction.moveToBottom),
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
@@ -322,13 +317,13 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     final PersonItem person = _people[personIndex];
     final PersonEditResult? result =
         await showModalBottomSheet<PersonEditResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => EditPersonSheet(
-        initialName: person.name,
-        initialBody: person.body,
-      ),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => EditPersonSheet(
+            initialName: person.name,
+            initialBody: person.body,
+          ),
+        );
 
     if (result == null) {
       return;
@@ -352,9 +347,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final String? iconKey = await showModalBottomSheet<String?>(
       context: context,
-      builder: (_) => ItemIconPickerSheet(
-        currentIconKey: person.iconKey,
-      ),
+      builder: (_) => ItemIconPickerSheet(currentIconKey: person.iconKey),
     );
     if (!mounted || iconKey == person.iconKey) {
       return;
@@ -378,12 +371,12 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-      context: context,
-      builder: (_) => ItemColorPickerSheet(
-        currentColorValue: person.colorValue,
-        customLabels: widget.colorLabels,
-      ),
-    );
+          context: context,
+          builder: (_) => ItemColorPickerSheet(
+            currentColorValue: person.colorValue,
+            customLabels: widget.colorLabels,
+          ),
+        );
     if (selection == null) {
       return;
     }
@@ -419,15 +412,15 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     if (kind == _PersonEntryKind.journal) {
       final AddJournalEntryResult? result =
           await showModalBottomSheet<AddJournalEntryResult>(
-        context: context,
-        isScrollControlled: true,
-        builder: (_) => const AddJournalEntrySheet(
-          title: 'New Interaction Entry',
-          hintText:
-              'Capture what happened, what mattered, and what to remember.',
-          saveLabel: 'Save Interaction',
-        ),
-      );
+            context: context,
+            isScrollControlled: true,
+            builder: (_) => const AddJournalEntrySheet(
+              title: 'New Interaction Entry',
+              hintText:
+                  'Capture what happened, what mattered, and what to remember.',
+              saveLabel: 'Save Interaction',
+            ),
+          );
       if (result == null) {
         return;
       }
@@ -461,10 +454,10 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final AddTaskResult? createdTask =
         await showModalBottomSheet<AddTaskResult>(
-      context: context,
-      isScrollControlled: true,
-      builder: (_) => const AddTaskSheet(),
-    );
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => const AddTaskSheet(),
+        );
     if (createdTask == null) {
       return;
     }
@@ -504,8 +497,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     }
 
     final TaskItem task = person.tasks[taskIndex];
-    final TaskDetailAction? action =
-        await Navigator.of(context).push<TaskDetailAction>(
+    final TaskDetailAction?
+    action = await Navigator.of(context).push<TaskDetailAction>(
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
@@ -589,8 +582,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       return;
     }
 
-    final _PersonTaskMenuAction? action =
-        await _showTaskMenu(person.tasks[taskIndex]);
+    final _PersonTaskMenuAction? action = await _showTaskMenu(
+      person.tasks[taskIndex],
+    );
     if (action == null || !mounted) {
       return;
     }
@@ -642,6 +636,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       builder: (_) => EditTaskSheet(
         initialTitle: task.title,
         initialBody: task.body,
+        initialFlashcardPrompt: task.flashcardPrompt,
+        showFlashcardField: true,
       ),
     );
     if (result == null) {
@@ -654,6 +650,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     tasks[taskIndex] = task.copyWith(
       title: result.title,
       body: result.body,
+      flashcardPrompt: result.flashcardPrompt,
     );
     setState(() {
       _people[personIndex] = person.copyWith(tasks: tasks);
@@ -675,9 +672,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final String? iconKey = await showModalBottomSheet<String?>(
       context: context,
-      builder: (_) => ItemIconPickerSheet(
-        currentIconKey: task.iconKey,
-      ),
+      builder: (_) => ItemIconPickerSheet(currentIconKey: task.iconKey),
     );
     if (!mounted || iconKey == task.iconKey) {
       return;
@@ -710,12 +705,12 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-      context: context,
-      builder: (_) => ItemColorPickerSheet(
-        currentColorValue: task.colorValue,
-        customLabels: widget.colorLabels,
-      ),
-    );
+          context: context,
+          builder: (_) => ItemColorPickerSheet(
+            currentColorValue: task.colorValue,
+            customLabels: widget.colorLabels,
+          ),
+        );
     if (selection == null) {
       return;
     }
@@ -749,10 +744,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     _notifyPeopleChanged();
   }
 
-  void _moveTaskToBoundary(
-    String taskId, {
-    required bool toTop,
-  }) {
+  void _moveTaskToBoundary(String taskId, {required bool toTop}) {
     final int personIndex = _personIndex();
     if (personIndex < 0) {
       return;
@@ -764,16 +756,16 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     }
 
     final TaskItem task = person.tasks[taskIndex];
-    final List<TaskItem> journalEntries = _journalEntries(person).toList(
-      growable: true,
+    final List<TaskItem> journalEntries = _journalEntries(
+      person,
+    ).toList(growable: true);
+    final List<TaskItem> ideaTasks = _ideaTasks(person).toList(growable: true);
+    final List<TaskItem> targetList = task.entryType == TaskEntryType.journal
+        ? journalEntries
+        : ideaTasks;
+    final int sourceIndex = targetList.indexWhere(
+      (TaskItem entry) => entry.id == taskId,
     );
-    final List<TaskItem> ideaTasks = _ideaTasks(person).toList(
-      growable: true,
-    );
-    final List<TaskItem> targetList =
-        task.entryType == TaskEntryType.journal ? journalEntries : ideaTasks;
-    final int sourceIndex =
-        targetList.indexWhere((TaskItem entry) => entry.id == taskId);
     if (sourceIndex < 0) {
       return;
     }
@@ -788,10 +780,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     setState(() {
       _people[personIndex] = person.copyWith(
-        tasks: <TaskItem>[
-          ...journalEntries,
-          ...ideaTasks,
-        ],
+        tasks: <TaskItem>[...journalEntries, ...ideaTasks],
       );
     });
     _notifyPeopleChanged();
@@ -803,16 +792,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       color: task.colorValue == null ? null : Color(task.colorValue!),
       child: ListTile(
         contentPadding: _layout.contentPadding,
-        leading: Icon(
-          iconDataForKey(task.iconKey) ?? Icons.menu_book_outlined,
-        ),
-        title: Text(
-          _journalTimestampLabel(task),
-          maxLines: null,
-        ),
-        subtitle: Text(
-          task.body.trim().isEmpty ? task.title : task.body,
-        ),
+        leading: Icon(iconDataForKey(task.iconKey) ?? Icons.menu_book_outlined),
+        title: Text(_journalTimestampLabel(task), maxLines: null),
+        subtitle: Text(task.body.trim().isEmpty ? task.title : task.body),
         trailing: IconButton(
           onPressed: () => _openTaskMenu(task.id),
           tooltip: 'Task options',
@@ -830,10 +812,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       child: ListTile(
         contentPadding: _layout.contentPadding,
         leading: Icon(iconDataForKey(task.iconKey) ?? Icons.lightbulb_outline),
-        title: Text(
-          task.title,
-          maxLines: null,
-        ),
+        title: Text(task.title, maxLines: null),
         subtitle: task.body.trim().isEmpty ? null : Text(task.body),
         trailing: IconButton(
           onPressed: () => _openTaskMenu(task.id),
@@ -849,9 +828,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
   Widget build(BuildContext context) {
     final PersonItem? person = _findPerson();
     if (person == null) {
-      return const Scaffold(
-        body: Center(child: Text('Person not found.')),
-      );
+      return const Scaffold(body: Center(child: Text('Person not found.')));
     }
 
     final List<TaskItem> journalEntries = _journalEntries(person);
@@ -896,17 +873,11 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
                 ),
               ),
             ),
-          Text(
-            'Interactions',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Interactions', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           for (final TaskItem task in journalEntries) _buildJournalCard(task),
           const SizedBox(height: 8),
-          Text(
-            'Ideas',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Ideas', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: 8),
           for (final TaskItem task in ideaTasks) _buildIdeaCard(task),
         ],

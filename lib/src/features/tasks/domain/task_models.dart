@@ -81,9 +81,9 @@ class SubTaskItem {
     this.isCompleted = false,
     this.iconKey,
     List<SubTaskItem>? children,
-  })  : id = id ?? ModelIds.newSubTaskId(),
-        body = body ?? '',
-        children = children ?? <SubTaskItem>[];
+  }) : id = id ?? ModelIds.newSubTaskId(),
+       body = body ?? '',
+       children = children ?? <SubTaskItem>[];
 
   final String id;
   final String title;
@@ -123,7 +123,8 @@ class SubTaskItem {
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       isCompleted: isCompleted ?? this.isCompleted,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
-      children: children ??
+      children:
+          children ??
           this.children.map((SubTaskItem item) => item.clone()).toList(),
     );
   }
@@ -176,6 +177,7 @@ class TaskItem {
     required this.title,
     String? body,
     String? prompt,
+    String? flashcardPrompt,
     this.createdAtMicros,
     this.colorValue,
     TaskItemType? type,
@@ -184,17 +186,19 @@ class TaskItem {
     this.isPinned = false,
     this.iconKey,
     List<SubTaskItem>? subtasks,
-  })  : id = id ?? ModelIds.newTaskId(),
-        body = body ?? '',
-        prompt = prompt ?? '',
-        type = type ?? TaskItemType.planning,
-        entryType = entryType ?? TaskEntryType.note,
-        subtasks = subtasks ?? <SubTaskItem>[];
+  }) : id = id ?? ModelIds.newTaskId(),
+       body = body ?? '',
+       prompt = prompt ?? '',
+       flashcardPrompt = flashcardPrompt ?? '',
+       type = type ?? TaskItemType.planning,
+       entryType = entryType ?? TaskEntryType.note,
+       subtasks = subtasks ?? <SubTaskItem>[];
 
   final String id;
   final String title;
   final String body;
   final String prompt;
+  final String flashcardPrompt;
   final int? createdAtMicros;
   final int? colorValue;
   final TaskItemType type;
@@ -214,6 +218,7 @@ class TaskItem {
       title: title,
       body: body,
       prompt: prompt,
+      flashcardPrompt: flashcardPrompt,
       createdAtMicros: createdAtMicros,
       colorValue: colorValue,
       type: type,
@@ -230,6 +235,7 @@ class TaskItem {
     String? title,
     String? body,
     String? prompt,
+    String? flashcardPrompt,
     int? createdAtMicros,
     bool clearCreatedAt = false,
     int? colorValue,
@@ -247,15 +253,18 @@ class TaskItem {
       title: title ?? this.title,
       body: body ?? this.body,
       prompt: prompt ?? this.prompt,
-      createdAtMicros:
-          clearCreatedAt ? null : (createdAtMicros ?? this.createdAtMicros),
+      flashcardPrompt: flashcardPrompt ?? this.flashcardPrompt,
+      createdAtMicros: clearCreatedAt
+          ? null
+          : (createdAtMicros ?? this.createdAtMicros),
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       type: type ?? this.type,
       entryType: entryType ?? this.entryType,
       isArchived: isArchived ?? this.isArchived,
       isPinned: isPinned ?? this.isPinned,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
-      subtasks: subtasks ??
+      subtasks:
+          subtasks ??
           this.subtasks.map((SubTaskItem item) => item.clone()).toList(),
     );
   }
@@ -266,6 +275,7 @@ class TaskItem {
       'title': title,
       'body': body,
       'prompt': prompt,
+      'flashcardPrompt': flashcardPrompt,
       'createdAtMicros': createdAtMicros,
       'color': colorValue,
       'type': type.name,
@@ -282,6 +292,10 @@ class TaskItem {
     final String? id = _readOptionalTrimmedString(json, 'id');
     final String? body = _readOptionalTrimmedString(json, 'body');
     final String? prompt = _readOptionalTrimmedString(json, 'prompt');
+    final String? flashcardPrompt = _readOptionalTrimmedString(
+      json,
+      'flashcardPrompt',
+    );
     final int? createdAtMicros = _readOptionalInt(json, 'createdAtMicros');
     final int? colorValue = _readOptionalInt(json, 'color');
     final TaskItemType type = TaskItemType.fromJsonValue(json['type']);
@@ -298,6 +312,7 @@ class TaskItem {
       title: title,
       body: body ?? '',
       prompt: prompt ?? '',
+      flashcardPrompt: flashcardPrompt ?? '',
       createdAtMicros: createdAtMicros,
       colorValue: colorValue,
       type: type,
@@ -308,10 +323,7 @@ class TaskItem {
       subtasks: subtaskJson
           .map(
             (dynamic item) => SubTaskItem.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'tasks.subtasks[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'tasks.subtasks[]'),
             ),
           )
           .toList(),
@@ -333,11 +345,11 @@ class ProjectItem {
     this.projectTypeId,
     List<TaskItem>? tasks,
     List<PersonItem>? people,
-  })  : id = id ?? ModelIds.newProjectId(),
-        body = body ?? '',
-        prompt = prompt ?? '',
-        tasks = tasks ?? <TaskItem>[],
-        people = people ?? <PersonItem>[];
+  }) : id = id ?? ModelIds.newProjectId(),
+       body = body ?? '',
+       prompt = prompt ?? '',
+       tasks = tasks ?? <TaskItem>[],
+       people = people ?? <PersonItem>[];
 
   final String id;
   final String name;
@@ -397,10 +409,12 @@ class ProjectItem {
       isArchived: isArchived ?? this.isArchived,
       isPinned: isPinned ?? this.isPinned,
       stackId: clearStack ? null : (stackId ?? this.stackId),
-      projectTypeId:
-          clearProjectType ? null : (projectTypeId ?? this.projectTypeId),
+      projectTypeId: clearProjectType
+          ? null
+          : (projectTypeId ?? this.projectTypeId),
       tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
-      people: people ??
+      people:
+          people ??
           this.people.map((PersonItem person) => person.clone()).toList(),
     );
   }
@@ -432,8 +446,10 @@ class ProjectItem {
     final bool isArchived = _readOptionalBool(json, 'archived');
     final bool isPinned = _readOptionalBool(json, 'pinned');
     final String? stackId = _readOptionalTrimmedString(json, 'stackId');
-    final String? projectTypeId =
-        _readOptionalTrimmedString(json, 'projectTypeId');
+    final String? projectTypeId = _readOptionalTrimmedString(
+      json,
+      'projectTypeId',
+    );
     final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
     final List<dynamic> personJson = _readOptionalList(json, 'people');
 
@@ -447,25 +463,20 @@ class ProjectItem {
       isArchived: isArchived,
       isPinned: isPinned,
       stackId: stackId == null || stackId.isEmpty ? null : stackId,
-      projectTypeId:
-          projectTypeId == null || projectTypeId.isEmpty ? null : projectTypeId,
+      projectTypeId: projectTypeId == null || projectTypeId.isEmpty
+          ? null
+          : projectTypeId,
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'projects.tasks[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'projects.tasks[]'),
             ),
           )
           .toList(),
       people: personJson
           .map(
             (dynamic item) => PersonItem.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'projects.people[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'projects.people[]'),
             ),
           )
           .toList(),
@@ -482,9 +493,9 @@ class PersonItem {
     this.iconKey,
     this.isArchived = false,
     List<TaskItem>? tasks,
-  })  : id = id ?? ModelIds.newPersonId(),
-        body = body ?? '',
-        tasks = tasks ?? <TaskItem>[];
+  }) : id = id ?? ModelIds.newPersonId(),
+       body = body ?? '',
+       tasks = tasks ?? <TaskItem>[];
 
   final String id;
   final String name;
@@ -559,10 +570,7 @@ class PersonItem {
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'projects.people.tasks[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'projects.people.tasks[]'),
             ),
           )
           .toList(),
@@ -571,22 +579,15 @@ class PersonItem {
 }
 
 class ProjectStack {
-  ProjectStack({
-    String? id,
-    required this.name,
-    this.colorValue,
-  }) : id = id ?? ModelIds.newProjectStackId();
+  ProjectStack({String? id, required this.name, this.colorValue})
+    : id = id ?? ModelIds.newProjectStackId();
 
   final String id;
   final String name;
   final int? colorValue;
 
   ProjectStack clone() {
-    return ProjectStack(
-      id: id,
-      name: name,
-      colorValue: colorValue,
-    );
+    return ProjectStack(id: id, name: name, colorValue: colorValue);
   }
 
   ProjectStack copyWith({
@@ -603,11 +604,7 @@ class ProjectStack {
   }
 
   Map<String, dynamic> toJson() {
-    return <String, dynamic>{
-      'id': id,
-      'name': name,
-      'color': colorValue,
-    };
+    return <String, dynamic>{'id': id, 'name': name, 'color': colorValue};
   }
 
   factory ProjectStack.fromJson(Map<String, dynamic> json) {
@@ -646,12 +643,10 @@ enum ProjectLayoutKind {
     return switch (rawValue.trim().toLowerCase()) {
       'journalonly' ||
       'journal_only' ||
-      'journal-only' =>
-        ProjectLayoutKind.journalOnly,
+      'journal-only' => ProjectLayoutKind.journalOnly,
       'peoplecontainer' ||
       'people_container' ||
-      'people-container' =>
-        ProjectLayoutKind.peopleContainer,
+      'people-container' => ProjectLayoutKind.peopleContainer,
       _ => ProjectLayoutKind.standard,
     };
   }
@@ -822,9 +817,7 @@ class ProjectTypeConfig {
 }
 
 class ProjectRules {
-  const ProjectRules({
-    required this.projectType,
-  });
+  const ProjectRules({required this.projectType});
 
   final ProjectTypeConfig projectType;
 
@@ -900,7 +893,8 @@ class ProjectRules {
       return adjustedTask.copyWith(
         entryType: TaskEntryType.journal,
         type: TaskItemType.thinking,
-        createdAtMicros: adjustedTask.createdAtMicros ??
+        createdAtMicros:
+            adjustedTask.createdAtMicros ??
             DateTime.now().microsecondsSinceEpoch,
       );
     }
@@ -949,13 +943,16 @@ class TaskBoardState {
 
   TaskBoardState clone() {
     return TaskBoardState(
-      incomingTasks:
-          incomingTasks.map((TaskItem task) => task.clone()).toList(),
+      incomingTasks: incomingTasks
+          .map((TaskItem task) => task.clone())
+          .toList(),
       projects: projects.map((ProjectItem project) => project.clone()).toList(),
-      projectStacks:
-          projectStacks.map((ProjectStack stack) => stack.clone()).toList(),
-      projectTypes:
-          projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
+      projectStacks: projectStacks
+          .map((ProjectStack stack) => stack.clone())
+          .toList(),
+      projectTypes: projectTypes
+          .map((ProjectTypeConfig type) => type.clone())
+          .toList(),
       colorLabels: Map<int, String>.from(colorLabels),
       hideCompletedProjectItems: hideCompletedProjectItems,
       cardLayoutPreset: cardLayoutPreset,
@@ -1174,14 +1171,18 @@ class TaskBoardState {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'incomingTasks':
-          incomingTasks.map((TaskItem task) => task.toJson()).toList(),
-      'projects':
-          projects.map((ProjectItem project) => project.toJson()).toList(),
-      'projectStacks':
-          projectStacks.map((ProjectStack stack) => stack.toJson()).toList(),
-      'projectTypes':
-          projectTypes.map((ProjectTypeConfig type) => type.toJson()).toList(),
+      'incomingTasks': incomingTasks
+          .map((TaskItem task) => task.toJson())
+          .toList(),
+      'projects': projects
+          .map((ProjectItem project) => project.toJson())
+          .toList(),
+      'projectStacks': projectStacks
+          .map((ProjectStack stack) => stack.toJson())
+          .toList(),
+      'projectTypes': projectTypes
+          .map((ProjectTypeConfig type) => type.toJson())
+          .toList(),
       'colorLabels': colorLabels.map(
         (int colorValue, String label) =>
             MapEntry<String, String>(colorValue.toString(), label),
@@ -1194,10 +1195,14 @@ class TaskBoardState {
   factory TaskBoardState.fromJson(Map<String, dynamic> json) {
     final List<dynamic> incomingJson = _readOptionalList(json, 'incomingTasks');
     final List<dynamic> projectJson = _readOptionalList(json, 'projects');
-    final List<dynamic> projectStackJson =
-        _readOptionalList(json, 'projectStacks');
-    final List<dynamic> projectTypeJson =
-        _readOptionalList(json, 'projectTypes');
+    final List<dynamic> projectStackJson = _readOptionalList(
+      json,
+      'projectStacks',
+    );
+    final List<dynamic> projectTypeJson = _readOptionalList(
+      json,
+      'projectTypes',
+    );
     final Map<int, String> colorLabels = _readColorLabelMap(
       json,
       'colorLabels',
@@ -1207,46 +1212,36 @@ class TaskBoardState {
       incomingTasks: incomingJson
           .map(
             (dynamic item) => TaskItem.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'incomingTasks[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'incomingTasks[]'),
             ),
           )
           .toList(),
       projects: projectJson
           .map(
             (dynamic item) => ProjectItem.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'projects[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'projects[]'),
             ),
           )
           .toList(),
       projectStacks: projectStackJson
           .map(
             (dynamic item) => ProjectStack.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'projectStacks[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'projectStacks[]'),
             ),
           )
           .toList(),
       projectTypes: projectTypeJson
           .map(
             (dynamic item) => ProjectTypeConfig.fromJson(
-              _mapFromDynamic(
-                item: item,
-                fieldPath: 'projectTypes[]',
-              ),
+              _mapFromDynamic(item: item, fieldPath: 'projectTypes[]'),
             ),
           )
           .toList(),
       colorLabels: colorLabels,
-      hideCompletedProjectItems:
-          _readOptionalBool(json, 'hideCompletedProjectItems'),
+      hideCompletedProjectItems: _readOptionalBool(
+        json,
+        'hideCompletedProjectItems',
+      ),
       cardLayoutPreset: CardLayoutPreset.fromJsonValue(
         json['cardLayoutPreset'],
       ),
