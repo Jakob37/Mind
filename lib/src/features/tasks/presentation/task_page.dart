@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../../app_version.dart';
 import '../data/task_backup_preferences.dart';
@@ -87,6 +88,7 @@ class _TaskPageState extends State<TaskPage>
   static const MethodChannel _widgetChannel = MethodChannel(
     'mind/widget_actions',
   );
+  static final Uri _changelogUri = Uri.parse(kMindChangelogUrl);
 
   final TaskStorage _taskStorage = const TaskStorage();
   final TaskBackupService _taskBackupService = const TaskBackupService();
@@ -2460,6 +2462,18 @@ class _TaskPageState extends State<TaskPage>
     return accountState;
   }
 
+  Future<void> _openChangelog() async {
+    final bool didLaunch = await launchUrl(
+      _changelogUri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!didLaunch && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open changelog.')),
+      );
+    }
+  }
+
   Future<String?> _uploadBoardToCloud() async {
     try {
       final TaskCloudSyncResult result = await _taskSyncService.saveBoardJson(
@@ -2558,19 +2572,30 @@ class _TaskPageState extends State<TaskPage>
             const SizedBox(width: 10),
             const Text('Mind'),
             const SizedBox(width: 8),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-              decoration: BoxDecoration(
-                color: Theme.of(
-                  context,
-                ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+            Tooltip(
+              message: 'Open changelog',
+              child: InkWell(
+                onTap: _openChangelog,
                 borderRadius: BorderRadius.circular(999),
-              ),
-              child: Text(
-                kMindVersionLabel,
-                style: Theme.of(
-                  context,
-                ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 6,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .surfaceContainerHighest
+                        .withValues(alpha: 0.9),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    kMindVersionLabel,
+                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                ),
               ),
             ),
           ],

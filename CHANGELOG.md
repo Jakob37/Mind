@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.2.1
+
+- Made the app version badge open the GitHub changelog.
+
 ## v0.2.0
 
 - Added optional flashcard prompts on idea entries and a `Flashcards` tab for studying saved cards.
