@@ -12,6 +12,8 @@
 - Keep `pubspec.yaml` and `lib/src/app_version.dart` in sync.
 - Use a patch bump for bug fixes and tooling-only changes.
 - Use a minor bump for user-visible features.
+- Keep `CHANGELOG.md` up to date for every version bump.
+- Add a concise entry summarizing user-visible changes in the same change that updates the version.
 
 ## Git Usage
 - Prefer non-interactive git commands.
