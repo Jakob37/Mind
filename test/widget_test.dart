@@ -600,7 +600,7 @@ void main() {
       );
       final bool researchStartsAboveStudio =
           tester.getTopLeft(reorderedResearchTile).dy <
-          tester.getTopLeft(reorderedStudioTile).dy;
+              tester.getTopLeft(reorderedStudioTile).dy;
       final Offset targetOffset = researchStartsAboveStudio
           ? Offset(
               tester.getCenter(reorderedStudioTile).dx,
@@ -619,12 +619,10 @@ void main() {
       await reorderGesture.up();
       await tester.pumpAndSettle();
 
-      final double researchY = tester
-          .getTopLeft(find.widgetWithText(ListTile, 'Research'))
-          .dy;
-      final double studioY = tester
-          .getTopLeft(find.widgetWithText(ListTile, 'Studio'))
-          .dy;
+      final double researchY =
+          tester.getTopLeft(find.widgetWithText(ListTile, 'Research')).dy;
+      final double studioY =
+          tester.getTopLeft(find.widgetWithText(ListTile, 'Studio')).dy;
       if (researchStartsAboveStudio) {
         expect(researchY, greaterThan(studioY));
       } else {
@@ -685,7 +683,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextField).first, 'Edited task title');
-    await tester.enterText(find.byType(TextField).last, 'Task body text');
+    await tester.enterText(find.byType(TextField).at(1), 'Task body text');
     await tester.tap(find.widgetWithText(FilledButton, 'Save Task'));
     await tester.pumpAndSettle();
 
@@ -743,18 +741,15 @@ void main() {
     await tester.tap(find.text('Sit for 10 minutes in silence'));
     await tester.pumpAndSettle();
 
-    final double initialFirstY = tester
-        .getTopLeft(find.text('First subtask'))
-        .dy;
-    final double initialSecondY = tester
-        .getTopLeft(find.text('Second subtask'))
-        .dy;
+    final double initialFirstY =
+        tester.getTopLeft(find.text('First subtask')).dy;
+    final double initialSecondY =
+        tester.getTopLeft(find.text('Second subtask')).dy;
     final bool isFirstOnTop = initialFirstY < initialSecondY;
 
     final String topSubtask = isFirstOnTop ? 'First subtask' : 'Second subtask';
-    final String bottomSubtask = isFirstOnTop
-        ? 'Second subtask'
-        : 'First subtask';
+    final String bottomSubtask =
+        isFirstOnTop ? 'Second subtask' : 'First subtask';
 
     final Offset topSubtaskCenter = tester.getCenter(find.text(topSubtask));
     final Offset bottomSubtaskCenter = tester.getCenter(
@@ -854,15 +849,14 @@ void main() {
     String? copiedText;
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, (
-          MethodCall methodCall,
-        ) async {
-          if (methodCall.method == 'Clipboard.setData') {
-            copiedText =
-                (methodCall.arguments as Map<Object?, Object?>?)?['text']
-                    as String?;
-          }
-          return null;
-        });
+      MethodCall methodCall,
+    ) async {
+      if (methodCall.method == 'Clipboard.setData') {
+        copiedText = (methodCall.arguments as Map<Object?, Object?>?)?['text']
+            as String?;
+      }
+      return null;
+    });
     addTearDown(() {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, null);
@@ -1338,7 +1332,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('22'), findsWidgets);
+    expect(find.textContaining('23'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -1388,7 +1382,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('22'), findsWidgets);
+    expect(find.textContaining('23'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });
