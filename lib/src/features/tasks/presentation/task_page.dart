@@ -183,9 +183,8 @@ class _TaskPageState extends State<TaskPage>
   ) {
     final Map<String, ProjectTypeConfig> providedById =
         <String, ProjectTypeConfig>{
-          for (final ProjectTypeConfig type in projectTypes)
-            type.id: type.clone(),
-        };
+      for (final ProjectTypeConfig type in projectTypes) type.id: type.clone(),
+    };
     final List<ProjectTypeConfig> normalized = <ProjectTypeConfig>[];
     for (final ProjectTypeConfig defaultType in ProjectTypeConfig.defaults()) {
       normalized.add(providedById.remove(defaultType.id) ?? defaultType);
@@ -198,43 +197,38 @@ class _TaskPageState extends State<TaskPage>
     List<ProjectItem> projects,
     List<ProjectStack> projectStacks,
     List<ProjectTypeConfig> projectTypes,
-  })
-  _normalizeProjectData({
+  }) _normalizeProjectData({
     required List<ProjectItem> projects,
     required List<ProjectStack> projectStacks,
     required List<ProjectTypeConfig> projectTypes,
   }) {
     final List<ProjectTypeConfig> normalizedProjectTypes =
         _normalizeProjectTypes(projectTypes);
-    final Set<String> validStackIds = projectStacks
-        .map((ProjectStack stack) => stack.id)
-        .toSet();
-    final Set<String> validProjectTypeIds = normalizedProjectTypes
-        .map((ProjectTypeConfig type) => type.id)
-        .toSet();
-    final List<ProjectItem> normalizedProjects = projects
-        .map((ProjectItem project) {
-          final String? normalizedStackId =
-              project.stackId == null || validStackIds.contains(project.stackId)
+    final Set<String> validStackIds =
+        projectStacks.map((ProjectStack stack) => stack.id).toSet();
+    final Set<String> validProjectTypeIds =
+        normalizedProjectTypes.map((ProjectTypeConfig type) => type.id).toSet();
+    final List<ProjectItem> normalizedProjects =
+        projects.map((ProjectItem project) {
+      final String? normalizedStackId =
+          project.stackId == null || validStackIds.contains(project.stackId)
               ? project.stackId
               : null;
-          final String? normalizedProjectTypeId =
-              project.projectTypeId == null ||
-                  validProjectTypeIds.contains(project.projectTypeId)
-              ? project.projectTypeId
-              : ProjectTypeDefaults.blankId;
-          if (normalizedStackId == project.stackId &&
-              normalizedProjectTypeId == project.projectTypeId) {
-            return project.clone();
-          }
-          return project.copyWith(
-            stackId: normalizedStackId,
-            clearStack: normalizedStackId == null,
-            projectTypeId: normalizedProjectTypeId,
-            clearProjectType: normalizedProjectTypeId == null,
-          );
-        })
-        .toList(growable: false);
+      final String? normalizedProjectTypeId = project.projectTypeId == null ||
+              validProjectTypeIds.contains(project.projectTypeId)
+          ? project.projectTypeId
+          : ProjectTypeDefaults.blankId;
+      if (normalizedStackId == project.stackId &&
+          normalizedProjectTypeId == project.projectTypeId) {
+        return project.clone();
+      }
+      return project.copyWith(
+        stackId: normalizedStackId,
+        clearStack: normalizedStackId == null,
+        projectTypeId: normalizedProjectTypeId,
+        clearProjectType: normalizedProjectTypeId == null,
+      );
+    }).toList(growable: false);
 
     final Set<String> referencedStackIds = normalizedProjects
         .map((ProjectItem project) => project.stackId)
@@ -261,8 +255,7 @@ class _TaskPageState extends State<TaskPage>
       List<ProjectItem> projects,
       List<ProjectStack> projectStacks,
       List<ProjectTypeConfig> projectTypes,
-    })
-    normalized = _normalizeProjectData(
+    }) normalized = _normalizeProjectData(
       projects: projects,
       projectStacks: projectStacks,
       projectTypes: projectTypes,
@@ -439,12 +432,12 @@ class _TaskPageState extends State<TaskPage>
     final ProjectStack stack = _projectStacks[stackIndex];
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: stack.colorValue,
-            customLabels: _colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: stack.colorValue,
+        customLabels: _colorLabels,
+      ),
+    );
 
     if (selection == null) {
       return;
@@ -926,9 +919,8 @@ class _TaskPageState extends State<TaskPage>
 
     setState(() {
       _incomingTasks.removeAt(sourceIndex);
-      final int adjustedTargetIndex = sourceIndex < targetIndex
-          ? targetIndex - 1
-          : targetIndex;
+      final int adjustedTargetIndex =
+          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
       final TaskItem targetTask = _incomingTasks[adjustedTargetIndex];
       _incomingTasks[adjustedTargetIndex] = targetTask.copyWith(
         subtasks: <SubTaskItem>[
@@ -1019,12 +1011,11 @@ class _TaskPageState extends State<TaskPage>
         .where((ProjectItem project) => project.stackId == targetStackId)
         .map((ProjectItem project) => project.id)
         .toList(growable: false);
-    final int sourceStackIndexBeforeMove = targetStackProjectIdsBeforeMove
-        .indexOf(sourceProjectId);
+    final int sourceStackIndexBeforeMove =
+        targetStackProjectIdsBeforeMove.indexOf(sourceProjectId);
 
-    final ProjectItem movedProject = activeProjects
-        .removeAt(sourceIndex)
-        .copyWith(stackId: targetStackId);
+    final ProjectItem movedProject =
+        activeProjects.removeAt(sourceIndex).copyWith(stackId: targetStackId);
     int adjustedTargetIndex = targetIndex;
     if (sourceProject.stackId == targetStackId &&
         sourceStackIndexBeforeMove >= 0 &&
@@ -1088,56 +1079,56 @@ class _TaskPageState extends State<TaskPage>
       return;
     }
 
-    final TaskDetailAction? action = await Navigator.of(context)
-        .push<TaskDetailAction>(
-          MaterialPageRoute<TaskDetailAction>(
-            builder: (_) => TaskDetailPage(
-              task: task,
-              cardLayoutPreset: _cardLayoutPreset,
-              colorLabels: _colorLabels,
-              onTaskChanged: (TaskItem updatedTask) {
-                final int sourceTaskIndex = _indexOfTaskById(
-                  _incomingTasks,
-                  taskId,
-                );
-                if (sourceTaskIndex < 0) {
-                  return;
-                }
-                setState(() {
-                  _incomingTasks[sourceTaskIndex] = updatedTask.clone();
-                });
-                _persistState();
-              },
-              menuItems: const <TaskDetailMenuItem>[
-                TaskDetailMenuItem(
-                  action: TaskDetailAction.edit,
-                  icon: Icons.edit_outlined,
-                  label: 'Edit task',
-                ),
-                TaskDetailMenuItem(
-                  action: TaskDetailAction.setIcon,
-                  icon: Icons.add_reaction_outlined,
-                  label: 'Set icon',
-                ),
-                TaskDetailMenuItem(
-                  action: TaskDetailAction.setColor,
-                  icon: Icons.palette_outlined,
-                  label: 'Set color',
-                ),
-                TaskDetailMenuItem(
-                  action: TaskDetailAction.moveToProject,
-                  icon: Icons.drive_file_move_outlined,
-                  label: 'Move to project',
-                ),
-                TaskDetailMenuItem(
-                  action: TaskDetailAction.remove,
-                  icon: Icons.delete_outline,
-                  label: 'Remove task',
-                ),
-              ],
+    final TaskDetailAction? action =
+        await Navigator.of(context).push<TaskDetailAction>(
+      MaterialPageRoute<TaskDetailAction>(
+        builder: (_) => TaskDetailPage(
+          task: task,
+          cardLayoutPreset: _cardLayoutPreset,
+          colorLabels: _colorLabels,
+          onTaskChanged: (TaskItem updatedTask) {
+            final int sourceTaskIndex = _indexOfTaskById(
+              _incomingTasks,
+              taskId,
+            );
+            if (sourceTaskIndex < 0) {
+              return;
+            }
+            setState(() {
+              _incomingTasks[sourceTaskIndex] = updatedTask.clone();
+            });
+            _persistState();
+          },
+          menuItems: const <TaskDetailMenuItem>[
+            TaskDetailMenuItem(
+              action: TaskDetailAction.edit,
+              icon: Icons.edit_outlined,
+              label: 'Edit task',
             ),
-          ),
-        );
+            TaskDetailMenuItem(
+              action: TaskDetailAction.setIcon,
+              icon: Icons.add_reaction_outlined,
+              label: 'Set icon',
+            ),
+            TaskDetailMenuItem(
+              action: TaskDetailAction.setColor,
+              icon: Icons.palette_outlined,
+              label: 'Set color',
+            ),
+            TaskDetailMenuItem(
+              action: TaskDetailAction.moveToProject,
+              icon: Icons.drive_file_move_outlined,
+              label: 'Move to project',
+            ),
+            TaskDetailMenuItem(
+              action: TaskDetailAction.remove,
+              icon: Icons.delete_outline,
+              label: 'Remove task',
+            ),
+          ],
+        ),
+      ),
+    );
     if (!mounted || action == null) {
       return;
     }
@@ -1212,12 +1203,12 @@ class _TaskPageState extends State<TaskPage>
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: task.colorValue,
-            customLabels: _colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: task.colorValue,
+        customLabels: _colorLabels,
+      ),
+    );
 
     if (selection == null) {
       return;
@@ -1663,15 +1654,15 @@ class _TaskPageState extends State<TaskPage>
     final ProjectItem project = _projects[projectIndex];
     final ProjectEditResult? result =
         await showModalBottomSheet<ProjectEditResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => EditProjectSheet(
-            initialName: project.name,
-            initialBody: project.body,
-            initialPrompt: project.prompt,
-            showPromptField: _projectUsesPromptFields(project),
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditProjectSheet(
+        initialName: project.name,
+        initialBody: project.body,
+        initialPrompt: project.prompt,
+        showPromptField: _projectUsesPromptFields(project),
+      ),
+    );
 
     if (result == null) {
       return;
@@ -1723,12 +1714,12 @@ class _TaskPageState extends State<TaskPage>
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: project.colorValue,
-            customLabels: _colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: project.colorValue,
+        customLabels: _colorLabels,
+      ),
+    );
 
     if (selection == null) {
       return;
@@ -1780,13 +1771,13 @@ class _TaskPageState extends State<TaskPage>
         : ProjectStackSelection.existing(stackId: project.stackId!);
     final ProjectStackSelection? selection =
         await showModalBottomSheet<ProjectStackSelection>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => SelectProjectStackSheet(
-            projectStacks: _projectStacks,
-            initialSelection: initialSelection,
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SelectProjectStackSheet(
+        projectStacks: _projectStacks,
+        initialSelection: initialSelection,
+      ),
+    );
 
     if (!mounted || selection == null) {
       return;
@@ -1820,16 +1811,34 @@ class _TaskPageState extends State<TaskPage>
   }
 
   void _toggleProjectPinned(String projectId) {
-    final int projectIndex = _indexOfProjectById(projectId);
-    if (projectIndex < 0) {
+    final List<ProjectItem> activeProjects = _projects
+        .where((ProjectItem project) => !project.isArchived)
+        .map((ProjectItem project) => project.clone())
+        .toList(growable: true);
+    final int sourceIndex = activeProjects.indexWhere(
+      (ProjectItem project) => project.id == projectId,
+    );
+    if (sourceIndex < 0) {
       return;
     }
 
-    final ProjectItem project = _projects[projectIndex];
-    setState(() {
-      _projects[projectIndex] = project.copyWith(isPinned: !project.isPinned);
-    });
-    _persistState();
+    final ProjectItem project = activeProjects.removeAt(sourceIndex);
+    final ProjectItem updatedProject = project.copyWith(
+      isPinned: !project.isPinned,
+    );
+    if (updatedProject.isPinned) {
+      activeProjects.insert(0, updatedProject);
+    } else {
+      final int pinnedCount =
+          activeProjects.where((ProjectItem item) => item.isPinned).length;
+      activeProjects.insert(pinnedCount, updatedProject);
+    }
+
+    _reorderVisibleProjects(
+      activeProjects
+          .map((ProjectItem activeProject) => activeProject.id)
+          .toList(growable: false),
+    );
   }
 
   void _deleteProject(String projectId) {
@@ -1932,7 +1941,7 @@ class _TaskPageState extends State<TaskPage>
     try {
       final bool shouldOpen =
           await _widgetChannel.invokeMethod<bool>('consumePendingAddEntry') ??
-          false;
+              false;
       if (shouldOpen) {
         _openAddEntryFromWidget();
       }
@@ -1980,9 +1989,8 @@ class _TaskPageState extends State<TaskPage>
 
     setState(() {
       final String? targetProjectId = result.targetProjectId;
-      final int targetProjectIndex = targetProjectId == null
-          ? -1
-          : _indexOfProjectById(targetProjectId);
+      final int targetProjectIndex =
+          targetProjectId == null ? -1 : _indexOfProjectById(targetProjectId);
       if (targetProjectIndex >= 0) {
         _insertTaskIntoProject(
           _projects[targetProjectIndex],
@@ -2004,14 +2012,14 @@ class _TaskPageState extends State<TaskPage>
   }) async {
     final AddProjectResult? result =
         await showModalBottomSheet<AddProjectResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => AddProjectSheet(
-            projectStacks: _projectStacks,
-            projectTypes: _projectTypes,
-            initialStackSelection: initialStackSelection,
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => AddProjectSheet(
+        projectStacks: _projectStacks,
+        projectTypes: _projectTypes,
+        initialStackSelection: initialStackSelection,
+      ),
+    );
 
     if (result == null) {
       return;
@@ -2077,16 +2085,16 @@ class _TaskPageState extends State<TaskPage>
         : ProjectStackSelection.existing(stackId: suggestedStackId);
     final ProjectStackSelection? selection =
         await showModalBottomSheet<ProjectStackSelection>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => SelectProjectStackSheet(
-            projectStacks: _projectStacks,
-            initialSelection: initialSelection,
-            allowNoStack: false,
-            title: 'Create or Select Stack',
-            confirmLabel: 'Group Projects',
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SelectProjectStackSheet(
+        projectStacks: _projectStacks,
+        initialSelection: initialSelection,
+        allowNoStack: false,
+        title: 'Create or Select Stack',
+        confirmLabel: 'Group Projects',
+      ),
+    );
 
     if (!mounted || selection == null) {
       return;
@@ -2136,135 +2144,26 @@ class _TaskPageState extends State<TaskPage>
           colorLabels: _colorLabels,
           hideCompletedProjectItems: _hideCompletedProjectItems,
           cardLayoutPreset: _cardLayoutPreset,
-          onProjectDataChanged:
-              (
-                List<ProjectItem> updatedProjects,
-                List<ProjectStack> updatedProjectStacks,
-              ) {
-                final List<ProjectItem> projectsCopy = _cloneProjects(
-                  updatedProjects,
-                );
-                final List<ProjectStack> projectStacksCopy =
-                    _cloneProjectStacks(updatedProjectStacks);
-                setState(() {
-                  _replaceProjectData(
-                    projects: projectsCopy,
-                    projectStacks: projectStacksCopy,
-                    projectTypes: _cloneProjectTypes(_projectTypes),
-                  );
-                });
-                _persistState();
-              },
+          onProjectDataChanged: (
+            List<ProjectItem> updatedProjects,
+            List<ProjectStack> updatedProjectStacks,
+          ) {
+            final List<ProjectItem> projectsCopy = _cloneProjects(
+              updatedProjects,
+            );
+            final List<ProjectStack> projectStacksCopy =
+                _cloneProjectStacks(updatedProjectStacks);
+            setState(() {
+              _replaceProjectData(
+                projects: projectsCopy,
+                projectStacks: projectStacksCopy,
+                projectTypes: _cloneProjectTypes(_projectTypes),
+              );
+            });
+            _persistState();
+          },
         ),
       ),
-    );
-  }
-
-  List<ProjectItem> _visiblePinnedProjects() {
-    return _projects
-        .where((ProjectItem project) => project.isPinned && !project.isArchived)
-        .toList(growable: false);
-  }
-
-  IconData _incomingPinnedProjectIcon(ProjectItem project) {
-    final IconData? explicitIcon = iconDataForKey(project.iconKey);
-    if (explicitIcon != null) {
-      return explicitIcon;
-    }
-    final IconData? typeIcon = iconDataForKey(
-      _projectTypeForProject(project).iconKey,
-    );
-    return typeIcon ?? Icons.folder_outlined;
-  }
-
-  int _visibleProjectTaskCount(ProjectItem project) {
-    if (_projectRulesForProject(project).isPeopleContainer) {
-      return project.people
-          .where((PersonItem person) => !person.isArchived)
-          .length;
-    }
-    return project.tasks.where((TaskItem task) => !task.isArchived).length;
-  }
-
-  Widget _buildPinnedProjectsSection() {
-    final List<ProjectItem> pinnedProjects = _visiblePinnedProjects();
-    if (pinnedProjects.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final CardLayoutSpec layout = cardLayoutSpecForPreset(_cardLayoutPreset);
-    final TextStyle? titleStyle = Theme.of(context).textTheme.titleMedium;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: <Widget>[
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8),
-          child: Row(
-            children: <Widget>[
-              const Icon(Icons.push_pin_outlined, size: 20),
-              const SizedBox(width: 8),
-              Text('Pinned projects', style: titleStyle),
-            ],
-          ),
-        ),
-        const SizedBox(height: 8),
-        for (final ProjectItem project in pinnedProjects) ...<Widget>[
-          Builder(
-            builder: (BuildContext context) {
-              final int visibleTaskCount = _visibleProjectTaskCount(project);
-              final bool isPeopleProject = _projectRulesForProject(
-                project,
-              ).isPeopleContainer;
-              return Card(
-                color: project.colorValue == null
-                    ? null
-                    : Color(project.colorValue!),
-                child: ListTile(
-                  contentPadding: layout.contentPadding,
-                  leading: Icon(_incomingPinnedProjectIcon(project)),
-                  title: Text(
-                    project.name,
-                    maxLines: null,
-                    style: titleStyle?.copyWith(
-                      fontSize: (titleStyle.fontSize ?? 16) * layout.titleScale,
-                    ),
-                  ),
-                  subtitle: Text(
-                    <String>[
-                      if (_stackNameForProject(project)
-                          case final String stackName)
-                        'Stack: $stackName',
-                      if (project.body.isNotEmpty) project.body,
-                      isPeopleProject
-                          ? '$visibleTaskCount active '
-                                'person${visibleTaskCount == 1 ? '' : 's'}'
-                          : '$visibleTaskCount active task'
-                                '${visibleTaskCount == 1 ? '' : 's'}',
-                    ].join('\n'),
-                  ),
-                  isThreeLine:
-                      project.body.isNotEmpty ||
-                      _stackNameForProject(project) != null,
-                  trailing: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: <Widget>[
-                      const Icon(Icons.push_pin_outlined, size: 18),
-                      IconButton(
-                        tooltip: 'Project options',
-                        onPressed: () => _openProjectMenu(project.id),
-                        icon: const Icon(Icons.more_vert),
-                      ),
-                    ],
-                  ),
-                  onTap: () => _openProjectDetail(project.id),
-                ),
-              );
-            },
-          ),
-          SizedBox(height: layout.listBottomSpacing),
-        ],
-      ],
     );
   }
 
@@ -2377,18 +2276,14 @@ class _TaskPageState extends State<TaskPage>
 
   TaskBoardState _createSnapshot() {
     return TaskBoardState(
-      incomingTasks: _incomingTasks
-          .map((TaskItem task) => task.clone())
-          .toList(),
-      projects: _projects
-          .map((ProjectItem project) => project.clone())
-          .toList(),
-      projectStacks: _projectStacks
-          .map((ProjectStack stack) => stack.clone())
-          .toList(),
-      projectTypes: _projectTypes
-          .map((ProjectTypeConfig type) => type.clone())
-          .toList(),
+      incomingTasks:
+          _incomingTasks.map((TaskItem task) => task.clone()).toList(),
+      projects:
+          _projects.map((ProjectItem project) => project.clone()).toList(),
+      projectStacks:
+          _projectStacks.map((ProjectStack stack) => stack.clone()).toList(),
+      projectTypes:
+          _projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
       colorLabels: Map<int, String>.from(_colorLabels),
       hideCompletedProjectItems: _hideCompletedProjectItems,
       cardLayoutPreset: _cardLayoutPreset,
@@ -2465,8 +2360,8 @@ class _TaskPageState extends State<TaskPage>
   }
 
   Future<void> _loadBackupPreferences() async {
-    final bool automaticBackupsEnabled = await _taskBackupPreferences
-        .loadAutomaticBackupsEnabled();
+    final bool automaticBackupsEnabled =
+        await _taskBackupPreferences.loadAutomaticBackupsEnabled();
     if (!mounted) {
       return;
     }
@@ -2650,9 +2545,6 @@ class _TaskPageState extends State<TaskPage>
         controller: _tabController,
         children: <Widget>[
           TaskListView(
-            header: _visiblePinnedProjects().isEmpty
-                ? null
-                : _buildPinnedProjectsSection(),
             tasks: _incomingTasks,
             emptyLabel: '',
             cardLayoutPreset: _cardLayoutPreset,
@@ -2664,17 +2556,17 @@ class _TaskPageState extends State<TaskPage>
                 _deleteTaskInList(_incomingTasks, taskId),
             onMoveTask: ({required String taskId, required int targetIndex}) =>
                 _moveIncomingTaskToPosition(
-                  taskId: taskId,
-                  targetIndex: targetIndex,
-                ),
-            onNestTask:
-                ({
-                  required String sourceTaskId,
-                  required String targetTaskId,
-                }) => _nestIncomingTaskUnderTask(
-                  sourceTaskId: sourceTaskId,
-                  targetTaskId: targetTaskId,
-                ),
+              taskId: taskId,
+              targetIndex: targetIndex,
+            ),
+            onNestTask: ({
+              required String sourceTaskId,
+              required String targetTaskId,
+            }) =>
+                _nestIncomingTaskUnderTask(
+              sourceTaskId: sourceTaskId,
+              targetTaskId: targetTaskId,
+            ),
           ),
           ProjectListView(
             projects: _projects,
@@ -2689,24 +2581,24 @@ class _TaskPageState extends State<TaskPage>
             onProjectRemove: _deleteProject,
             onProjectOptionsTap: _openProjectMenu,
             onProjectStackOptionsTap: _openProjectStackMenu,
-            onProjectStackDrop:
-                (
-                  List<String> sourceProjectIds,
-                  List<String> targetProjectIds,
-                ) => _stackProjectGroupsTogether(
-                  sourceProjectIds: sourceProjectIds,
-                  targetProjectIds: targetProjectIds,
-                ),
-            onProjectMoveToStackPosition:
-                ({
-                  required String sourceProjectId,
-                  required String targetStackId,
-                  required int targetIndex,
-                }) => _moveProjectToStackPosition(
-                  sourceProjectId: sourceProjectId,
-                  targetStackId: targetStackId,
-                  targetIndex: targetIndex,
-                ),
+            onProjectStackDrop: (
+              List<String> sourceProjectIds,
+              List<String> targetProjectIds,
+            ) =>
+                _stackProjectGroupsTogether(
+              sourceProjectIds: sourceProjectIds,
+              targetProjectIds: targetProjectIds,
+            ),
+            onProjectMoveToStackPosition: ({
+              required String sourceProjectId,
+              required String targetStackId,
+              required int targetIndex,
+            }) =>
+                _moveProjectToStackPosition(
+              sourceProjectId: sourceProjectId,
+              targetStackId: targetStackId,
+              targetIndex: targetIndex,
+            ),
           ),
           _buildFlashcardsTab(),
         ],
@@ -2718,12 +2610,12 @@ class _TaskPageState extends State<TaskPage>
               child: const Icon(Icons.add),
             )
           : _selectedTabIndex == 1
-          ? FloatingActionButton(
-              onPressed: _openAddProjectWidget,
-              tooltip: 'Add project',
-              child: const Icon(Icons.add),
-            )
-          : null,
+              ? FloatingActionButton(
+                  onPressed: _openAddProjectWidget,
+                  tooltip: 'Add project',
+                  child: const Icon(Icons.add),
+                )
+              : null,
     );
   }
 }

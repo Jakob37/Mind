@@ -372,7 +372,7 @@ void main() {
     expect(find.text('Save JSON File (Android)'), findsOneWidget);
   });
 
-  testWidgets('pinned projects appear at the top of Incoming', (
+  testWidgets('pinning moves projects to the top of Projects', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const MindApp());
@@ -391,14 +391,24 @@ void main() {
     await tester.tap(find.text('Pin project'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Incoming'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Pinned projects'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, 'Morning Routine'), findsOneWidget);
+    final Finder morningRoutineTile = find.widgetWithText(
+      ListTile,
+      'Morning Routine',
+    );
+    expect(morningRoutineTile, findsOneWidget);
+    final Finder meditateTile = find.widgetWithText(
+      ListTile,
+      'Stress Reset',
+    );
+    expect(meditateTile, findsOneWidget);
+    expect(
+      tester.getTopLeft(morningRoutineTile).dy,
+      lessThan(tester.getTopLeft(meditateTile).dy),
+    );
   });
 
-  testWidgets('stacked projects expose project options and can be pinned', (
+  testWidgets(
+      'stacked projects expose project options and move to top when pinned', (
     WidgetTester tester,
   ) async {
     await tester.pumpWidget(const MindApp());
@@ -450,11 +460,12 @@ void main() {
     await tester.tap(find.text('Pin project'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Incoming'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Pinned projects'), findsOneWidget);
-    expect(find.widgetWithText(ListTile, 'Studio'), findsOneWidget);
+    final Finder studioTile = find.widgetWithText(ListTile, 'Studio');
+    expect(studioTile, findsOneWidget);
+    expect(
+      tester.getTopLeft(studioTile).dy,
+      lessThan(tester.getTopLeft(find.text('Morning Routine')).dy),
+    );
   });
 
   testWidgets('creates stacks and groups projects by dragging', (
