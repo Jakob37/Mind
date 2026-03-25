@@ -33,6 +33,8 @@ class SettingsPage extends StatefulWidget {
     required this.cloudAccountState,
     required this.onManageCloudAccount,
     required this.onSignOutCloudAccount,
+    required this.onUploadCloudBoard,
+    required this.onRestoreCloudBoard,
     required this.cardLayoutPreset,
     required this.onCardLayoutPresetChanged,
   });
@@ -53,6 +55,8 @@ class SettingsPage extends StatefulWidget {
   final TaskSyncAccountState cloudAccountState;
   final Future<TaskSyncAccountState> Function() onManageCloudAccount;
   final Future<TaskSyncAccountState> Function() onSignOutCloudAccount;
+  final Future<String?> Function() onUploadCloudBoard;
+  final Future<String?> Function() onRestoreCloudBoard;
   final CardLayoutPreset cardLayoutPreset;
   final ValueChanged<CardLayoutPreset> onCardLayoutPresetChanged;
 
@@ -677,6 +681,58 @@ class _SettingsPageState extends State<SettingsPage> {
     );
   }
 
+  Future<bool> _confirmCloudRestore() async {
+    final bool? shouldRestore = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Restore cloud board'),
+          content: const Text(
+            'Restore the latest cloud snapshot? This replaces the current local board state.',
+          ),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('Restore'),
+            ),
+          ],
+        );
+      },
+    );
+    return shouldRestore ?? false;
+  }
+
+  Future<void> _uploadCloudBoard() async {
+    final String? message = await widget.onUploadCloudBoard();
+    if (!mounted || message == null) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  Future<void> _restoreCloudBoard() async {
+    final bool shouldRestore = await _confirmCloudRestore();
+    if (!mounted || !shouldRestore) {
+      return;
+    }
+
+    final String? message = await widget.onRestoreCloudBoard();
+    if (!mounted || message == null) {
+      return;
+    }
+
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   String _backupTimeLabel(BuildContext context, DateTime savedAt) {
     final MaterialLocalizations localizations = MaterialLocalizations.of(
       context,
@@ -801,10 +857,27 @@ class _SettingsPageState extends State<SettingsPage> {
               title: const Text('Cloud account connected'),
               subtitle: Text(
                 _cloudAccountState.email == null
-                    ? 'Signed in. Cloud sync wiring comes next.'
-                    : 'Signed in as ${_cloudAccountState.email}. '
-                        'Cloud sync wiring comes next.',
+                    ? 'Signed in. Upload the current board or restore the latest cloud snapshot.'
+                    : 'Signed in as ${_cloudAccountState.email}. Upload the current board or restore the latest cloud snapshot.',
               ),
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.cloud_upload_outlined),
+              title: const Text('Upload board to cloud'),
+              subtitle: const Text(
+                'Save the current local board snapshot to your account',
+              ),
+              onTap: _uploadCloudBoard,
+            ),
+            const Divider(height: 1),
+            ListTile(
+              leading: const Icon(Icons.cloud_download_outlined),
+              title: const Text('Restore board from cloud'),
+              subtitle: const Text(
+                'Replace the local board with the latest saved cloud snapshot',
+              ),
+              onTap: _restoreCloudBoard,
             ),
             const Divider(height: 1),
             ListTile(

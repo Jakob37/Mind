@@ -2460,6 +2460,54 @@ class _TaskPageState extends State<TaskPage>
     return accountState;
   }
 
+  Future<String?> _uploadBoardToCloud() async {
+    try {
+      final TaskCloudSyncResult result = await _taskSyncService.saveBoardJson(
+        _taskStorage.export(_createSnapshot()),
+      );
+      final DateTime? updatedAt = result.updatedAt;
+      if (updatedAt == null) {
+        return result.message;
+      }
+      final MaterialLocalizations localizations = MaterialLocalizations.of(
+        context,
+      );
+      return '${result.message} ${localizations.formatFullDate(updatedAt)} '
+          'at ${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(updatedAt))}.';
+    } catch (error) {
+      return 'Cloud upload failed: $error';
+    }
+  }
+
+  Future<String?> _restoreBoardFromCloud() async {
+    try {
+      final TaskCloudBoardSnapshot? snapshot =
+          await _taskSyncService.loadBoardJson();
+      if (snapshot == null) {
+        return 'No cloud board is saved yet.';
+      }
+
+      await _createAutomaticBackupIfEnabled(_createSnapshot(), force: true);
+      final String? importError = await _importData(snapshot.rawJson);
+      if (importError != null) {
+        return 'Cloud restore failed: $importError';
+      }
+
+      final DateTime? updatedAt = snapshot.updatedAt;
+      if (updatedAt == null) {
+        return 'Cloud board restored. Current local data was replaced.';
+      }
+      final MaterialLocalizations localizations = MaterialLocalizations.of(
+        context,
+      );
+      return 'Cloud board restored from '
+          '${localizations.formatFullDate(updatedAt)} at '
+          '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(updatedAt))}.';
+    } catch (error) {
+      return 'Cloud restore failed: $error';
+    }
+  }
+
   Future<void> _openSettingsPage() async {
     await Navigator.of(context).push(
       MaterialPageRoute<void>(
@@ -2481,6 +2529,8 @@ class _TaskPageState extends State<TaskPage>
           cloudAccountState: _cloudAccountState,
           onManageCloudAccount: _openCloudAccount,
           onSignOutCloudAccount: _signOutCloudAccount,
+          onUploadCloudBoard: _uploadBoardToCloud,
+          onRestoreCloudBoard: _restoreBoardFromCloud,
           cardLayoutPreset: _cardLayoutPreset,
           onCardLayoutPresetChanged: _updateCardLayoutPreset,
         ),

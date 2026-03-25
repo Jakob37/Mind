@@ -7,7 +7,7 @@ A Flutter task board app focused on quickly moving ideas into projects.
 - Two-tab board:
   - `Incoming` for unassigned tasks
   - `Projects` for named project containers
-- Optional Supabase account setup scaffold for future cloud sync
+- Optional Supabase account setup with manual cloud upload/restore
 - Task and project creation via bottom sheets.
 - Context menus for task/project actions:
   - edit title/body
@@ -37,10 +37,10 @@ A Flutter task board app focused on quickly moving ideas into projects.
 ## Persistence and data schema
 
 - Local persistence uses `shared_preferences`.
-- Current schema version is `22`.
+- Current schema version is `23`.
 - Migration pipeline supports legacy payloads:
   - unversioned legacy key: `task_board_state_v1`
-  - versioned payloads: v1 -> v22
+  - versioned payloads: v1 -> v23
 - If persisted data is corrupted, autosave is paused to avoid overwriting potentially recoverable data.
 
 ## Project structure
@@ -83,6 +83,9 @@ flutter run \
 
 The initial Supabase schema is scaffolded in
 `supabase/migrations/20260320120000_create_boards.sql`.
+When signed in, Settings now exposes manual actions to upload the current
+board to Supabase or restore the latest saved cloud board back into local
+storage.
 
 ## Quality checks
 
