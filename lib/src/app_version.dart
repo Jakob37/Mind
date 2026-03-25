@@ -1,1 +1,1 @@
-const String kMindVersionLabel = 'v0.1.1';
+const String kMindVersionLabel = 'v0.2.0';

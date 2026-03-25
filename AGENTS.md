@@ -8,6 +8,11 @@
 - If a request contains multiple independent features, complete and commit them one at a time.
 - Only commit changes that belong to the current task. If unrelated local changes would make that unsafe, stop and ask the user how to proceed.
 
+## Versioning
+- Keep `pubspec.yaml` and `lib/src/app_version.dart` in sync.
+- Use a patch bump for bug fixes and tooling-only changes.
+- Use a minor bump for user-visible features.
+
 ## Git Usage
 - Prefer non-interactive git commands.
 - Use clear commit messages that describe the completed feature or fix.
