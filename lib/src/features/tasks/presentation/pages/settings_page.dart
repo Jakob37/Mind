@@ -523,7 +523,8 @@ class _SettingsPageState extends State<SettingsPage> {
         return;
       }
 
-      final String importJson = await file.readAsString();
+      final Uint8List importBytes = await file.readAsBytes();
+      final String importJson = utf8.decode(importBytes);
       final String? errorMessage = await widget.onImportData(importJson);
       if (!context.mounted) {
         return;

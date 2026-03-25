@@ -162,9 +162,8 @@ void main() {
         jsonDecode(persisted!) as Map<String, dynamic>;
     expect(decoded['version'], 23);
 
-    final List<dynamic> incoming =
-        (decoded['data'] as Map<String, dynamic>)['incomingTasks']
-            as List<dynamic>;
+    final List<dynamic> incoming = (decoded['data']
+        as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
     expect((incoming.first as Map<String, dynamic>)['type'], 'thinking');
     expect(
       (decoded['data'] as Map<String, dynamic>).containsKey('favoriteTasks'),
@@ -305,6 +304,54 @@ void main() {
     expect(imported.colorLabels[4294951112], 'Warm');
     expect(imported.hideCompletedProjectItems, isTrue);
     expect(imported.cardLayoutPreset, CardLayoutPreset.standard);
+  });
+
+  test('export and import preserve Swedish characters', () {
+    final TaskBoardState state = TaskBoardState(
+      incomingTasks: <TaskItem>[
+        TaskItem(
+          id: 'task-utf8',
+          title: 'Återställ lösenord',
+          body: 'Säkerhetsfrågor och översikt.',
+          flashcardPrompt: 'Vad betyder å, ä och ö?',
+          type: TaskItemType.thinking,
+        ),
+      ],
+      projects: <ProjectItem>[
+        ProjectItem(
+          id: 'project-utf8',
+          name: 'Förbättra språkstöd',
+          body: 'Kontrollera teckenkodning i hela flödet.',
+        ),
+      ],
+      projectStacks: const <ProjectStack>[],
+      projectTypes: const <ProjectTypeConfig>[],
+      colorLabels: const <int, String>{},
+      hideCompletedProjectItems: false,
+      cardLayoutPreset: CardLayoutPreset.standard,
+    );
+
+    final String exported = storage.export(state);
+    final TaskBoardState imported = storage.import(exported);
+
+    expect(imported.incomingTasks.single.title, 'Återställ lösenord');
+    expect(
+      imported.incomingTasks.single.body,
+      'Säkerhetsfrågor och översikt.',
+    );
+    expect(
+      imported.incomingTasks.single.flashcardPrompt,
+      'Vad betyder å, ä och ö?',
+    );
+    expect(imported.projects.single.name, 'Förbättra språkstöd');
+    expect(
+      storage.exportPlainText(imported),
+      contains('Återställ lösenord'),
+    );
+    expect(
+      storage.exportPlainText(imported),
+      contains('Förbättra språkstöd'),
+    );
   });
 
   test('import rejects invalid payload shapes', () {

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sorted_out/src/features/tasks/data/task_backup_service.dart';
@@ -79,5 +81,13 @@ void main() {
 
     expect(restoreCalls, 1);
     expect(find.text('Cloud board restored.'), findsOneWidget);
+  });
+
+  test('utf8 decoding preserves Swedish characters for import payloads', () {
+    final String original = '{"title":"Översikt","body":"Återställ lösenord"}';
+    final String decoded = utf8.decode(utf8.encode(original));
+
+    expect(decoded, contains('Översikt'));
+    expect(decoded, contains('Återställ lösenord'));
   });
 }
