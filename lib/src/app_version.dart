@@ -1,3 +1,3 @@
-const String kMindVersionLabel = 'v0.2.1';
+const String kMindVersionLabel = 'v0.2.2';
 const String kMindChangelogUrl =
-    'https://github.com/Jakob37/Mind/blob/master/CHANGELOG.md';
+    'https://github.com/jakob37/mind/blob/master/CHANGELOG.md';
