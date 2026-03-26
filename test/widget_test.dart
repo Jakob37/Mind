@@ -21,7 +21,7 @@ void main() {
     await tester.pumpWidget(const MindApp());
     await tester.pumpAndSettle();
 
-    expect(find.byTooltip('Open changelog'), findsOneWidget);
+    expect(find.byTooltip('Open settings'), findsOneWidget);
     expect(find.text('Incoming'), findsOneWidget);
     expect(find.text('Projects'), findsOneWidget);
     expect(find.text('Sit for 10 minutes in silence'), findsOneWidget);

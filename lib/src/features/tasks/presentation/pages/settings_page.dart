@@ -5,7 +5,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_file_dialog/flutter_file_dialog.dart';
 import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../app_version.dart';
 import '../../data/task_backup_service.dart';
 import '../../data/task_sync_service.dart';
 import '../../domain/task_models.dart';
@@ -65,6 +67,7 @@ class SettingsPage extends StatefulWidget {
 }
 
 class _SettingsPageState extends State<SettingsPage> {
+  static final Uri _changelogUri = Uri.parse(kMindChangelogUrl);
   late final List<ProjectTypeConfig> _projectTypes = widget.projectTypes
       .map((ProjectTypeConfig type) => type.clone())
       .toList();
@@ -734,6 +737,18 @@ class _SettingsPageState extends State<SettingsPage> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  Future<void> _openChangelog() async {
+    final bool didLaunch = await launchUrl(
+      _changelogUri,
+      mode: LaunchMode.externalApplication,
+    );
+    if (!didLaunch && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not open changelog.')),
+      );
+    }
+  }
+
   String _backupTimeLabel(BuildContext context, DateTime savedAt) {
     final MaterialLocalizations localizations = MaterialLocalizations.of(
       context,
@@ -1018,6 +1033,38 @@ class _SettingsPageState extends State<SettingsPage> {
               'Tip: leave a label empty to use the default color name.',
             ),
           ),
+          const Divider(height: 24),
+          ListTile(
+            leading: const Icon(Icons.info_outline),
+            title: const Text('App version'),
+            subtitle: const Text('Open the GitHub changelog for this build'),
+            trailing: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              decoration: BoxDecoration(
+                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    kMindVersionLabel,
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                  ),
+                  const SizedBox(width: 4),
+                  Icon(
+                    Icons.open_in_new,
+                    size: 14,
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ],
+              ),
+            ),
+            onTap: _openChangelog,
+          ),
+          const SizedBox(height: 12),
         ],
       ),
     );
