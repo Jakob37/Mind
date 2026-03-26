@@ -2,6 +2,11 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.2.3
+
+- Standardized the in-app changelog version pill styling.
+- Cleared the existing analyzer warnings in the repository.
+
 ## v0.2.2
 
 - Documented the versioning workflow so each committed change keeps `pubspec.yaml`, the in-app version badge, and the GitHub changelog in sync.

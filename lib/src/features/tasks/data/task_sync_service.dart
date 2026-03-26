@@ -178,9 +178,7 @@ class TaskSyncService {
       throw const FormatException('Export JSON is not a map.');
     }
 
-    final Map<String, dynamic> payload = Map<String, dynamic>.from(
-      decoded as Map,
-    );
+    final Map<String, dynamic> payload = Map<String, dynamic>.from(decoded);
     final Object? rawSchemaVersion = payload['version'];
     if (rawSchemaVersion is! int) {
       throw const FormatException('Export JSON version is not an int.');

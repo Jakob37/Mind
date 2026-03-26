@@ -6,7 +6,6 @@ import 'package:sorted_out/src/features/tasks/data/task_backup_service.dart';
 import 'package:sorted_out/src/features/tasks/data/task_sync_service.dart';
 import 'package:sorted_out/src/features/tasks/domain/task_models.dart';
 import 'package:sorted_out/src/features/tasks/presentation/pages/settings_page.dart';
-import 'package:sorted_out/src/features/tasks/presentation/widgets/card_layout.dart';
 
 void main() {
   SettingsPage buildSettingsPage({

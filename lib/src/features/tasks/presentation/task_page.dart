@@ -18,7 +18,6 @@ import 'pages/task_detail_page.dart';
 import 'task_text_clipboard.dart';
 import 'widgets/add_project_sheet.dart';
 import 'widgets/add_task_sheet.dart';
-import 'widgets/card_layout.dart';
 import 'widgets/edit_project_sheet.dart';
 import 'widgets/edit_project_stack_sheet.dart';
 import 'widgets/edit_task_sheet.dart';
@@ -287,14 +286,6 @@ class _TaskPageState extends State<TaskPage>
       return null;
     }
     return _projectStacks[stackIndex];
-  }
-
-  String? _stackNameForProject(ProjectItem project) {
-    final String? stackId = project.stackId;
-    if (stackId == null || stackId.isEmpty) {
-      return null;
-    }
-    return _projectStackById(stackId)?.name;
   }
 
   ProjectStack? _projectStackByName(
@@ -2483,6 +2474,9 @@ class _TaskPageState extends State<TaskPage>
       if (updatedAt == null) {
         return result.message;
       }
+      if (!mounted) {
+        return result.message;
+      }
       final MaterialLocalizations localizations = MaterialLocalizations.of(
         context,
       );
@@ -2509,6 +2503,9 @@ class _TaskPageState extends State<TaskPage>
 
       final DateTime? updatedAt = snapshot.updatedAt;
       if (updatedAt == null) {
+        return 'Cloud board restored. Current local data was replaced.';
+      }
+      if (!mounted) {
         return 'Cloud board restored. Current local data was replaced.';
       }
       final MaterialLocalizations localizations = MaterialLocalizations.of(
@@ -2579,8 +2576,8 @@ class _TaskPageState extends State<TaskPage>
                 borderRadius: BorderRadius.circular(999),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
+                    horizontal: 8,
+                    vertical: 3,
                   ),
                   decoration: BoxDecoration(
                     color: Theme.of(context)
@@ -2589,11 +2586,22 @@ class _TaskPageState extends State<TaskPage>
                         .withValues(alpha: 0.9),
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text(
-                    kMindVersionLabel,
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                        ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: <Widget>[
+                      Text(
+                        kMindVersionLabel,
+                        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                      ),
+                      const SizedBox(width: 4),
+                      Icon(
+                        Icons.open_in_new,
+                        size: 12,
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
+                      ),
+                    ],
                   ),
                 ),
               ),
