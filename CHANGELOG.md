@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.1
+
+- Restored a dedicated pinned projects section on the `Projects` tab so pinned items are grouped separately instead of only being reordered.
+
 ## v0.3.0
 
 - Moved the app version entry into Settings so the shell pattern matches the other apps.

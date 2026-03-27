@@ -1799,34 +1799,16 @@ class _TaskPageState extends State<TaskPage>
   }
 
   void _toggleProjectPinned(String projectId) {
-    final List<ProjectItem> activeProjects = _projects
-        .where((ProjectItem project) => !project.isArchived)
-        .map((ProjectItem project) => project.clone())
-        .toList(growable: true);
-    final int sourceIndex = activeProjects.indexWhere(
-      (ProjectItem project) => project.id == projectId,
-    );
-    if (sourceIndex < 0) {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
       return;
     }
 
-    final ProjectItem project = activeProjects.removeAt(sourceIndex);
-    final ProjectItem updatedProject = project.copyWith(
-      isPinned: !project.isPinned,
-    );
-    if (updatedProject.isPinned) {
-      activeProjects.insert(0, updatedProject);
-    } else {
-      final int pinnedCount =
-          activeProjects.where((ProjectItem item) => item.isPinned).length;
-      activeProjects.insert(pinnedCount, updatedProject);
-    }
-
-    _reorderVisibleProjects(
-      activeProjects
-          .map((ProjectItem activeProject) => activeProject.id)
-          .toList(growable: false),
-    );
+    final ProjectItem project = _projects[projectIndex];
+    setState(() {
+      _projects[projectIndex] = project.copyWith(isPinned: !project.isPinned);
+    });
+    _persistState();
   }
 
   void _deleteProject(String projectId) {

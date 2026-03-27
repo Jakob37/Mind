@@ -138,6 +138,18 @@ class _ProjectListViewState extends State<ProjectListView> {
         .toList(growable: false);
   }
 
+  List<ProjectItem> _visiblePinnedProjects() {
+    return _visibleProjects()
+        .where((ProjectItem project) => project.isPinned)
+        .toList(growable: false);
+  }
+
+  List<ProjectItem> _visibleUnpinnedProjects() {
+    return _visibleProjects()
+        .where((ProjectItem project) => !project.isPinned)
+        .toList(growable: false);
+  }
+
   int _visibleTaskCount(ProjectItem project) {
     if (ProjectRules.forProject(
       project: project,
@@ -956,13 +968,54 @@ class _ProjectListViewState extends State<ProjectListView> {
     );
   }
 
+  Widget _buildPinnedSection(
+    BuildContext context,
+    List<ProjectItem> pinnedProjects,
+  ) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8),
+          child: Row(
+            children: <Widget>[
+              const Icon(Icons.push_pin_outlined, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Pinned projects',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 8),
+        for (final ProjectItem project in pinnedProjects)
+          _wrapProjectDismissible(
+            context,
+            project: project,
+            child: Padding(
+              padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+              child: _buildProjectCard(
+                context,
+                project,
+                isDropTarget: false,
+                showOptionsButton: true,
+              ),
+            ),
+          ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (widget.projects.isEmpty) {
       return const SizedBox.shrink();
     }
 
-    final List<ProjectItem> activeProjects = _visibleProjects();
+    final List<ProjectItem> pinnedProjects = _visiblePinnedProjects();
+    final List<ProjectItem> activeProjects = _visibleUnpinnedProjects();
     final List<ProjectItem> archivedProjects = widget.projects
         .where((ProjectItem project) => project.isArchived)
         .toList(growable: false);
@@ -973,6 +1026,8 @@ class _ProjectListViewState extends State<ProjectListView> {
     return ListView(
       padding: EdgeInsets.fromLTRB(12, 12, 12, fabClearance),
       children: <Widget>[
+        if (pinnedProjects.isNotEmpty)
+          _buildPinnedSection(context, pinnedProjects),
         if (activeGroups.isNotEmpty)
           _buildGroupDropSlot(
             context,
