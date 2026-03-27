@@ -25,6 +25,7 @@ import 'widgets/project_list_view.dart';
 import 'widgets/select_project_stack_sheet.dart';
 import 'widgets/select_project_type_sheet.dart';
 import 'widgets/task_list_view.dart';
+part 'task_page_views.dart';
 
 enum _ProjectMenuAction {
   open,
@@ -623,126 +624,17 @@ class _TaskPageState extends State<TaskPage>
 
   Widget _buildFlashcardsTab() {
     final List<_FlashcardEntry> flashcards = _flashcardEntries();
-    if (flashcards.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Text(
-            'Add a flashcard prompt to any idea entry to study it here.',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyLarge,
-          ),
-        ),
-      );
-    }
-
-    final int activeIndex = _flashcardIndexForLength(flashcards.length);
-    final _FlashcardEntry flashcard = flashcards[activeIndex];
-    final IconData? iconData = iconDataForKey(flashcard.iconKey);
-
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: <Widget>[
-        Text('Flashcards', style: Theme.of(context).textTheme.headlineSmall),
-        const SizedBox(height: 8),
-        Text(
-          'Card ${activeIndex + 1} of ${flashcards.length}',
-          style: Theme.of(context).textTheme.bodyMedium,
-        ),
-        const SizedBox(height: 16),
-        Card(
-          color: flashcard.colorValue == null
-              ? null
-              : Color(flashcard.colorValue!),
-          child: Padding(
-            padding: const EdgeInsets.all(20),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text('Prompt', style: Theme.of(context).textTheme.titleMedium),
-                const SizedBox(height: 8),
-                Text(
-                  flashcard.prompt,
-                  style: Theme.of(context).textTheme.headlineSmall,
-                ),
-                const SizedBox(height: 20),
-                if (_isFlashcardAnswerVisible) ...<Widget>[
-                  Text(
-                    'Answer',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: <Widget>[
-                      if (iconData != null) ...<Widget>[
-                        Padding(
-                          padding: const EdgeInsets.only(top: 2),
-                          child: Icon(iconData),
-                        ),
-                        const SizedBox(width: 8),
-                      ],
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: <Widget>[
-                            Text(
-                              flashcard.answerTitle,
-                              style: Theme.of(context).textTheme.titleLarge,
-                            ),
-                            if (flashcard.answerBody
-                                .trim()
-                                .isNotEmpty) ...<Widget>[
-                              const SizedBox(height: 8),
-                              Text(
-                                flashcard.answerBody,
-                                style: Theme.of(context).textTheme.bodyLarge,
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ] else
-                  FilledButton(
-                    onPressed: () {
-                      setState(() {
-                        _isFlashcardAnswerVisible = true;
-                      });
-                    },
-                    child: const Text('Reveal answer'),
-                  ),
-                const SizedBox(height: 20),
-                Text(
-                  'Source: ${flashcard.sourceLabel}',
-                  style: Theme.of(context).textTheme.labelLarge,
-                ),
-              ],
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          children: <Widget>[
-            Expanded(
-              child: OutlinedButton.icon(
-                onPressed: () => _showPreviousFlashcard(flashcards.length),
-                icon: const Icon(Icons.arrow_back_outlined),
-                label: const Text('Previous'),
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: FilledButton.icon(
-                onPressed: () => _showNextFlashcard(flashcards.length),
-                icon: const Icon(Icons.arrow_forward_outlined),
-                label: const Text('Next'),
-              ),
-            ),
-          ],
-        ),
-      ],
+    return _FlashcardsTabView(
+      flashcards: flashcards,
+      activeIndex: _flashcardIndexForLength(flashcards.length),
+      isAnswerVisible: _isFlashcardAnswerVisible,
+      onRevealAnswer: () {
+        setState(() {
+          _isFlashcardAnswerVisible = true;
+        });
+      },
+      onShowPrevious: () => _showPreviousFlashcard(flashcards.length),
+      onShowNext: () => _showNextFlashcard(flashcards.length),
     );
   }
 
@@ -2524,108 +2416,62 @@ class _TaskPageState extends State<TaskPage>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Row(
-          children: <Widget>[
-            Icon(
-              iconDataForKey(kMindAppIconKey) ?? Icons.psychology_alt_outlined,
-            ),
-            const SizedBox(width: 10),
-            const Text('Mind'),
-          ],
-        ),
-        actions: <Widget>[
-          IconButton(
-            onPressed: _openSettingsPage,
-            tooltip: 'Open settings',
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: const <Widget>[
-            Tab(text: 'Incoming'),
-            Tab(text: 'Projects'),
-            Tab(text: 'Flashcards'),
-          ],
-        ),
+    return _TaskPageScaffoldView(
+      tabController: _tabController,
+      selectedTabIndex: _selectedTabIndex,
+      onOpenSettings: _openSettingsPage,
+      incomingTasks: _incomingTasks,
+      projects: _projects,
+      projectStacks: _projectStacks,
+      projectTypes: _projectTypes,
+      cardLayoutPreset: _cardLayoutPreset,
+      onIncomingTaskTap: _openIncomingTaskView,
+      onIncomingTaskOptionsTap: _openIncomingTaskMenu,
+      onMoveIncomingTaskToProject: (String taskId) =>
+          _moveTaskFromListToProject(_incomingTasks, taskId),
+      onRemoveIncomingTask: (String taskId) =>
+          _deleteTaskInList(_incomingTasks, taskId),
+      onMoveIncomingTask: ({
+        required String taskId,
+        required int targetIndex,
+      }) =>
+          _moveIncomingTaskToPosition(taskId: taskId, targetIndex: targetIndex),
+      onNestIncomingTask: ({
+        required String sourceTaskId,
+        required String targetTaskId,
+      }) =>
+          _nestIncomingTaskUnderTask(
+        sourceTaskId: sourceTaskId,
+        targetTaskId: targetTaskId,
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: <Widget>[
-          TaskListView(
-            tasks: _incomingTasks,
-            emptyLabel: '',
-            cardLayoutPreset: _cardLayoutPreset,
-            onTaskTap: _openIncomingTaskView,
-            onTaskOptionsTap: _openIncomingTaskMenu,
-            onMoveTaskToProject: (String taskId) =>
-                _moveTaskFromListToProject(_incomingTasks, taskId),
-            onRemoveTask: (String taskId) =>
-                _deleteTaskInList(_incomingTasks, taskId),
-            onMoveTask: ({required String taskId, required int targetIndex}) =>
-                _moveIncomingTaskToPosition(
-              taskId: taskId,
-              targetIndex: targetIndex,
-            ),
-            onNestTask: ({
-              required String sourceTaskId,
-              required String targetTaskId,
-            }) =>
-                _nestIncomingTaskUnderTask(
-              sourceTaskId: sourceTaskId,
-              targetTaskId: targetTaskId,
-            ),
-          ),
-          ProjectListView(
-            projects: _projects,
-            projectStacks: _projectStacks,
-            projectTypes: _projectTypes,
-            cardLayoutPreset: _cardLayoutPreset,
-            onVisibleProjectOrderChanged: _reorderVisibleProjects,
-            onProjectTap: (String projectId) async =>
-                _openProjectDetail(projectId),
-            onProjectArchive: _archiveProject,
-            onProjectRestore: _restoreProject,
-            onProjectRemove: _deleteProject,
-            onProjectOptionsTap: _openProjectMenu,
-            onProjectStackOptionsTap: _openProjectStackMenu,
-            onProjectStackDrop: (
-              List<String> sourceProjectIds,
-              List<String> targetProjectIds,
-            ) =>
-                _stackProjectGroupsTogether(
-              sourceProjectIds: sourceProjectIds,
-              targetProjectIds: targetProjectIds,
-            ),
-            onProjectMoveToStackPosition: ({
-              required String sourceProjectId,
-              required String targetStackId,
-              required int targetIndex,
-            }) =>
-                _moveProjectToStackPosition(
-              sourceProjectId: sourceProjectId,
-              targetStackId: targetStackId,
-              targetIndex: targetIndex,
-            ),
-          ),
-          _buildFlashcardsTab(),
-        ],
+      onProjectOrderChanged: _reorderVisibleProjects,
+      onProjectTap: (String projectId) async => _openProjectDetail(projectId),
+      onProjectArchive: _archiveProject,
+      onProjectRestore: _restoreProject,
+      onProjectRemove: _deleteProject,
+      onProjectOptionsTap: _openProjectMenu,
+      onProjectStackOptionsTap: _openProjectStackMenu,
+      onProjectStackDrop: (
+        List<String> sourceProjectIds,
+        List<String> targetProjectIds,
+      ) =>
+          _stackProjectGroupsTogether(
+        sourceProjectIds: sourceProjectIds,
+        targetProjectIds: targetProjectIds,
       ),
-      floatingActionButton: _selectedTabIndex == 0
-          ? FloatingActionButton(
-              onPressed: _openAddTaskWidget,
-              tooltip: 'Add task',
-              child: const Icon(Icons.add),
-            )
-          : _selectedTabIndex == 1
-              ? FloatingActionButton(
-                  onPressed: _openAddProjectWidget,
-                  tooltip: 'Add project',
-                  child: const Icon(Icons.add),
-                )
-              : null,
+      onMoveProjectToStackPosition: ({
+        required String sourceProjectId,
+        required String targetStackId,
+        required int targetIndex,
+      }) =>
+          _moveProjectToStackPosition(
+        sourceProjectId: sourceProjectId,
+        targetStackId: targetStackId,
+        targetIndex: targetIndex,
+      ),
+      flashcardsTab: _buildFlashcardsTab(),
+      onAddTask: _openAddTaskWidget,
+      onAddProject: _openAddProjectWidget,
     );
   }
 }

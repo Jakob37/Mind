@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.2
+
+- Split the task page shell and flashcard presentation into dedicated view files so future Mind work can add features without growing one giant UI file.
+
 ## v0.3.1
 
 - Restored a dedicated pinned projects section on the `Projects` tab so pinned items are grouped separately instead of only being reordered.
