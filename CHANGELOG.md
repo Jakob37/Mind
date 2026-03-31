@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.5
+
+- Switched nested container projects to a generic `entries` data model while keeping backward compatibility for older saved `people` payloads.
+
 ## v0.3.4
 
 - Renamed the special People layout into a generic entry-container project layout so the app can support more reusable nested-entry project types without another hard-coded branch.

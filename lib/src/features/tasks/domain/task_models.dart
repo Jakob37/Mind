@@ -7,9 +7,9 @@ class ModelIds {
 
   static String newProjectId() => _newId('project');
 
-  static String newPersonId() => _newId('person');
-
   static String newProjectEntryId() => _newId('entry');
+
+  static String newPersonId() => newProjectEntryId();
 
   static String newProjectStackId() => _newId('stack');
 
@@ -343,12 +343,15 @@ class ProjectItem {
     this.stackId,
     this.projectTypeId,
     List<TaskItem>? tasks,
+    List<ProjectEntryItem>? entries,
     List<PersonItem>? people,
   })  : id = id ?? ModelIds.newProjectId(),
         body = body ?? '',
         prompt = prompt ?? '',
         tasks = tasks ?? <TaskItem>[],
-        people = people ?? <PersonItem>[];
+        entries = entries ??
+            people?.map((PersonItem person) => person.clone()).toList() ??
+            <ProjectEntryItem>[];
 
   final String id;
   final String name;
@@ -361,7 +364,9 @@ class ProjectItem {
   final String? stackId;
   final String? projectTypeId;
   final List<TaskItem> tasks;
-  final List<PersonItem> people;
+  final List<ProjectEntryItem> entries;
+
+  List<ProjectEntryItem> get people => entries;
 
   ProjectItem clone() {
     return ProjectItem(
@@ -376,7 +381,7 @@ class ProjectItem {
       stackId: stackId,
       projectTypeId: projectTypeId,
       tasks: tasks.map((TaskItem item) => item.clone()).toList(),
-      people: people.map((PersonItem person) => person.clone()).toList(),
+      entries: entries.map((ProjectEntryItem entry) => entry.clone()).toList(),
     );
   }
 
@@ -396,6 +401,7 @@ class ProjectItem {
     String? projectTypeId,
     bool clearProjectType = false,
     List<TaskItem>? tasks,
+    List<ProjectEntryItem>? entries,
     List<PersonItem>? people,
   }) {
     return ProjectItem(
@@ -411,8 +417,9 @@ class ProjectItem {
       projectTypeId:
           clearProjectType ? null : (projectTypeId ?? this.projectTypeId),
       tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
-      people: people ??
-          this.people.map((PersonItem person) => person.clone()).toList(),
+      entries: entries ??
+          people?.map((PersonItem person) => person.clone()).toList() ??
+          this.entries.map((ProjectEntryItem entry) => entry.clone()).toList(),
     );
   }
 
@@ -429,7 +436,8 @@ class ProjectItem {
       'stackId': stackId,
       'projectTypeId': projectTypeId,
       'tasks': tasks.map((TaskItem item) => item.toJson()).toList(),
-      'people': people.map((PersonItem person) => person.toJson()).toList(),
+      'entries':
+          entries.map((ProjectEntryItem entry) => entry.toJson()).toList(),
     };
   }
 
@@ -448,7 +456,9 @@ class ProjectItem {
       'projectTypeId',
     );
     final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
-    final List<dynamic> personJson = _readOptionalList(json, 'people');
+    final List<dynamic> entryJson = json.containsKey('entries')
+        ? _readOptionalList(json, 'entries')
+        : _readOptionalList(json, 'people');
 
     return ProjectItem(
       id: id == null || id.isEmpty ? null : id,
@@ -469,10 +479,10 @@ class ProjectItem {
             ),
           )
           .toList(),
-      people: personJson
+      entries: entryJson
           .map(
-            (dynamic item) => PersonItem.fromJson(
-              _mapFromDynamic(item: item, fieldPath: 'projects.people[]'),
+            (dynamic item) => ProjectEntryItem.fromJson(
+              _mapFromDynamic(item: item, fieldPath: 'projects.entries[]'),
             ),
           )
           .toList(),
@@ -480,8 +490,8 @@ class ProjectItem {
   }
 }
 
-class PersonItem {
-  PersonItem({
+class ProjectEntryItem {
+  ProjectEntryItem({
     String? id,
     required this.name,
     String? body,
@@ -489,7 +499,7 @@ class PersonItem {
     this.iconKey,
     this.isArchived = false,
     List<TaskItem>? tasks,
-  })  : id = id ?? ModelIds.newPersonId(),
+  })  : id = id ?? ModelIds.newProjectEntryId(),
         body = body ?? '',
         tasks = tasks ?? <TaskItem>[];
 
@@ -501,8 +511,8 @@ class PersonItem {
   final bool isArchived;
   final List<TaskItem> tasks;
 
-  PersonItem clone() {
-    return PersonItem(
+  ProjectEntryItem clone() {
+    return ProjectEntryItem(
       id: id,
       name: name,
       body: body,
@@ -513,7 +523,7 @@ class PersonItem {
     );
   }
 
-  PersonItem copyWith({
+  ProjectEntryItem copyWith({
     String? id,
     String? name,
     String? body,
@@ -524,7 +534,7 @@ class PersonItem {
     bool? isArchived,
     List<TaskItem>? tasks,
   }) {
-    return PersonItem(
+    return ProjectEntryItem(
       id: id ?? this.id,
       name: name ?? this.name,
       body: body ?? this.body,
@@ -547,7 +557,7 @@ class PersonItem {
     };
   }
 
-  factory PersonItem.fromJson(Map<String, dynamic> json) {
+  factory ProjectEntryItem.fromJson(Map<String, dynamic> json) {
     final String name = _readRequiredString(json, 'name');
     final String? id = _readOptionalTrimmedString(json, 'id');
     final String? body = _readOptionalTrimmedString(json, 'body');
@@ -556,7 +566,7 @@ class PersonItem {
     final bool isArchived = _readOptionalBool(json, 'archived');
     final List<dynamic> taskJson = _readOptionalList(json, 'tasks');
 
-    return PersonItem(
+    return ProjectEntryItem(
       id: id == null || id.isEmpty ? null : id,
       name: name,
       body: body ?? '',
@@ -566,13 +576,16 @@ class PersonItem {
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(
-              _mapFromDynamic(item: item, fieldPath: 'projects.people.tasks[]'),
+              _mapFromDynamic(
+                  item: item, fieldPath: 'projects.entries.tasks[]'),
             ),
           )
           .toList(),
     );
   }
 }
+
+typedef PersonItem = ProjectEntryItem;
 
 class ProjectStack {
   ProjectStack({String? id, required this.name, this.colorValue})

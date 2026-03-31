@@ -1141,43 +1141,49 @@ class TaskStorage {
       project['tasks'] = isEntryContainerProject
           ? <Map<String, dynamic>>[]
           : _upgradeTaskShape(project['tasks']);
-      project['people'] = _upgradePersonShape(project['people']);
+      final Object? rawEntries = project.containsKey('entries')
+          ? project['entries']
+          : project['people'];
+      project['entries'] = _upgradeProjectEntryShape(rawEntries);
+      project.remove('people');
       projects.add(project);
     }
     return projects;
   }
 
-  static List<Map<String, dynamic>> _upgradePersonShape(Object? rawPeople) {
-    if (rawPeople is! List<dynamic>) {
+  static List<Map<String, dynamic>> _upgradeProjectEntryShape(
+    Object? rawEntries,
+  ) {
+    if (rawEntries is! List<dynamic>) {
       return <Map<String, dynamic>>[];
     }
 
-    final List<Map<String, dynamic>> people = <Map<String, dynamic>>[];
-    for (final dynamic rawPerson in rawPeople) {
-      if (rawPerson is! Map<dynamic, dynamic>) {
+    final List<Map<String, dynamic>> entries = <Map<String, dynamic>>[];
+    for (final dynamic rawEntry in rawEntries) {
+      if (rawEntry is! Map<dynamic, dynamic>) {
         continue;
       }
-      final Map<String, dynamic> person = Map<String, dynamic>.from(rawPerson);
-      final String? name = (person['name'] as String?)?.trim();
+      final Map<String, dynamic> entry = Map<String, dynamic>.from(rawEntry);
+      final String? name = (entry['name'] as String?)?.trim();
       if (name == null || name.isEmpty) {
         continue;
       }
-      person['name'] = name;
-      final String? id = (person['id'] as String?)?.trim();
-      person['id'] = id == null || id.isEmpty ? ModelIds.newPersonId() : id;
-      person['body'] =
-          person['body'] is String ? (person['body'] as String).trim() : '';
-      person['color'] = person['color'] is int ? person['color'] : null;
-      person['icon'] = person['icon'] is String &&
-              (person['icon'] as String).trim().isNotEmpty
-          ? (person['icon'] as String).trim()
-          : null;
-      person['archived'] =
-          person['archived'] is bool ? person['archived'] : false;
-      person['tasks'] = _upgradeTaskShape(person['tasks']);
-      people.add(person);
+      entry['name'] = name;
+      final String? id = (entry['id'] as String?)?.trim();
+      entry['id'] =
+          id == null || id.isEmpty ? ModelIds.newProjectEntryId() : id;
+      entry['body'] =
+          entry['body'] is String ? (entry['body'] as String).trim() : '';
+      entry['color'] = entry['color'] is int ? entry['color'] : null;
+      entry['icon'] =
+          entry['icon'] is String && (entry['icon'] as String).trim().isNotEmpty
+              ? (entry['icon'] as String).trim()
+              : null;
+      entry['archived'] = entry['archived'] is bool ? entry['archived'] : false;
+      entry['tasks'] = _upgradeTaskShape(entry['tasks']);
+      entries.add(entry);
     }
-    return people;
+    return entries;
   }
 
   static List<Map<String, dynamic>> _upgradeProjectStackShape(

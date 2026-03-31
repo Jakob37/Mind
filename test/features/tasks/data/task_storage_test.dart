@@ -235,6 +235,13 @@ void main() {
           isArchived: true,
           isPinned: true,
           stackId: 'stack-1',
+          entries: <ProjectEntryItem>[
+            ProjectEntryItem(
+              id: 'entry-1',
+              name: 'Imported entry',
+              body: 'Keeps nested notes.',
+            ),
+          ],
           tasks: <TaskItem>[
             TaskItem(
               id: 'task-2',
@@ -276,6 +283,11 @@ void main() {
     );
 
     final String exported = storage.export(state);
+    final Map<String, dynamic> decoded =
+        jsonDecode(exported) as Map<String, dynamic>;
+    final List<dynamic> exportedEntries = (((decoded['data']
+            as Map<String, dynamic>)['projects'] as List<dynamic>)
+        .single as Map<String, dynamic>)['entries'] as List<dynamic>;
     final TaskBoardState imported = storage.import(exported);
 
     expect(imported.incomingTasks.single.title, 'Imported incoming');
@@ -286,6 +298,11 @@ void main() {
     expect(imported.projects.single.isArchived, isTrue);
     expect(imported.projects.single.isPinned, isTrue);
     expect(imported.projects.single.stackId, 'stack-1');
+    expect(exportedEntries, hasLength(1));
+    expect((exportedEntries.single as Map<String, dynamic>)['name'],
+        'Imported entry');
+    expect(imported.projects.single.entries.single.name, 'Imported entry');
+    expect(imported.projects.single.entries.single.body, 'Keeps nested notes.');
     expect(imported.projectStacks.single.name, 'Imported stack');
     expect(imported.projectStacks.single.colorValue, 0xFFFFCDD2);
     expect(imported.projects.single.tasks.single.isArchived, isTrue);
