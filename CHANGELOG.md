@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.8
+
+- Removed the obsolete people-specific entry sheet files after the generic project-entry form rename.
+
 ## v0.3.7
 
 - Renamed the remaining nested-entry add/edit sheets to generic project-entry names so the reusable entry-container flow no longer carries people-specific form naming.
