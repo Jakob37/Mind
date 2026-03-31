@@ -15,16 +15,16 @@ class TaskLoadResult {
   const TaskLoadResult.empty() : this._(hadPersistedData: false);
 
   const TaskLoadResult.success(TaskBoardState loadedState)
-    : this._(hadPersistedData: true, state: loadedState);
+      : this._(hadPersistedData: true, state: loadedState);
 
   const TaskLoadResult.failure({
     required Object loadError,
     required StackTrace loadStackTrace,
   }) : this._(
-         hadPersistedData: true,
-         error: loadError,
-         stackTrace: loadStackTrace,
-       );
+          hadPersistedData: true,
+          error: loadError,
+          stackTrace: loadStackTrace,
+        );
 
   final bool hadPersistedData;
   final TaskBoardState? state;
@@ -43,7 +43,7 @@ class TaskStorage {
   static const String _legacyStateKey = 'task_board_state_v1';
   static const int _currentSchemaVersion = 23;
   static final Map<int, Map<String, dynamic> Function(Map<String, dynamic>)>
-  _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
+      _migrations = <int, Map<String, dynamic> Function(Map<String, dynamic>)>{
     1: _migrateV1ToV2,
     2: _migrateV2ToV3,
     3: _migrateV3ToV4,
@@ -1021,9 +1021,8 @@ class TaskStorage {
       } else {
         subtask['id'] = ModelIds.newSubTaskId();
       }
-      subtask['color'] = rawSubtask['color'] is int
-          ? rawSubtask['color']
-          : null;
+      subtask['color'] =
+          rawSubtask['color'] is int ? rawSubtask['color'] : null;
       subtask['completed'] = false;
       subtask['icon'] = null;
       subtask['children'] = <Map<String, dynamic>>[];
@@ -1047,25 +1046,21 @@ class TaskStorage {
       if (id == null || id.isEmpty) {
         task['id'] = ModelIds.newTaskId();
       }
-      task['body'] = task['body'] is String
-          ? (task['body'] as String).trim()
-          : '';
-      task['prompt'] = task['prompt'] is String
-          ? (task['prompt'] as String).trim()
-          : '';
+      task['body'] =
+          task['body'] is String ? (task['body'] as String).trim() : '';
+      task['prompt'] =
+          task['prompt'] is String ? (task['prompt'] as String).trim() : '';
       task['flashcardPrompt'] = task['flashcardPrompt'] is String
           ? (task['flashcardPrompt'] as String).trim()
           : '';
-      task['createdAtMicros'] = task['createdAtMicros'] is int
-          ? task['createdAtMicros']
-          : null;
+      task['createdAtMicros'] =
+          task['createdAtMicros'] is int ? task['createdAtMicros'] : null;
       task['color'] = task['color'] is int ? task['color'] : null;
       task['type'] =
           task['type'] is String && (task['type'] as String).trim().isNotEmpty
-          ? (task['type'] as String).trim().toLowerCase()
-          : TaskItemType.planning.name;
-      task['entryType'] =
-          task['entryType'] is String &&
+              ? (task['type'] as String).trim().toLowerCase()
+              : TaskItemType.planning.name;
+      task['entryType'] = task['entryType'] is String &&
               (task['entryType'] as String).trim().isNotEmpty
           ? (task['entryType'] as String).trim().toLowerCase()
           : TaskEntryType.note.name;
@@ -1073,8 +1068,8 @@ class TaskStorage {
       task['pinned'] = task['pinned'] is bool ? task['pinned'] : false;
       task['icon'] =
           task['icon'] is String && (task['icon'] as String).trim().isNotEmpty
-          ? (task['icon'] as String).trim()
-          : null;
+              ? (task['icon'] as String).trim()
+              : null;
       task['subtasks'] = _upgradeSubtaskShape(task['subtasks']);
       tasks.add(task);
     }
@@ -1104,49 +1099,43 @@ class TaskStorage {
       if (id == null || id.isEmpty) {
         project['id'] = ModelIds.newProjectId();
       }
-      project['body'] = project['body'] is String
-          ? (project['body'] as String).trim()
-          : '';
+      project['body'] =
+          project['body'] is String ? (project['body'] as String).trim() : '';
       project['prompt'] = project['prompt'] is String
           ? (project['prompt'] as String).trim()
           : '';
       project['color'] = project['color'] is int ? project['color'] : null;
-      project['icon'] =
-          project['icon'] is String &&
+      project['icon'] = project['icon'] is String &&
               (project['icon'] as String).trim().isNotEmpty
           ? (project['icon'] as String).trim()
           : null;
-      project['archived'] = project['archived'] is bool
-          ? project['archived']
-          : false;
+      project['archived'] =
+          project['archived'] is bool ? project['archived'] : false;
       project['pinned'] = project['pinned'] is bool ? project['pinned'] : false;
-      final String? stackId =
-          project['stackId'] is String &&
+      final String? stackId = project['stackId'] is String &&
               (project['stackId'] as String).trim().isNotEmpty
           ? (project['stackId'] as String).trim()
           : null;
-      project['stackId'] =
-          validStackIds == null ||
+      project['stackId'] = validStackIds == null ||
               stackId == null ||
               validStackIds.contains(stackId)
           ? stackId
           : null;
-      final String? projectTypeId =
-          project['projectTypeId'] is String &&
+      final String? projectTypeId = project['projectTypeId'] is String &&
               (project['projectTypeId'] as String).trim().isNotEmpty
           ? (project['projectTypeId'] as String).trim()
           : null;
       project['projectTypeId'] = validProjectTypeIds == null
           ? projectTypeId
           : (projectTypeId != null &&
-                    validProjectTypeIds.contains(projectTypeId)
-                ? projectTypeId
-                : fallbackProjectTypeId);
+                  validProjectTypeIds.contains(projectTypeId)
+              ? projectTypeId
+              : fallbackProjectTypeId);
       final ProjectLayoutKind projectLayoutKind =
           projectLayoutsByTypeId?[project['projectTypeId']] ??
-          ProjectTypeConfig.defaultLayoutKindForId(
-            project['projectTypeId'] as String?,
-          );
+              ProjectTypeConfig.defaultLayoutKindForId(
+                project['projectTypeId'] as String?,
+              );
       final bool isPeopleProject =
           projectLayoutKind == ProjectLayoutKind.peopleContainer;
       project['tasks'] = isPeopleProject
@@ -1176,18 +1165,15 @@ class TaskStorage {
       person['name'] = name;
       final String? id = (person['id'] as String?)?.trim();
       person['id'] = id == null || id.isEmpty ? ModelIds.newPersonId() : id;
-      person['body'] = person['body'] is String
-          ? (person['body'] as String).trim()
-          : '';
+      person['body'] =
+          person['body'] is String ? (person['body'] as String).trim() : '';
       person['color'] = person['color'] is int ? person['color'] : null;
-      person['icon'] =
-          person['icon'] is String &&
+      person['icon'] = person['icon'] is String &&
               (person['icon'] as String).trim().isNotEmpty
           ? (person['icon'] as String).trim()
           : null;
-      person['archived'] = person['archived'] is bool
-          ? person['archived']
-          : false;
+      person['archived'] =
+          person['archived'] is bool ? person['archived'] : false;
       person['tasks'] = _upgradeTaskShape(person['tasks']);
       people.add(person);
     }
@@ -1215,12 +1201,10 @@ class TaskStorage {
       }
       projectStack['name'] = name;
       final String? id = (projectStack['id'] as String?)?.trim();
-      projectStack['id'] = id == null || id.isEmpty
-          ? ModelIds.newProjectStackId()
-          : id;
-      projectStack['color'] = projectStack['color'] is int
-          ? projectStack['color']
-          : null;
+      projectStack['id'] =
+          id == null || id.isEmpty ? ModelIds.newProjectStackId() : id;
+      projectStack['color'] =
+          projectStack['color'] is int ? projectStack['color'] : null;
       projectStacks.add(projectStack);
     }
     return projectStacks;
@@ -1233,9 +1217,8 @@ class TaskStorage {
         ProjectTypeConfig.defaults();
     final Map<String, ProjectTypeConfig> defaultsById =
         <String, ProjectTypeConfig>{
-          for (final ProjectTypeConfig type in defaultProjectTypes)
-            type.id: type,
-        };
+      for (final ProjectTypeConfig type in defaultProjectTypes) type.id: type,
+    };
 
     final Map<String, Map<String, dynamic>> normalizedById =
         <String, Map<String, dynamic>>{};
@@ -1254,29 +1237,52 @@ class TaskStorage {
         }
         projectType['id'] = id;
         projectType['name'] = name;
-        projectType['icon'] =
-            projectType['icon'] is String &&
+        projectType['icon'] = projectType['icon'] is String &&
                 (projectType['icon'] as String).trim().isNotEmpty
             ? (projectType['icon'] as String).trim()
             : null;
-        projectType['layoutKind'] =
-            projectType['layoutKind'] is String &&
+        projectType['layoutKind'] = projectType['layoutKind'] is String &&
                 (projectType['layoutKind'] as String).trim().isNotEmpty
             ? ProjectLayoutKind.fromJsonValue(projectType['layoutKind']).name
             : (defaultsById[id]?.layoutKind ??
-                      ProjectTypeConfig.defaultLayoutKindForId(id))
-                  .name;
+                    ProjectTypeConfig.defaultLayoutKindForId(id))
+                .name;
         projectType['showsJournalEntries'] =
             projectType['showsJournalEntries'] is bool
-            ? projectType['showsJournalEntries']
-            : defaultsById[id]?.showsJournalEntries ?? false;
+                ? projectType['showsJournalEntries']
+                : defaultsById[id]?.showsJournalEntries ?? false;
         projectType['showsPlanningTasks'] =
             projectType['showsPlanningTasks'] is bool
-            ? projectType['showsPlanningTasks']
-            : defaultsById[id]?.showsPlanningTasks ?? false;
+                ? projectType['showsPlanningTasks']
+                : defaultsById[id]?.showsPlanningTasks ?? false;
         projectType['showsIdeas'] = projectType['showsIdeas'] is bool
             ? projectType['showsIdeas']
             : defaultsById[id]?.showsIdeas ?? false;
+        projectType['childItemLabel'] =
+            projectType['childItemLabel'] is String &&
+                    (projectType['childItemLabel'] as String).trim().isNotEmpty
+                ? (projectType['childItemLabel'] as String).trim()
+                : defaultsById[id]?.childItemLabel ?? 'Item';
+        projectType['childItemsLabel'] =
+            projectType['childItemsLabel'] is String &&
+                    (projectType['childItemsLabel'] as String).trim().isNotEmpty
+                ? (projectType['childItemsLabel'] as String).trim()
+                : defaultsById[id]?.childItemsLabel ?? 'Items';
+        projectType['childJournalEntryLabel'] =
+            projectType['childJournalEntryLabel'] is String &&
+                    (projectType['childJournalEntryLabel'] as String)
+                        .trim()
+                        .isNotEmpty
+                ? (projectType['childJournalEntryLabel'] as String).trim()
+                : defaultsById[id]?.childJournalEntryLabel ?? 'Journal entry';
+        projectType['childJournalEntriesLabel'] =
+            projectType['childJournalEntriesLabel'] is String &&
+                    (projectType['childJournalEntriesLabel'] as String)
+                        .trim()
+                        .isNotEmpty
+                ? (projectType['childJournalEntriesLabel'] as String).trim()
+                : defaultsById[id]?.childJournalEntriesLabel ??
+                    'Journal entries';
         normalizedById[id] = projectType;
       }
     }
@@ -1341,15 +1347,12 @@ class TaskStorage {
       subtask['title'] = title;
       final String? id = (subtask['id'] as String?)?.trim();
       subtask['id'] = id == null || id.isEmpty ? ModelIds.newSubTaskId() : id;
-      subtask['body'] = subtask['body'] is String
-          ? (subtask['body'] as String).trim()
-          : '';
+      subtask['body'] =
+          subtask['body'] is String ? (subtask['body'] as String).trim() : '';
       subtask['color'] = subtask['color'] is int ? subtask['color'] : null;
-      subtask['completed'] = subtask['completed'] is bool
-          ? subtask['completed']
-          : false;
-      subtask['icon'] =
-          subtask['icon'] is String &&
+      subtask['completed'] =
+          subtask['completed'] is bool ? subtask['completed'] : false;
+      subtask['icon'] = subtask['icon'] is String &&
               (subtask['icon'] as String).trim().isNotEmpty
           ? (subtask['icon'] as String).trim()
           : null;
@@ -1462,9 +1465,8 @@ class TaskStorage {
   ) {
     final String indent = '  ' * depth;
     for (final SubTaskItem subtask in subtasks) {
-      final String iconPrefix = subtask.iconKey == null
-          ? ''
-          : '[${subtask.iconKey}] ';
+      final String iconPrefix =
+          subtask.iconKey == null ? '' : '[${subtask.iconKey}] ';
       final String checkboxPrefix = subtask.isCompleted ? '[x] ' : '[ ] ';
       buffer.writeln('$indent- $checkboxPrefix$iconPrefix${subtask.title}');
       _writeSubtasks(buffer, subtask.children, depth + 1);

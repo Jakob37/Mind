@@ -15,10 +15,16 @@ class EditPersonSheet extends StatefulWidget {
     super.key,
     required this.initialName,
     required this.initialBody,
+    this.itemLabel = 'Person',
+    this.nameFieldLabel = 'Name',
+    this.notesLabel = 'Notes',
   });
 
   final String initialName;
   final String initialBody;
+  final String itemLabel;
+  final String nameFieldLabel;
+  final String notesLabel;
 
   @override
   State<EditPersonSheet> createState() => _EditPersonSheetState();
@@ -70,7 +76,7 @@ class _EditPersonSheetState extends State<EditPersonSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'Edit Person',
+            'Edit ${widget.itemLabel}',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
@@ -78,8 +84,8 @@ class _EditPersonSheetState extends State<EditPersonSheet> {
             controller: _nameController,
             minLines: 1,
             maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Name',
+            decoration: InputDecoration(
+              labelText: widget.nameFieldLabel,
             ),
           ),
           const SizedBox(height: 12),
@@ -87,15 +93,15 @@ class _EditPersonSheetState extends State<EditPersonSheet> {
             controller: _bodyController,
             minLines: 2,
             maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
+            decoration: InputDecoration(
+              labelText: widget.notesLabel,
               alignLabelWithHint: true,
             ),
           ),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _save,
-            child: const Text('Save Person'),
+            child: Text('Save ${widget.itemLabel}'),
           ),
         ],
       ),

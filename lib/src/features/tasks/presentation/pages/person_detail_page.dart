@@ -30,6 +30,7 @@ class PersonDetailPage extends StatefulWidget {
     super.key,
     required this.personId,
     required this.initialPeople,
+    required this.projectType,
     required this.colorLabels,
     required this.hideCompletedProjectItems,
     required this.cardLayoutPreset,
@@ -38,6 +39,7 @@ class PersonDetailPage extends StatefulWidget {
 
   final String personId;
   final List<PersonItem> initialPeople;
+  final ProjectTypeConfig projectType;
   final Map<int, String> colorLabels;
   final bool hideCompletedProjectItems;
   final CardLayoutPreset cardLayoutPreset;
@@ -60,6 +62,12 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
   CardLayoutSpec get _layout =>
       cardLayoutSpecForPreset(widget.cardLayoutPreset);
+
+  String get _itemLabel => widget.projectType.childItemLabel;
+  String get _itemsLabel => widget.projectType.childItemsLabel;
+  String get _journalEntryLabel => widget.projectType.childJournalEntryLabel;
+  String get _journalEntriesLabel =>
+      widget.projectType.childJournalEntriesLabel;
 
   void _notifyPeopleChanged() {
     widget.onPeopleChanged(
@@ -115,7 +123,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.menu_book_outlined),
-                title: const Text('Journal entry'),
+                title: Text(_journalEntryLabel),
                 onTap: () =>
                     Navigator.of(context).pop(_PersonEntryKind.journal),
               ),
@@ -155,7 +163,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     final String day = createdAt.day.toString().padLeft(2, '0');
     final String hour = createdAt.hour.toString().padLeft(2, '0');
     final String minute = createdAt.minute.toString().padLeft(2, '0');
-    return 'Interaction ${createdAt.year}-$month-$day $hour:$minute';
+    return '$_journalEntryLabel ${createdAt.year}-$month-$day $hour:$minute';
   }
 
   Future<_PersonMenuAction?> _showPersonMenu(PersonItem person) {
@@ -171,12 +179,12 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
                   person.name,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text('Person settings'),
+                subtitle: Text('$_itemLabel settings'),
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit person'),
+                title: Text('Edit ${_itemLabel.toLowerCase()}'),
                 onTap: () => Navigator.of(context).pop(_PersonMenuAction.edit),
               ),
               ListTile(
@@ -193,7 +201,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
-                title: const Text('Remove person'),
+                title: Text('Remove ${_itemLabel.toLowerCase()}'),
                 onTap: () =>
                     Navigator.of(context).pop(_PersonMenuAction.remove),
               ),
@@ -317,13 +325,14 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     final PersonItem person = _people[personIndex];
     final PersonEditResult? result =
         await showModalBottomSheet<PersonEditResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => EditPersonSheet(
-            initialName: person.name,
-            initialBody: person.body,
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditPersonSheet(
+        initialName: person.name,
+        initialBody: person.body,
+        itemLabel: _itemLabel,
+      ),
+    );
 
     if (result == null) {
       return;
@@ -371,12 +380,12 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: person.colorValue,
-            customLabels: widget.colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: person.colorValue,
+        customLabels: widget.colorLabels,
+      ),
+    );
     if (selection == null) {
       return;
     }
@@ -412,15 +421,15 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     if (kind == _PersonEntryKind.journal) {
       final AddJournalEntryResult? result =
           await showModalBottomSheet<AddJournalEntryResult>(
-            context: context,
-            isScrollControlled: true,
-            builder: (_) => const AddJournalEntrySheet(
-              title: 'New Interaction Entry',
-              hintText:
-                  'Capture what happened, what mattered, and what to remember.',
-              saveLabel: 'Save Interaction',
-            ),
-          );
+        context: context,
+        isScrollControlled: true,
+        builder: (_) => AddJournalEntrySheet(
+          title: 'New $_journalEntryLabel',
+          hintText:
+              'Capture what happened, what mattered, and what to remember.',
+          saveLabel: 'Save $_journalEntryLabel',
+        ),
+      );
       if (result == null) {
         return;
       }
@@ -454,10 +463,10 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final AddTaskResult? createdTask =
         await showModalBottomSheet<AddTaskResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const AddTaskSheet(),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AddTaskSheet(),
+    );
     if (createdTask == null) {
       return;
     }
@@ -497,8 +506,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
     }
 
     final TaskItem task = person.tasks[taskIndex];
-    final TaskDetailAction?
-    action = await Navigator.of(context).push<TaskDetailAction>(
+    final TaskDetailAction? action =
+        await Navigator.of(context).push<TaskDetailAction>(
       MaterialPageRoute<TaskDetailAction>(
         builder: (_) => TaskDetailPage(
           task: task,
@@ -705,12 +714,12 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: task.colorValue,
-            customLabels: widget.colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: task.colorValue,
+        customLabels: widget.colorLabels,
+      ),
+    );
     if (selection == null) {
       return;
     }
@@ -760,9 +769,8 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       person,
     ).toList(growable: true);
     final List<TaskItem> ideaTasks = _ideaTasks(person).toList(growable: true);
-    final List<TaskItem> targetList = task.entryType == TaskEntryType.journal
-        ? journalEntries
-        : ideaTasks;
+    final List<TaskItem> targetList =
+        task.entryType == TaskEntryType.journal ? journalEntries : ideaTasks;
     final int sourceIndex = targetList.indexWhere(
       (TaskItem entry) => entry.id == taskId,
     );
@@ -828,7 +836,9 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
   Widget build(BuildContext context) {
     final PersonItem? person = _findPerson();
     if (person == null) {
-      return const Scaffold(body: Center(child: Text('Person not found.')));
+      return Scaffold(
+        body: Center(child: Text('$_itemLabel not found.')),
+      );
     }
 
     final List<TaskItem> journalEntries = _journalEntries(person);
@@ -849,7 +859,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
         actions: <Widget>[
           IconButton(
             onPressed: _openPersonSettings,
-            tooltip: 'Person settings',
+            tooltip: '$_itemLabel settings',
             icon: const Icon(Icons.settings_outlined),
           ),
         ],
@@ -873,7 +883,10 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
                 ),
               ),
             ),
-          Text('Interactions', style: Theme.of(context).textTheme.titleMedium),
+          Text(
+            _journalEntriesLabel,
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
           const SizedBox(height: 8),
           for (final TaskItem task in journalEntries) _buildJournalCard(task),
           const SizedBox(height: 8),
@@ -884,7 +897,7 @@ class _PersonDetailPageState extends State<PersonDetailPage> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: _addEntry,
-        tooltip: 'Add interaction or idea',
+        tooltip: 'Add ${_journalEntryLabel.toLowerCase()} or idea',
         child: const Icon(Icons.add),
       ),
     );

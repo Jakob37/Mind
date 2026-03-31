@@ -1,7 +1,7 @@
 name: sorted_out
 description: A boilerplate Flutter project.
 publish_to: "none"
-version: 0.3.2+9
+version: 0.3.3+10
 
 environment:
   sdk: ">=3.4.0 <4.0.0"

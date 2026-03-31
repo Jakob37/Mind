@@ -98,8 +98,7 @@ class ProjectDetailPage extends StatefulWidget {
   final void Function(
     List<ProjectItem> projects,
     List<ProjectStack> projectStacks,
-  )
-  onProjectDataChanged;
+  ) onProjectDataChanged;
 
   @override
   State<ProjectDetailPage> createState() => _ProjectDetailPageState();
@@ -182,10 +181,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     bool includeArchived = false,
   }) {
     return _tasksByType(
-          project,
-          TaskItemType.thinking,
-          includeArchived: includeArchived,
-        )
+      project,
+      TaskItemType.thinking,
+      includeArchived: includeArchived,
+    )
         .where((TaskItem task) => task.entryType != TaskEntryType.journal)
         .toList(growable: false);
   }
@@ -195,10 +194,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     bool includeArchived = false,
   }) {
     return _tasksByType(
-          project,
-          TaskItemType.planning,
-          includeArchived: includeArchived,
-        )
+      project,
+      TaskItemType.planning,
+      includeArchived: includeArchived,
+    )
         .where((TaskItem task) => task.entryType != TaskEntryType.journal)
         .toList(growable: false);
   }
@@ -294,11 +293,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return customLabel.trim();
     }
 
-    final String hexValue = colorValue
-        .toRadixString(16)
-        .padLeft(8, '0')
-        .substring(2)
-        .toUpperCase();
+    final String hexValue =
+        colorValue.toRadixString(16).padLeft(8, '0').substring(2).toUpperCase();
     return '#$hexValue';
   }
 
@@ -362,6 +358,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return _projectRulesFor(project).acceptsRootTasks;
   }
 
+  String _peopleItemLabel(ProjectItem project) {
+    return _projectTypeFor(project).childItemLabel;
+  }
+
+  String _peopleItemsLabel(ProjectItem project) {
+    return _projectTypeFor(project).childItemsLabel;
+  }
+
   List<PersonItem> _visiblePeople(ProjectItem project) {
     return project.people
         .where((PersonItem person) => !person.isArchived)
@@ -401,10 +405,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final AddSessionResult? result =
         await showModalBottomSheet<AddSessionResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const AddSessionSheet(),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AddSessionSheet(),
+    );
 
     if (!mounted || result == null) {
       return;
@@ -466,10 +470,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final TaskItem targetSession = sessions.first;
     final QuickCaptureResult? result =
         await showModalBottomSheet<QuickCaptureResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => QuickCaptureSheet(sessionTitle: targetSession.title),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => QuickCaptureSheet(sessionTitle: targetSession.title),
+    );
 
     if (!mounted || result == null) {
       return;
@@ -633,77 +637,76 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       builder: (BuildContext context) {
         final Set<int> selectedColors = <int>{...initialSelection};
         return StatefulBuilder(
-          builder:
-              (
-                BuildContext context,
-                void Function(void Function()) setModalState,
-              ) {
-                return SafeArea(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      16,
-                      16,
-                      16,
-                      16 + MediaQuery.of(context).viewInsets.bottom,
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+          builder: (
+            BuildContext context,
+            void Function(void Function()) setModalState,
+          ) {
+            return SafeArea(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  16,
+                  16,
+                  16,
+                  16 + MediaQuery.of(context).viewInsets.bottom,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    const Row(
                       children: <Widget>[
-                        const Row(
-                          children: <Widget>[
-                            Icon(Icons.memory_outlined),
-                            SizedBox(width: 10),
-                            Expanded(
-                              child: Text(
-                                'Filter Prompt Tasks',
-                                style: TextStyle(fontWeight: FontWeight.w600),
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Flexible(
-                          child: ListView(
-                            shrinkWrap: true,
-                            children: <Widget>[
-                              for (final int colorValue in availableColors)
-                                CheckboxListTile(
-                                  value: selectedColors.contains(colorValue),
-                                  contentPadding: EdgeInsets.zero,
-                                  secondary: CircleAvatar(
-                                    radius: 10,
-                                    backgroundColor: Color(colorValue),
-                                  ),
-                                  title: Text(_colorLabel(colorValue)),
-                                  onChanged: (bool? value) {
-                                    setModalState(() {
-                                      if (value ?? false) {
-                                        selectedColors.add(colorValue);
-                                      } else {
-                                        selectedColors.remove(colorValue);
-                                      }
-                                    });
-                                  },
-                                ),
-                            ],
+                        Icon(Icons.memory_outlined),
+                        SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Filter Prompt Tasks',
+                            style: TextStyle(fontWeight: FontWeight.w600),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        FilledButton.icon(
-                          onPressed: selectedColors.isEmpty
-                              ? null
-                              : () => Navigator.of(
-                                  context,
-                                ).pop(<int>{...selectedColors}),
-                          icon: const Icon(Icons.memory_outlined),
-                          label: const Text('Generate Prompt'),
                         ),
                       ],
                     ),
-                  ),
-                );
-              },
+                    const SizedBox(height: 12),
+                    Flexible(
+                      child: ListView(
+                        shrinkWrap: true,
+                        children: <Widget>[
+                          for (final int colorValue in availableColors)
+                            CheckboxListTile(
+                              value: selectedColors.contains(colorValue),
+                              contentPadding: EdgeInsets.zero,
+                              secondary: CircleAvatar(
+                                radius: 10,
+                                backgroundColor: Color(colorValue),
+                              ),
+                              title: Text(_colorLabel(colorValue)),
+                              onChanged: (bool? value) {
+                                setModalState(() {
+                                  if (value ?? false) {
+                                    selectedColors.add(colorValue);
+                                  } else {
+                                    selectedColors.remove(colorValue);
+                                  }
+                                });
+                              },
+                            ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    FilledButton.icon(
+                      onPressed: selectedColors.isEmpty
+                          ? null
+                          : () => Navigator.of(
+                                context,
+                              ).pop(<int>{...selectedColors}),
+                      icon: const Icon(Icons.memory_outlined),
+                      label: const Text('Generate Prompt'),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         );
       },
     );
@@ -733,9 +736,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         ..writeln();
     }
     if (selectedColors != null && selectedColors.isNotEmpty) {
-      final List<String> labels = selectedColors
-          .map(_colorLabel)
-          .toList(growable: false);
+      final List<String> labels =
+          selectedColors.map(_colorLabel).toList(growable: false);
       buffer
         ..writeln('Selected colors: ${labels.join(', ')}')
         ..writeln();
@@ -920,75 +922,75 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final ProjectRules projectRules = _projectRulesFor(project);
     final bool canMoveBetweenSections =
         task.entryType != TaskEntryType.session &&
-        task.entryType != TaskEntryType.journal &&
-        projectRules.canMoveBetweenTaskSections;
-    final TaskDetailAction? action = await Navigator.of(context)
-        .push<TaskDetailAction>(
-          MaterialPageRoute<TaskDetailAction>(
-            builder: (_) => TaskDetailPage(
-              task: task,
-              cardLayoutPreset: widget.cardLayoutPreset,
-              colorLabels: widget.colorLabels,
-              onTaskChanged: (TaskItem updatedTask) {
-                final ProjectItem? activeProject = _findProject();
-                if (activeProject == null) {
-                  return;
-                }
-                final int sourceTaskIndex = _findTaskIndex(
-                  activeProject,
-                  taskId,
-                );
-                if (sourceTaskIndex < 0) {
-                  return;
-                }
-                setState(() {
-                  activeProject.tasks[sourceTaskIndex] = updatedTask.clone();
-                });
-                _notifyProjectDataChanged();
-              },
-              menuItems: <TaskDetailMenuItem>[
-                const TaskDetailMenuItem(
-                  action: TaskDetailAction.edit,
-                  icon: Icons.edit_outlined,
-                  label: 'Edit task',
-                ),
-                const TaskDetailMenuItem(
-                  action: TaskDetailAction.setIcon,
-                  icon: Icons.add_reaction_outlined,
-                  label: 'Set icon',
-                ),
-                const TaskDetailMenuItem(
-                  action: TaskDetailAction.setColor,
-                  icon: Icons.palette_outlined,
-                  label: 'Set color',
-                ),
-                if (canMoveBetweenSections)
-                  TaskDetailMenuItem(
-                    action: task.type == TaskItemType.thinking
-                        ? TaskDetailAction.moveToPlanning
-                        : TaskDetailAction.moveToThinking,
-                    icon: task.type == TaskItemType.thinking
-                        ? Icons.checklist_rtl_outlined
-                        : Icons.lightbulb_outline,
-                    label: task.type == TaskItemType.thinking
-                        ? 'Move to planning'
-                        : 'Move to thinking',
-                  ),
-                const TaskDetailMenuItem(
-                  action: TaskDetailAction.moveToProject,
-                  icon: Icons.drive_file_move_outlined,
-                  label: 'Move to project',
-                ),
-                const TaskDetailMenuItem(
-                  action: TaskDetailAction.remove,
-                  icon: Icons.delete_outline,
-                  label: 'Remove task',
-                ),
-              ],
-              hideCompletedProjectItems: widget.hideCompletedProjectItems,
+            task.entryType != TaskEntryType.journal &&
+            projectRules.canMoveBetweenTaskSections;
+    final TaskDetailAction? action =
+        await Navigator.of(context).push<TaskDetailAction>(
+      MaterialPageRoute<TaskDetailAction>(
+        builder: (_) => TaskDetailPage(
+          task: task,
+          cardLayoutPreset: widget.cardLayoutPreset,
+          colorLabels: widget.colorLabels,
+          onTaskChanged: (TaskItem updatedTask) {
+            final ProjectItem? activeProject = _findProject();
+            if (activeProject == null) {
+              return;
+            }
+            final int sourceTaskIndex = _findTaskIndex(
+              activeProject,
+              taskId,
+            );
+            if (sourceTaskIndex < 0) {
+              return;
+            }
+            setState(() {
+              activeProject.tasks[sourceTaskIndex] = updatedTask.clone();
+            });
+            _notifyProjectDataChanged();
+          },
+          menuItems: <TaskDetailMenuItem>[
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.edit,
+              icon: Icons.edit_outlined,
+              label: 'Edit task',
             ),
-          ),
-        );
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.setIcon,
+              icon: Icons.add_reaction_outlined,
+              label: 'Set icon',
+            ),
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.setColor,
+              icon: Icons.palette_outlined,
+              label: 'Set color',
+            ),
+            if (canMoveBetweenSections)
+              TaskDetailMenuItem(
+                action: task.type == TaskItemType.thinking
+                    ? TaskDetailAction.moveToPlanning
+                    : TaskDetailAction.moveToThinking,
+                icon: task.type == TaskItemType.thinking
+                    ? Icons.checklist_rtl_outlined
+                    : Icons.lightbulb_outline,
+                label: task.type == TaskItemType.thinking
+                    ? 'Move to planning'
+                    : 'Move to thinking',
+              ),
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.moveToProject,
+              icon: Icons.drive_file_move_outlined,
+              label: 'Move to project',
+            ),
+            const TaskDetailMenuItem(
+              action: TaskDetailAction.remove,
+              icon: Icons.delete_outline,
+              label: 'Remove task',
+            ),
+          ],
+          hideCompletedProjectItems: widget.hideCompletedProjectItems,
+        ),
+      ),
+    );
     if (!mounted || action == null) {
       return;
     }
@@ -1024,11 +1026,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Future<_ProjectTaskMenuAction?> _showTaskMenu(TaskItem task) {
     final ProjectItem? project = _findProject();
-    final ProjectRules? projectRules = project == null
-        ? null
-        : _projectRulesFor(project);
-    final bool canMoveToOtherSection =
-        project != null &&
+    final ProjectRules? projectRules =
+        project == null ? null : _projectRulesFor(project);
+    final bool canMoveToOtherSection = project != null &&
         task.entryType != TaskEntryType.session &&
         task.entryType != TaskEntryType.journal &&
         projectRules!.canMoveBetweenTaskSections;
@@ -1313,12 +1313,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: task.colorValue,
-            customLabels: widget.colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: task.colorValue,
+        customLabels: widget.colorLabels,
+      ),
+    );
 
     if (selection == null) {
       return;
@@ -1438,19 +1438,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final TaskItemType effectiveTargetType =
         sourceTask.entryType == TaskEntryType.session
-        ? TaskItemType.thinking
-        : targetType;
+            ? TaskItemType.thinking
+            : targetType;
     final List<TaskItem> destinationTasks =
         effectiveTargetType == TaskItemType.thinking
-        ? thinkingTasks
-        : planningTasks;
+            ? thinkingTasks
+            : planningTasks;
 
     final int insertionIndex = reorderInsertionIndex(
       targetIndex: targetIndex,
       destinationLength: destinationTasks.length,
-      sourceIndexInSameList: sourceType == effectiveTargetType
-          ? sourceIndex
-          : null,
+      sourceIndexInSameList:
+          sourceType == effectiveTargetType ? sourceIndex : null,
     );
 
     final TaskItem movedTask = sourceTask.type == effectiveTargetType
@@ -1623,9 +1622,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     setState(() {
       project.tasks.removeAt(sourceIndex);
-      final int adjustedTargetIndex = sourceIndex < targetIndex
-          ? targetIndex - 1
-          : targetIndex;
+      final int adjustedTargetIndex =
+          sourceIndex < targetIndex ? targetIndex - 1 : targetIndex;
       final TaskItem adjustedTarget = project.tasks[adjustedTargetIndex];
       project.tasks[adjustedTargetIndex] = adjustedTarget.copyWith(
         subtasks: <SubTaskItem>[
@@ -1916,15 +1914,15 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final ProjectEditResult? result =
         await showModalBottomSheet<ProjectEditResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => EditProjectSheet(
-            initialName: project.name,
-            initialBody: project.body,
-            initialPrompt: project.prompt,
-            showPromptField: _isLlmProject(project),
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditProjectSheet(
+        initialName: project.name,
+        initialBody: project.body,
+        initialPrompt: project.prompt,
+        showPromptField: _isLlmProject(project),
+      ),
+    );
 
     if (result == null) {
       return;
@@ -1984,12 +1982,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: project.colorValue,
-            customLabels: widget.colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: project.colorValue,
+        customLabels: widget.colorLabels,
+      ),
+    );
 
     if (selection == null) {
       return;
@@ -2052,13 +2050,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         : ProjectStackSelection.existing(stackId: project.stackId!);
     final ProjectStackSelection? selection =
         await showModalBottomSheet<ProjectStackSelection>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => SelectProjectStackSheet(
-            projectStacks: _projectStacks,
-            initialSelection: initialSelection,
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => SelectProjectStackSheet(
+        projectStacks: _projectStacks,
+        initialSelection: initialSelection,
+      ),
+    );
 
     if (!mounted || selection == null) {
       return;
@@ -2240,7 +2238,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   leading: const Icon(Icons.menu_book_outlined),
                   title: Text(
                     projectRules.isPeopleContainer
-                        ? 'Journal entry'
+                        ? projectType.childJournalEntryLabel
                         : 'Diary entry',
                   ),
                   onTap: () =>
@@ -2281,21 +2279,22 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       if (project == null) {
         return;
       }
+      final ProjectTypeConfig projectType = _projectTypeFor(project);
       final ProjectRules projectRules = _projectRulesFor(project);
 
-      final AddJournalEntryResult?
-      createdEntry = await showModalBottomSheet<AddJournalEntryResult>(
+      final AddJournalEntryResult? createdEntry =
+          await showModalBottomSheet<AddJournalEntryResult>(
         context: context,
         isScrollControlled: true,
         builder: (_) => AddJournalEntrySheet(
           title: projectRules.isPeopleContainer
-              ? 'New Interaction Entry'
+              ? 'New ${projectType.childJournalEntryLabel}'
               : 'New Diary Entry',
           hintText: projectRules.isPeopleContainer
               ? 'Capture the interaction, context, and anything to follow up.'
               : 'Write what happened, what you noticed, or what you want to keep.',
           saveLabel: projectRules.isPeopleContainer
-              ? 'Save Interaction'
+              ? 'Save ${projectType.childJournalEntryLabel}'
               : 'Save Entry',
         ),
       );
@@ -2323,10 +2322,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final AddTaskResult? createdTask =
         await showModalBottomSheet<AddTaskResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => const AddTaskSheet(),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => const AddTaskSheet(),
+    );
 
     if (createdTask == null) {
       return;
@@ -2379,7 +2378,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final AddPersonResult? result = await showModalBottomSheet<AddPersonResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => const AddPersonSheet(),
+      builder: (_) => AddPersonSheet(
+        itemLabel: _peopleItemLabel(project),
+      ),
     );
 
     if (result == null) {
@@ -2406,6 +2407,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         builder: (_) => PersonDetailPage(
           personId: personId,
           initialPeople: project.people,
+          projectType: _projectTypeFor(project),
           colorLabels: widget.colorLabels,
           hideCompletedProjectItems: widget.hideCompletedProjectItems,
           cardLayoutPreset: widget.cardLayoutPreset,
@@ -2421,6 +2423,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   }
 
   Future<_PersonCardMenuAction?> _showPersonCardMenu(PersonItem person) {
+    final ProjectItem? project = _findProject();
+    final String itemLabel =
+        project == null ? 'Item' : _peopleItemLabel(project);
     return showModalBottomSheet<_PersonCardMenuAction>(
       context: context,
       builder: (BuildContext context) {
@@ -2433,18 +2438,18 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                   person.name,
                   style: const TextStyle(fontWeight: FontWeight.w600),
                 ),
-                subtitle: const Text('Person options'),
+                subtitle: Text('$itemLabel options'),
               ),
               const Divider(height: 1),
               ListTile(
                 leading: const Icon(Icons.open_in_new_outlined),
-                title: const Text('Open person'),
+                title: Text('Open ${itemLabel.toLowerCase()}'),
                 onTap: () =>
                     Navigator.of(context).pop(_PersonCardMenuAction.open),
               ),
               ListTile(
                 leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit person'),
+                title: Text('Edit ${itemLabel.toLowerCase()}'),
                 onTap: () =>
                     Navigator.of(context).pop(_PersonCardMenuAction.edit),
               ),
@@ -2475,7 +2480,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ),
               ListTile(
                 leading: const Icon(Icons.delete_outline),
-                title: const Text('Remove person'),
+                title: Text('Remove ${itemLabel.toLowerCase()}'),
                 onTap: () =>
                     Navigator.of(context).pop(_PersonCardMenuAction.remove),
               ),
@@ -2547,13 +2552,14 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final PersonItem person = project.people[personIndex];
     final PersonEditResult? result =
         await showModalBottomSheet<PersonEditResult>(
-          context: context,
-          isScrollControlled: true,
-          builder: (_) => EditPersonSheet(
-            initialName: person.name,
-            initialBody: person.body,
-          ),
-        );
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => EditPersonSheet(
+        initialName: person.name,
+        initialBody: person.body,
+        itemLabel: _peopleItemLabel(project),
+      ),
+    );
 
     if (result == null) {
       return;
@@ -2611,12 +2617,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final PersonItem person = project.people[personIndex];
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(
-            currentColorValue: person.colorValue,
-            customLabels: widget.colorLabels,
-          ),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(
+        currentColorValue: person.colorValue,
+        customLabels: widget.colorLabels,
+      ),
+    );
     if (selection == null) {
       return;
     }
@@ -2701,49 +2707,48 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           targetIndex: targetIndex,
         );
       },
-      builder:
-          (
-            BuildContext context,
-            List<_PersonDragPayload?> candidateData,
-            List<dynamic> rejectedData,
-          ) {
-            final bool isActive = candidateData.isNotEmpty;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              height: isActive
-                  ? 28
-                  : (_draggingPersonId == null ? inactiveHeight : 14),
-              decoration: BoxDecoration(
-                color: isActive
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.22)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            );
-          },
+      builder: (
+        BuildContext context,
+        List<_PersonDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isActive = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height:
+              isActive ? 28 : (_draggingPersonId == null ? inactiveHeight : 14),
+          decoration: BoxDecoration(
+            color: isActive
+                ? Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.22)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildPeopleProjectCard(PersonItem person) {
+  Widget _buildPeopleProjectCard(ProjectItem project, PersonItem person) {
+    final String itemLabel = _peopleItemLabel(project);
     final Widget tile = Card(
       color: person.colorValue == null ? null : Color(person.colorValue!),
       child: ListTile(
         contentPadding: _layout.contentPadding,
-        leading: Icon(iconDataForKey(person.iconKey) ?? Icons.person_outline),
+        leading: Icon(iconDataForKey(person.iconKey) ?? Icons.label_outline),
         title: Text(
           person.name,
           maxLines: null,
           style: Theme.of(context).textTheme.titleMedium?.copyWith(
-            fontSize:
-                (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
-                _layout.titleScale,
-          ),
+                fontSize:
+                    (Theme.of(context).textTheme.titleMedium?.fontSize ?? 16) *
+                        _layout.titleScale,
+              ),
         ),
         trailing: IconButton(
           onPressed: () => _openPersonCardMenu(person.id),
-          tooltip: 'Person options',
+          tooltip: '$itemLabel options',
           icon: const Icon(Icons.more_vert),
         ),
         onTap: () => _openPersonDetail(person.id),
@@ -2800,7 +2805,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
   Widget _buildPeopleProjectBody(ProjectItem project) {
     final List<PersonItem> people = _visiblePeople(project);
-
+    final String itemsLabel = _peopleItemsLabel(project);
     return ListView(
       padding: EdgeInsets.fromLTRB(
         12,
@@ -2828,17 +2833,17 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ),
             ),
           ),
-        Text('People', style: Theme.of(context).textTheme.titleMedium),
+        Text(itemsLabel, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: 8),
         if (people.isEmpty)
           Text(
-            'No people in this project yet.',
+            'No ${itemsLabel.toLowerCase()} in this project yet.',
             style: Theme.of(context).textTheme.bodyMedium,
           ),
         if (people.isNotEmpty)
           _buildPersonDropSlot(targetIndex: 0, inactiveHeight: 0),
         for (int index = 0; index < people.length; index += 1) ...<Widget>[
-          _buildPeopleProjectCard(people[index]),
+          _buildPeopleProjectCard(project, people[index]),
           _buildPersonDropSlot(targetIndex: index + 1, inactiveHeight: 4),
         ],
       ],
@@ -2852,13 +2857,12 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     bool showOptionsButton = false,
     double bottomPadding = 4,
   }) {
-    final IconData? iconData =
-        iconDataForKey(task.iconKey) ??
+    final IconData? iconData = iconDataForKey(task.iconKey) ??
         (task.entryType == TaskEntryType.session
             ? Icons.headset_outlined
             : task.entryType == TaskEntryType.journal
-            ? Icons.menu_book_outlined
-            : null);
+                ? Icons.menu_book_outlined
+                : null);
     final bool hasNestedItems = task.subtasks.isNotEmpty;
     final bool isExpanded = _expandedProjectTaskIds.contains(task.id);
     final List<Widget> trailingParts = <Widget>[
@@ -2877,9 +2881,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           child: Text(
             'Session',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onTertiaryContainer,
-              fontWeight: FontWeight.w700,
-            ),
+                  color: Theme.of(context).colorScheme.onTertiaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ),
       if (showNestedPreview && hasNestedItems)
@@ -2906,9 +2910,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             child: Text(
               '${task.subtasks.length}',
               style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSecondaryContainer,
-                fontWeight: FontWeight.w600,
-              ),
+                    color: Theme.of(context).colorScheme.onSecondaryContainer,
+                    fontWeight: FontWeight.w600,
+                  ),
             ),
           ),
         ),
@@ -2922,9 +2926,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           child: Text(
             'Journal',
             style: Theme.of(context).textTheme.labelSmall?.copyWith(
-              color: Theme.of(context).colorScheme.onPrimaryContainer,
-              fontWeight: FontWeight.w700,
-            ),
+                  color: Theme.of(context).colorScheme.onPrimaryContainer,
+                  fontWeight: FontWeight.w700,
+                ),
           ),
         ),
       if (task.body.isNotEmpty)
@@ -2971,11 +2975,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 title: Text(
                   task.title,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                    fontSize:
-                        (Theme.of(context).textTheme.titleMedium?.fontSize ??
-                            16) *
-                        _layout.titleScale,
-                  ),
+                        fontSize: (Theme.of(context)
+                                    .textTheme
+                                    .titleMedium
+                                    ?.fontSize ??
+                                16) *
+                            _layout.titleScale,
+                      ),
                   maxLines: null,
                 ),
                 trailing: effectiveTrailing,
@@ -3028,8 +3034,8 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                     child: Text(
                       _journalTimestampLabel(task),
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
-                      ),
+                            fontWeight: FontWeight.w700,
+                          ),
                     ),
                   ),
                   IconButton(
@@ -3262,38 +3268,37 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return DragTarget<_TaskSectionDragPayload>(
       onWillAcceptWithDetails:
           (DragTargetDetails<_TaskSectionDragPayload> details) {
-            return true;
-          },
+        return true;
+      },
       onAcceptWithDetails:
           (DragTargetDetails<_TaskSectionDragPayload> details) {
-            _moveTaskToPosition(
-              taskId: details.data.taskId,
-              targetType: sectionType,
-              targetIndex: targetIndex,
-            );
-          },
-      builder:
-          (
-            BuildContext context,
-            List<_TaskSectionDragPayload?> candidateData,
-            List<dynamic> rejectedData,
-          ) {
-            final bool isActiveDropTarget = candidateData.isNotEmpty;
-            return AnimatedContainer(
-              duration: const Duration(milliseconds: 120),
-              height: isActiveDropTarget
-                  ? 30
-                  : (_draggingProjectTaskId == null ? inactiveHeight : 14),
-              decoration: BoxDecoration(
-                color: isActiveDropTarget
-                    ? Theme.of(
-                        context,
-                      ).colorScheme.primary.withValues(alpha: 0.22)
-                    : Colors.transparent,
-                borderRadius: BorderRadius.circular(8),
-              ),
-            );
-          },
+        _moveTaskToPosition(
+          taskId: details.data.taskId,
+          targetType: sectionType,
+          targetIndex: targetIndex,
+        );
+      },
+      builder: (
+        BuildContext context,
+        List<_TaskSectionDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isActiveDropTarget = candidateData.isNotEmpty;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          height: isActiveDropTarget
+              ? 30
+              : (_draggingProjectTaskId == null ? inactiveHeight : 14),
+          decoration: BoxDecoration(
+            color: isActiveDropTarget
+                ? Theme.of(
+                    context,
+                  ).colorScheme.primary.withValues(alpha: 0.22)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+      },
     );
   }
 
@@ -3304,118 +3309,117 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     return DragTarget<_TaskSectionDragPayload>(
       onWillAcceptWithDetails:
           (DragTargetDetails<_TaskSectionDragPayload> details) {
-            return details.data.taskId != task.id;
-          },
+        return details.data.taskId != task.id;
+      },
       onAcceptWithDetails:
           (DragTargetDetails<_TaskSectionDragPayload> details) {
-            _nestTaskUnderTask(
-              sourceTaskId: details.data.taskId,
-              targetTaskId: task.id,
-            );
+        _nestTaskUnderTask(
+          sourceTaskId: details.data.taskId,
+          targetTaskId: task.id,
+        );
+      },
+      builder: (
+        BuildContext context,
+        List<_TaskSectionDragPayload?> candidateData,
+        List<dynamic> rejectedData,
+      ) {
+        final bool isHovering = candidateData.isNotEmpty;
+        final Widget tile = Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: isHovering
+                  ? Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                      width: 2,
+                    )
+                  : null,
+            ),
+            child: _buildTaskCard(
+              task: task,
+              onTap: () => _openTaskView(task.id),
+              showNestedPreview: showNestedPreview,
+              showOptionsButton: true,
+              bottomPadding: 0,
+            ),
+          ),
+        );
+        return Dismissible(
+          key: ValueKey<String>('project-task-swipe-${task.id}'),
+          direction: DismissDirection.horizontal,
+          confirmDismiss: (DismissDirection direction) async {
+            if (direction == DismissDirection.startToEnd) {
+              _archiveTask(task.id);
+              return true;
+            }
+            return true;
           },
-      builder:
-          (
-            BuildContext context,
-            List<_TaskSectionDragPayload?> candidateData,
-            List<dynamic> rejectedData,
-          ) {
-            final bool isHovering = candidateData.isNotEmpty;
-            final Widget tile = Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(12),
-                  border: isHovering
-                      ? Border.all(
-                          color: Theme.of(context).colorScheme.primary,
-                          width: 2,
-                        )
-                      : null,
-                ),
-                child: _buildTaskCard(
-                  task: task,
-                  onTap: () => _openTaskView(task.id),
-                  showNestedPreview: showNestedPreview,
-                  showOptionsButton: true,
-                  bottomPadding: 0,
-                ),
-              ),
-            );
-            return Dismissible(
-              key: ValueKey<String>('project-task-swipe-${task.id}'),
-              direction: DismissDirection.horizontal,
-              confirmDismiss: (DismissDirection direction) async {
-                if (direction == DismissDirection.startToEnd) {
-                  _archiveTask(task.id);
-                  return true;
-                }
-                return true;
+          onDismissed: (DismissDirection direction) {
+            if (direction == DismissDirection.endToStart) {
+              _deleteTask(task.id);
+            }
+          },
+          background: Container(
+            margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.tertiaryContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerLeft,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(
+              Icons.archive_outlined,
+              color: Theme.of(context).colorScheme.onTertiaryContainer,
+            ),
+          ),
+          secondaryBackground: Container(
+            margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.errorContainer,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            alignment: Alignment.centerRight,
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            child: Icon(
+              Icons.delete_outline,
+              color: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+          ),
+          child: Padding(
+            padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
+            child: LongPressDraggable<_TaskSectionDragPayload>(
+              data: _TaskSectionDragPayload(taskId: task.id),
+              onDragStarted: () {
+                setState(() {
+                  _draggingProjectTaskId = task.id;
+                });
               },
-              onDismissed: (DismissDirection direction) {
-                if (direction == DismissDirection.endToStart) {
-                  _deleteTask(task.id);
+              onDragEnd: (_) {
+                if (_draggingProjectTaskId == task.id) {
+                  setState(() {
+                    _draggingProjectTaskId = null;
+                  });
                 }
               },
-              background: Container(
-                margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.tertiaryContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.centerLeft,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Icon(
-                  Icons.archive_outlined,
-                  color: Theme.of(context).colorScheme.onTertiaryContainer,
-                ),
-              ),
-              secondaryBackground: Container(
-                margin: EdgeInsets.only(bottom: _layout.listBottomSpacing),
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.errorContainer,
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                alignment: Alignment.centerRight,
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Icon(
-                  Icons.delete_outline,
-                  color: Theme.of(context).colorScheme.onErrorContainer,
-                ),
-              ),
-              child: Padding(
-                padding: EdgeInsets.only(bottom: _layout.listBottomSpacing),
-                child: LongPressDraggable<_TaskSectionDragPayload>(
-                  data: _TaskSectionDragPayload(taskId: task.id),
-                  onDragStarted: () {
-                    setState(() {
-                      _draggingProjectTaskId = task.id;
-                    });
-                  },
-                  onDragEnd: (_) {
-                    if (_draggingProjectTaskId == task.id) {
-                      setState(() {
-                        _draggingProjectTaskId = null;
-                      });
-                    }
-                  },
-                  feedback: Material(
-                    color: Colors.transparent,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 320),
-                      child: _buildTaskCard(
-                        task: task,
-                        onTap: null,
-                        showNestedPreview: showNestedPreview,
-                        bottomPadding: 0,
-                      ),
-                    ),
+              feedback: Material(
+                color: Colors.transparent,
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 320),
+                  child: _buildTaskCard(
+                    task: task,
+                    onTap: null,
+                    showNestedPreview: showNestedPreview,
+                    bottomPadding: 0,
                   ),
-                  childWhenDragging: Opacity(opacity: 0.45, child: tile),
-                  child: tile,
                 ),
               ),
-            );
-          },
+              childWhenDragging: Opacity(opacity: 0.45, child: tile),
+              child: tile,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -3512,7 +3516,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
     final bool showProjectTypeLabel =
         projectType.id != ProjectTypeDefaults.blankId &&
-        projectType.id != ProjectTypeDefaults.projectId;
+            projectType.id != ProjectTypeDefaults.projectId;
     final TextStyle? appBarSubtitleStyle = Theme.of(context)
         .textTheme
         .labelMedium
@@ -3649,22 +3653,22 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       floatingActionButton: project.isArchived
           ? null
           : isPeopleProject
-          ? FloatingActionButton(
-              onPressed: _addPerson,
-              tooltip: 'Add person',
-              child: const Icon(Icons.add),
-            )
-          : !canCreateEntries
-          ? null
-          : FloatingActionButton(
-              onPressed: _addTaskToProject,
-              tooltip: projectRules.defaultsToJournalEntry
-                  ? 'Add journal entry'
-                  : isKnowledgeProject
-                  ? 'Add knowledge note'
-                  : 'Add project task',
-              child: const Icon(Icons.add),
-            ),
+              ? FloatingActionButton(
+                  onPressed: _addPerson,
+                  tooltip: 'Add ${_peopleItemLabel(project).toLowerCase()}',
+                  child: const Icon(Icons.add),
+                )
+              : !canCreateEntries
+                  ? null
+                  : FloatingActionButton(
+                      onPressed: _addTaskToProject,
+                      tooltip: projectRules.defaultsToJournalEntry
+                          ? 'Add journal entry'
+                          : isKnowledgeProject
+                              ? 'Add knowledge note'
+                              : 'Add project task',
+                      child: const Icon(Icons.add),
+                    ),
     );
   }
 }

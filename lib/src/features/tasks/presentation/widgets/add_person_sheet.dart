@@ -11,7 +11,20 @@ class AddPersonResult {
 }
 
 class AddPersonSheet extends StatefulWidget {
-  const AddPersonSheet({super.key});
+  const AddPersonSheet({
+    super.key,
+    this.itemLabel = 'Person',
+    this.notesLabel = 'Notes',
+    this.nameFieldLabel = 'Name',
+    this.nameHint = 'Alice',
+    this.notesHint = 'Context, relationship, or anything useful to remember',
+  });
+
+  final String itemLabel;
+  final String notesLabel;
+  final String nameFieldLabel;
+  final String nameHint;
+  final String notesHint;
 
   @override
   State<AddPersonSheet> createState() => _AddPersonSheetState();
@@ -69,7 +82,7 @@ class _AddPersonSheetState extends State<AddPersonSheet> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
           Text(
-            'New Person',
+            'New ${widget.itemLabel}',
             style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
@@ -79,9 +92,9 @@ class _AddPersonSheetState extends State<AddPersonSheet> {
             autofocus: true,
             minLines: 1,
             maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Name',
-              hintText: 'Alice',
+            decoration: InputDecoration(
+              labelText: widget.nameFieldLabel,
+              hintText: widget.nameHint,
             ),
           ),
           const SizedBox(height: 12),
@@ -89,16 +102,16 @@ class _AddPersonSheetState extends State<AddPersonSheet> {
             controller: _bodyController,
             minLines: 2,
             maxLines: 5,
-            decoration: const InputDecoration(
-              labelText: 'Notes',
-              hintText: 'Context, relationship, or anything useful to remember',
+            decoration: InputDecoration(
+              labelText: widget.notesLabel,
+              hintText: widget.notesHint,
               alignLabelWithHint: true,
             ),
           ),
           const SizedBox(height: 12),
           FilledButton(
             onPressed: _save,
-            child: const Text('Create Person'),
+            child: Text('Create ${widget.itemLabel}'),
           ),
         ],
       ),

@@ -18,7 +18,7 @@ class SelectProjectTypeSheet extends StatelessWidget {
   String _behaviorLabel(ProjectTypeConfig type) {
     final List<String> labels = <String>[];
     if (type.layoutKind == ProjectLayoutKind.peopleContainer) {
-      labels.add('People');
+      labels.add(type.childItemsLabel);
     }
     if (type.showsJournalEntries) {
       labels.add('Journal');

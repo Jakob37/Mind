@@ -1256,9 +1256,9 @@ void main() {
 
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
-    expect(find.text('Journal entry'), findsOneWidget);
+    expect(find.text('Interaction'), findsOneWidget);
     expect(find.text('Ideas'), findsWidgets);
-    await tester.tap(find.text('Journal entry'));
+    await tester.tap(find.text('Interaction'));
     await tester.pumpAndSettle();
     await tester.enterText(
       find.byType(TextField),

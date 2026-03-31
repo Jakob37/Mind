@@ -9,6 +9,8 @@ class ModelIds {
 
   static String newPersonId() => _newId('person');
 
+  static String newProjectEntryId() => _newId('entry');
+
   static String newProjectStackId() => _newId('stack');
 
   static String newProjectTypeId() => _newId('project-type');
@@ -81,9 +83,9 @@ class SubTaskItem {
     this.isCompleted = false,
     this.iconKey,
     List<SubTaskItem>? children,
-  }) : id = id ?? ModelIds.newSubTaskId(),
-       body = body ?? '',
-       children = children ?? <SubTaskItem>[];
+  })  : id = id ?? ModelIds.newSubTaskId(),
+        body = body ?? '',
+        children = children ?? <SubTaskItem>[];
 
   final String id;
   final String title;
@@ -123,8 +125,7 @@ class SubTaskItem {
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       isCompleted: isCompleted ?? this.isCompleted,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
-      children:
-          children ??
+      children: children ??
           this.children.map((SubTaskItem item) => item.clone()).toList(),
     );
   }
@@ -186,13 +187,13 @@ class TaskItem {
     this.isPinned = false,
     this.iconKey,
     List<SubTaskItem>? subtasks,
-  }) : id = id ?? ModelIds.newTaskId(),
-       body = body ?? '',
-       prompt = prompt ?? '',
-       flashcardPrompt = flashcardPrompt ?? '',
-       type = type ?? TaskItemType.planning,
-       entryType = entryType ?? TaskEntryType.note,
-       subtasks = subtasks ?? <SubTaskItem>[];
+  })  : id = id ?? ModelIds.newTaskId(),
+        body = body ?? '',
+        prompt = prompt ?? '',
+        flashcardPrompt = flashcardPrompt ?? '',
+        type = type ?? TaskItemType.planning,
+        entryType = entryType ?? TaskEntryType.note,
+        subtasks = subtasks ?? <SubTaskItem>[];
 
   final String id;
   final String title;
@@ -254,17 +255,15 @@ class TaskItem {
       body: body ?? this.body,
       prompt: prompt ?? this.prompt,
       flashcardPrompt: flashcardPrompt ?? this.flashcardPrompt,
-      createdAtMicros: clearCreatedAt
-          ? null
-          : (createdAtMicros ?? this.createdAtMicros),
+      createdAtMicros:
+          clearCreatedAt ? null : (createdAtMicros ?? this.createdAtMicros),
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
       type: type ?? this.type,
       entryType: entryType ?? this.entryType,
       isArchived: isArchived ?? this.isArchived,
       isPinned: isPinned ?? this.isPinned,
       iconKey: clearIcon ? null : (iconKey ?? this.iconKey),
-      subtasks:
-          subtasks ??
+      subtasks: subtasks ??
           this.subtasks.map((SubTaskItem item) => item.clone()).toList(),
     );
   }
@@ -345,11 +344,11 @@ class ProjectItem {
     this.projectTypeId,
     List<TaskItem>? tasks,
     List<PersonItem>? people,
-  }) : id = id ?? ModelIds.newProjectId(),
-       body = body ?? '',
-       prompt = prompt ?? '',
-       tasks = tasks ?? <TaskItem>[],
-       people = people ?? <PersonItem>[];
+  })  : id = id ?? ModelIds.newProjectId(),
+        body = body ?? '',
+        prompt = prompt ?? '',
+        tasks = tasks ?? <TaskItem>[],
+        people = people ?? <PersonItem>[];
 
   final String id;
   final String name;
@@ -409,12 +408,10 @@ class ProjectItem {
       isArchived: isArchived ?? this.isArchived,
       isPinned: isPinned ?? this.isPinned,
       stackId: clearStack ? null : (stackId ?? this.stackId),
-      projectTypeId: clearProjectType
-          ? null
-          : (projectTypeId ?? this.projectTypeId),
+      projectTypeId:
+          clearProjectType ? null : (projectTypeId ?? this.projectTypeId),
       tasks: tasks ?? this.tasks.map((TaskItem item) => item.clone()).toList(),
-      people:
-          people ??
+      people: people ??
           this.people.map((PersonItem person) => person.clone()).toList(),
     );
   }
@@ -463,9 +460,8 @@ class ProjectItem {
       isArchived: isArchived,
       isPinned: isPinned,
       stackId: stackId == null || stackId.isEmpty ? null : stackId,
-      projectTypeId: projectTypeId == null || projectTypeId.isEmpty
-          ? null
-          : projectTypeId,
+      projectTypeId:
+          projectTypeId == null || projectTypeId.isEmpty ? null : projectTypeId,
       tasks: taskJson
           .map(
             (dynamic item) => TaskItem.fromJson(
@@ -493,9 +489,9 @@ class PersonItem {
     this.iconKey,
     this.isArchived = false,
     List<TaskItem>? tasks,
-  }) : id = id ?? ModelIds.newPersonId(),
-       body = body ?? '',
-       tasks = tasks ?? <TaskItem>[];
+  })  : id = id ?? ModelIds.newPersonId(),
+        body = body ?? '',
+        tasks = tasks ?? <TaskItem>[];
 
   final String id;
   final String name;
@@ -580,7 +576,7 @@ class PersonItem {
 
 class ProjectStack {
   ProjectStack({String? id, required this.name, this.colorValue})
-    : id = id ?? ModelIds.newProjectStackId();
+      : id = id ?? ModelIds.newProjectStackId();
 
   final String id;
   final String name;
@@ -643,10 +639,12 @@ enum ProjectLayoutKind {
     return switch (rawValue.trim().toLowerCase()) {
       'journalonly' ||
       'journal_only' ||
-      'journal-only' => ProjectLayoutKind.journalOnly,
+      'journal-only' =>
+        ProjectLayoutKind.journalOnly,
       'peoplecontainer' ||
       'people_container' ||
-      'people-container' => ProjectLayoutKind.peopleContainer,
+      'people-container' =>
+        ProjectLayoutKind.peopleContainer,
       _ => ProjectLayoutKind.standard,
     };
   }
@@ -661,6 +659,10 @@ class ProjectTypeConfig {
     required this.showsJournalEntries,
     required this.showsPlanningTasks,
     required this.showsIdeas,
+    this.childItemLabel = 'Item',
+    this.childItemsLabel = 'Items',
+    this.childJournalEntryLabel = 'Journal entry',
+    this.childJournalEntriesLabel = 'Journal entries',
   });
 
   final String id;
@@ -670,6 +672,10 @@ class ProjectTypeConfig {
   final bool showsJournalEntries;
   final bool showsPlanningTasks;
   final bool showsIdeas;
+  final String childItemLabel;
+  final String childItemsLabel;
+  final String childJournalEntryLabel;
+  final String childJournalEntriesLabel;
 
   ProjectTypeConfig clone() {
     return ProjectTypeConfig(
@@ -680,6 +686,10 @@ class ProjectTypeConfig {
       showsJournalEntries: showsJournalEntries,
       showsPlanningTasks: showsPlanningTasks,
       showsIdeas: showsIdeas,
+      childItemLabel: childItemLabel,
+      childItemsLabel: childItemsLabel,
+      childJournalEntryLabel: childJournalEntryLabel,
+      childJournalEntriesLabel: childJournalEntriesLabel,
     );
   }
 
@@ -692,6 +702,10 @@ class ProjectTypeConfig {
     bool? showsJournalEntries,
     bool? showsPlanningTasks,
     bool? showsIdeas,
+    String? childItemLabel,
+    String? childItemsLabel,
+    String? childJournalEntryLabel,
+    String? childJournalEntriesLabel,
   }) {
     return ProjectTypeConfig(
       id: id ?? this.id,
@@ -701,6 +715,12 @@ class ProjectTypeConfig {
       showsJournalEntries: showsJournalEntries ?? this.showsJournalEntries,
       showsPlanningTasks: showsPlanningTasks ?? this.showsPlanningTasks,
       showsIdeas: showsIdeas ?? this.showsIdeas,
+      childItemLabel: childItemLabel ?? this.childItemLabel,
+      childItemsLabel: childItemsLabel ?? this.childItemsLabel,
+      childJournalEntryLabel:
+          childJournalEntryLabel ?? this.childJournalEntryLabel,
+      childJournalEntriesLabel:
+          childJournalEntriesLabel ?? this.childJournalEntriesLabel,
     );
   }
 
@@ -719,6 +739,10 @@ class ProjectTypeConfig {
       'showsJournalEntries': showsJournalEntries,
       'showsPlanningTasks': showsPlanningTasks,
       'showsIdeas': showsIdeas,
+      'childItemLabel': childItemLabel,
+      'childItemsLabel': childItemsLabel,
+      'childJournalEntryLabel': childJournalEntryLabel,
+      'childJournalEntriesLabel': childJournalEntriesLabel,
     };
   }
 
@@ -737,6 +761,16 @@ class ProjectTypeConfig {
       showsJournalEntries: _readOptionalBool(json, 'showsJournalEntries'),
       showsPlanningTasks: _readOptionalBool(json, 'showsPlanningTasks'),
       showsIdeas: _readOptionalBool(json, 'showsIdeas'),
+      childItemLabel: _readOptionalTrimmedString(json, 'childItemLabel') ??
+          defaultForId(id).childItemLabel,
+      childItemsLabel: _readOptionalTrimmedString(json, 'childItemsLabel') ??
+          defaultForId(id).childItemsLabel,
+      childJournalEntryLabel:
+          _readOptionalTrimmedString(json, 'childJournalEntryLabel') ??
+              defaultForId(id).childJournalEntryLabel,
+      childJournalEntriesLabel:
+          _readOptionalTrimmedString(json, 'childJournalEntriesLabel') ??
+              defaultForId(id).childJournalEntriesLabel,
     );
   }
 
@@ -746,6 +780,17 @@ class ProjectTypeConfig {
       ProjectTypeDefaults.peopleId => ProjectLayoutKind.peopleContainer,
       _ => ProjectLayoutKind.standard,
     };
+  }
+
+  static ProjectTypeConfig defaultForId(String? id) {
+    final String normalizedId =
+        (id == null || id.isEmpty) ? ProjectTypeDefaults.blankId : id;
+    for (final ProjectTypeConfig type in defaults()) {
+      if (type.id == normalizedId) {
+        return type;
+      }
+    }
+    return defaults().first;
   }
 
   static List<ProjectTypeConfig> defaults() {
@@ -811,6 +856,10 @@ class ProjectTypeConfig {
         showsJournalEntries: true,
         showsPlanningTasks: false,
         showsIdeas: true,
+        childItemLabel: 'Person',
+        childItemsLabel: 'People',
+        childJournalEntryLabel: 'Interaction',
+        childJournalEntriesLabel: 'Interactions',
       ),
     ];
   }
@@ -893,8 +942,7 @@ class ProjectRules {
       return adjustedTask.copyWith(
         entryType: TaskEntryType.journal,
         type: TaskItemType.thinking,
-        createdAtMicros:
-            adjustedTask.createdAtMicros ??
+        createdAtMicros: adjustedTask.createdAtMicros ??
             DateTime.now().microsecondsSinceEpoch,
       );
     }
@@ -943,16 +991,13 @@ class TaskBoardState {
 
   TaskBoardState clone() {
     return TaskBoardState(
-      incomingTasks: incomingTasks
-          .map((TaskItem task) => task.clone())
-          .toList(),
+      incomingTasks:
+          incomingTasks.map((TaskItem task) => task.clone()).toList(),
       projects: projects.map((ProjectItem project) => project.clone()).toList(),
-      projectStacks: projectStacks
-          .map((ProjectStack stack) => stack.clone())
-          .toList(),
-      projectTypes: projectTypes
-          .map((ProjectTypeConfig type) => type.clone())
-          .toList(),
+      projectStacks:
+          projectStacks.map((ProjectStack stack) => stack.clone()).toList(),
+      projectTypes:
+          projectTypes.map((ProjectTypeConfig type) => type.clone()).toList(),
       colorLabels: Map<int, String>.from(colorLabels),
       hideCompletedProjectItems: hideCompletedProjectItems,
       cardLayoutPreset: cardLayoutPreset,
@@ -1171,18 +1216,14 @@ class TaskBoardState {
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
-      'incomingTasks': incomingTasks
-          .map((TaskItem task) => task.toJson())
-          .toList(),
-      'projects': projects
-          .map((ProjectItem project) => project.toJson())
-          .toList(),
-      'projectStacks': projectStacks
-          .map((ProjectStack stack) => stack.toJson())
-          .toList(),
-      'projectTypes': projectTypes
-          .map((ProjectTypeConfig type) => type.toJson())
-          .toList(),
+      'incomingTasks':
+          incomingTasks.map((TaskItem task) => task.toJson()).toList(),
+      'projects':
+          projects.map((ProjectItem project) => project.toJson()).toList(),
+      'projectStacks':
+          projectStacks.map((ProjectStack stack) => stack.toJson()).toList(),
+      'projectTypes':
+          projectTypes.map((ProjectTypeConfig type) => type.toJson()).toList(),
       'colorLabels': colorLabels.map(
         (int colorValue, String label) =>
             MapEntry<String, String>(colorValue.toString(), label),

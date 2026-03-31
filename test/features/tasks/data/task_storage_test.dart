@@ -508,6 +508,10 @@ void main() {
       (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.peopleId,
     );
     expect(peopleType.showsJournalEntries, isTrue);
+    expect(peopleType.childItemLabel, 'Person');
+    expect(peopleType.childItemsLabel, 'People');
+    expect(peopleType.childJournalEntryLabel, 'Interaction');
+    expect(peopleType.childJournalEntriesLabel, 'Interactions');
   });
 
   test(
@@ -600,6 +604,7 @@ void main() {
       (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.diaryId,
     );
     expect(peopleType.layoutKind, ProjectLayoutKind.peopleContainer);
+    expect(peopleType.childItemsLabel, 'People');
     expect(diaryType.layoutKind, ProjectLayoutKind.journalOnly);
   });
 
