@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.7
+
+- Renamed the remaining nested-entry add/edit sheets to generic project-entry names so the reusable entry-container flow no longer carries people-specific form naming.
+
 ## v0.3.6
 
 - Added a reusable `Exercise` entry-container type with exercise-level descriptions, idea capture, and workout log journal entries.

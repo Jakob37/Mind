@@ -5,7 +5,7 @@ import '../task_text_clipboard.dart';
 import '../widgets/add_journal_entry_sheet.dart';
 import '../widgets/add_task_sheet.dart';
 import '../widgets/card_layout.dart';
-import '../widgets/edit_person_sheet.dart';
+import '../widgets/edit_project_entry_sheet.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
@@ -323,11 +323,11 @@ class _ProjectEntryDetailPageState extends State<ProjectEntryDetailPage> {
     }
 
     final PersonItem person = _people[personIndex];
-    final PersonEditResult? result =
-        await showModalBottomSheet<PersonEditResult>(
+    final ProjectEntryEditResult? result =
+        await showModalBottomSheet<ProjectEntryEditResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => EditPersonSheet(
+      builder: (_) => EditProjectEntrySheet(
         initialName: person.name,
         initialBody: person.body,
         itemLabel: _itemLabel,

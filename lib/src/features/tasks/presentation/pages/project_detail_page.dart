@@ -6,11 +6,11 @@ import '../../domain/list_reorder.dart';
 import '../../domain/task_models.dart';
 import '../task_text_clipboard.dart';
 import '../widgets/add_journal_entry_sheet.dart';
-import '../widgets/add_person_sheet.dart';
+import '../widgets/add_project_entry_sheet.dart';
 import '../widgets/add_session_sheet.dart';
 import '../widgets/add_task_sheet.dart';
 import '../widgets/card_layout.dart';
-import '../widgets/edit_person_sheet.dart';
+import '../widgets/edit_project_entry_sheet.dart';
 import '../widgets/edit_project_sheet.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
@@ -2375,10 +2375,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       return;
     }
 
-    final AddPersonResult? result = await showModalBottomSheet<AddPersonResult>(
+    final AddProjectEntryResult? result =
+        await showModalBottomSheet<AddProjectEntryResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => AddPersonSheet(
+      builder: (_) => AddProjectEntrySheet(
         itemLabel: _peopleItemLabel(project),
         notesLabel: _projectTypeFor(project).childItemBodyLabel,
         nameHint: _projectTypeFor(project).childItemNameHint,
@@ -2553,11 +2554,11 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     }
 
     final PersonItem person = project.people[personIndex];
-    final PersonEditResult? result =
-        await showModalBottomSheet<PersonEditResult>(
+    final ProjectEntryEditResult? result =
+        await showModalBottomSheet<ProjectEntryEditResult>(
       context: context,
       isScrollControlled: true,
-      builder: (_) => EditPersonSheet(
+      builder: (_) => EditProjectEntrySheet(
         initialName: person.name,
         initialBody: person.body,
         itemLabel: _peopleItemLabel(project),
