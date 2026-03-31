@@ -637,6 +637,7 @@ class ProjectTypeDefaults {
   static const String llmId = 'project-type-llm';
   static const String diaryId = 'project-type-diary';
   static const String peopleId = 'project-type-people';
+  static const String exerciseId = 'project-type-exercise';
 }
 
 enum ProjectLayoutKind {
@@ -678,6 +679,9 @@ class ProjectTypeConfig {
     required this.showsIdeas,
     this.childItemLabel = 'Item',
     this.childItemsLabel = 'Items',
+    this.childItemNameHint = 'Name this entry',
+    this.childItemBodyLabel = 'Notes',
+    this.childItemBodyHint = 'Description or anything useful to remember',
     this.childJournalEntryLabel = 'Journal entry',
     this.childJournalEntriesLabel = 'Journal entries',
   });
@@ -691,6 +695,9 @@ class ProjectTypeConfig {
   final bool showsIdeas;
   final String childItemLabel;
   final String childItemsLabel;
+  final String childItemNameHint;
+  final String childItemBodyLabel;
+  final String childItemBodyHint;
   final String childJournalEntryLabel;
   final String childJournalEntriesLabel;
 
@@ -705,6 +712,9 @@ class ProjectTypeConfig {
       showsIdeas: showsIdeas,
       childItemLabel: childItemLabel,
       childItemsLabel: childItemsLabel,
+      childItemNameHint: childItemNameHint,
+      childItemBodyLabel: childItemBodyLabel,
+      childItemBodyHint: childItemBodyHint,
       childJournalEntryLabel: childJournalEntryLabel,
       childJournalEntriesLabel: childJournalEntriesLabel,
     );
@@ -721,6 +731,9 @@ class ProjectTypeConfig {
     bool? showsIdeas,
     String? childItemLabel,
     String? childItemsLabel,
+    String? childItemNameHint,
+    String? childItemBodyLabel,
+    String? childItemBodyHint,
     String? childJournalEntryLabel,
     String? childJournalEntriesLabel,
   }) {
@@ -734,6 +747,9 @@ class ProjectTypeConfig {
       showsIdeas: showsIdeas ?? this.showsIdeas,
       childItemLabel: childItemLabel ?? this.childItemLabel,
       childItemsLabel: childItemsLabel ?? this.childItemsLabel,
+      childItemNameHint: childItemNameHint ?? this.childItemNameHint,
+      childItemBodyLabel: childItemBodyLabel ?? this.childItemBodyLabel,
+      childItemBodyHint: childItemBodyHint ?? this.childItemBodyHint,
       childJournalEntryLabel:
           childJournalEntryLabel ?? this.childJournalEntryLabel,
       childJournalEntriesLabel:
@@ -758,6 +774,9 @@ class ProjectTypeConfig {
       'showsIdeas': showsIdeas,
       'childItemLabel': childItemLabel,
       'childItemsLabel': childItemsLabel,
+      'childItemNameHint': childItemNameHint,
+      'childItemBodyLabel': childItemBodyLabel,
+      'childItemBodyHint': childItemBodyHint,
       'childJournalEntryLabel': childJournalEntryLabel,
       'childJournalEntriesLabel': childJournalEntriesLabel,
     };
@@ -782,6 +801,15 @@ class ProjectTypeConfig {
           defaultForId(id).childItemLabel,
       childItemsLabel: _readOptionalTrimmedString(json, 'childItemsLabel') ??
           defaultForId(id).childItemsLabel,
+      childItemNameHint:
+          _readOptionalTrimmedString(json, 'childItemNameHint') ??
+              defaultForId(id).childItemNameHint,
+      childItemBodyLabel:
+          _readOptionalTrimmedString(json, 'childItemBodyLabel') ??
+              defaultForId(id).childItemBodyLabel,
+      childItemBodyHint:
+          _readOptionalTrimmedString(json, 'childItemBodyHint') ??
+              defaultForId(id).childItemBodyHint,
       childJournalEntryLabel:
           _readOptionalTrimmedString(json, 'childJournalEntryLabel') ??
               defaultForId(id).childJournalEntryLabel,
@@ -875,8 +903,29 @@ class ProjectTypeConfig {
         showsIdeas: true,
         childItemLabel: 'Person',
         childItemsLabel: 'People',
+        childItemNameHint: 'Alice',
+        childItemBodyLabel: 'Notes',
+        childItemBodyHint:
+            'Context, relationship, or anything useful to remember',
         childJournalEntryLabel: 'Interaction',
         childJournalEntriesLabel: 'Interactions',
+      ),
+      ProjectTypeConfig(
+        id: ProjectTypeDefaults.exerciseId,
+        name: 'Exercise',
+        iconKey: 'bolt',
+        layoutKind: ProjectLayoutKind.entryContainer,
+        showsJournalEntries: true,
+        showsPlanningTasks: false,
+        showsIdeas: true,
+        childItemLabel: 'Exercise type',
+        childItemsLabel: 'Exercise types',
+        childItemNameHint: 'Squat',
+        childItemBodyLabel: 'Description',
+        childItemBodyHint:
+            'Movement pattern, setup cues, or anything useful to remember',
+        childJournalEntryLabel: 'Workout entry',
+        childJournalEntriesLabel: 'Workout log',
       ),
     ];
   }

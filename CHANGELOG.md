@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.6
+
+- Added a reusable `Exercise` entry-container type with exercise-level descriptions, idea capture, and workout log journal entries.
+
 ## v0.3.5
 
 - Switched nested container projects to a generic `entries` data model while keeping backward compatibility for older saved `people` payloads.

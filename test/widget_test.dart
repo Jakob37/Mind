@@ -1293,6 +1293,72 @@ void main() {
     expect(find.textContaining('idea'), findsNothing);
   });
 
+  testWidgets('exercise projects contain exercise types with workout logs', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Training');
+    await tester.tap(find.text('Type: Blank'));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.widgetWithText(ListTile, 'Exercise'),
+      200,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await tester.tap(find.widgetWithText(ListTile, 'Exercise'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(ListTile, 'Training'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No exercise types in this project yet.'), findsOneWidget);
+    expect(find.byTooltip('Add exercise type'), findsOneWidget);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(find.text('New Exercise type'), findsOneWidget);
+    expect(find.text('Description'), findsOneWidget);
+    await tester.enterText(find.byType(TextField).first, 'Squat');
+    await tester.enterText(
+      find.byType(TextField).at(1),
+      'Main lower-body strength movement.',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Exercise type'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(ListTile, 'Squat'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(ListTile, 'Squat'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Workout log'), findsOneWidget);
+    expect(find.text('Ideas'), findsWidgets);
+    expect(find.byTooltip('Add workout entry or idea'), findsOneWidget);
+
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Workout entry'), findsOneWidget);
+    await tester.tap(find.text('Workout entry'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byType(TextField),
+      '5x5 at a steady weight with solid depth.',
+    );
+    await tester.tap(find.widgetWithText(FilledButton, 'Save Workout entry'));
+    await tester.pumpAndSettle();
+
+    expect(
+        find.text('5x5 at a steady weight with solid depth.'), findsOneWidget);
+  });
+
   testWidgets('migrates versioned v2 payload and adds stable IDs', (
     WidgetTester tester,
   ) async {

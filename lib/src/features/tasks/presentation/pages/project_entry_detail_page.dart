@@ -331,6 +331,7 @@ class _ProjectEntryDetailPageState extends State<ProjectEntryDetailPage> {
         initialName: person.name,
         initialBody: person.body,
         itemLabel: _itemLabel,
+        notesLabel: widget.projectType.childItemBodyLabel,
       ),
     );
 

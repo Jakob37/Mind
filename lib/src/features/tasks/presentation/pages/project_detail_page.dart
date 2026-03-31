@@ -2380,6 +2380,9 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       isScrollControlled: true,
       builder: (_) => AddPersonSheet(
         itemLabel: _peopleItemLabel(project),
+        notesLabel: _projectTypeFor(project).childItemBodyLabel,
+        nameHint: _projectTypeFor(project).childItemNameHint,
+        notesHint: _projectTypeFor(project).childItemBodyHint,
       ),
     );
 
@@ -2558,6 +2561,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         initialName: person.name,
         initialBody: person.body,
         itemLabel: _peopleItemLabel(project),
+        notesLabel: _projectTypeFor(project).childItemBodyLabel,
       ),
     );
 

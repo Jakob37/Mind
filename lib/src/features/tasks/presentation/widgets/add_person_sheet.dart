@@ -16,8 +16,8 @@ class AddPersonSheet extends StatefulWidget {
     this.itemLabel = 'Person',
     this.notesLabel = 'Notes',
     this.nameFieldLabel = 'Name',
-    this.nameHint = 'Alice',
-    this.notesHint = 'Context, relationship, or anything useful to remember',
+    this.nameHint = 'Name this entry',
+    this.notesHint = 'Description or anything useful to remember',
   });
 
   final String itemLabel;

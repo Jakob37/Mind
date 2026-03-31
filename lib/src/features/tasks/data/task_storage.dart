@@ -1274,6 +1274,22 @@ class TaskStorage {
                     (projectType['childItemsLabel'] as String).trim().isNotEmpty
                 ? (projectType['childItemsLabel'] as String).trim()
                 : defaultsById[id]?.childItemsLabel ?? 'Items';
+        projectType['childItemNameHint'] = projectType['childItemNameHint']
+                    is String &&
+                (projectType['childItemNameHint'] as String).trim().isNotEmpty
+            ? (projectType['childItemNameHint'] as String).trim()
+            : defaultsById[id]?.childItemNameHint ?? 'Name this entry';
+        projectType['childItemBodyLabel'] = projectType['childItemBodyLabel']
+                    is String &&
+                (projectType['childItemBodyLabel'] as String).trim().isNotEmpty
+            ? (projectType['childItemBodyLabel'] as String).trim()
+            : defaultsById[id]?.childItemBodyLabel ?? 'Notes';
+        projectType['childItemBodyHint'] = projectType['childItemBodyHint']
+                    is String &&
+                (projectType['childItemBodyHint'] as String).trim().isNotEmpty
+            ? (projectType['childItemBodyHint'] as String).trim()
+            : defaultsById[id]?.childItemBodyHint ??
+                'Description or anything useful to remember';
         projectType['childJournalEntryLabel'] =
             projectType['childJournalEntryLabel'] is String &&
                     (projectType['childJournalEntryLabel'] as String)
