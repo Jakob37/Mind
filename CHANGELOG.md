@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.4
+
+- Renamed the special People layout into a generic entry-container project layout so the app can support more reusable nested-entry project types without another hard-coded branch.
+
 ## v0.3.3
 
 - Moved People-project labels into project type configuration so item and journal wording can be driven by the type instead of hard-coded UI text.

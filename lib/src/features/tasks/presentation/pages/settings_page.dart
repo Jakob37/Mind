@@ -459,7 +459,7 @@ class _SettingsPageState extends State<SettingsPage> {
 
   String _projectTypeSummary(ProjectTypeConfig type) {
     final List<String> labels = <String>[];
-    if (type.layoutKind == ProjectLayoutKind.peopleContainer) {
+    if (type.layoutKind == ProjectLayoutKind.entryContainer) {
       labels.add(type.childItemsLabel.toLowerCase());
     }
     if (type.showsJournalEntries) {

@@ -1136,9 +1136,9 @@ class TaskStorage {
               ProjectTypeConfig.defaultLayoutKindForId(
                 project['projectTypeId'] as String?,
               );
-      final bool isPeopleProject =
-          projectLayoutKind == ProjectLayoutKind.peopleContainer;
-      project['tasks'] = isPeopleProject
+      final bool isEntryContainerProject =
+          projectLayoutKind == ProjectLayoutKind.entryContainer;
+      project['tasks'] = isEntryContainerProject
           ? <Map<String, dynamic>>[]
           : _upgradeTaskShape(project['tasks']);
       project['people'] = _upgradePersonShape(project['people']);

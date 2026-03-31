@@ -603,7 +603,7 @@ void main() {
     final ProjectTypeConfig diaryType = state.projectTypes.firstWhere(
       (ProjectTypeConfig type) => type.id == ProjectTypeDefaults.diaryId,
     );
-    expect(peopleType.layoutKind, ProjectLayoutKind.peopleContainer);
+    expect(peopleType.layoutKind, ProjectLayoutKind.entryContainer);
     expect(peopleType.childItemsLabel, 'People');
     expect(diaryType.layoutKind, ProjectLayoutKind.journalOnly);
   });

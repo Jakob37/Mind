@@ -20,7 +20,7 @@ import '../widgets/quick_capture_sheet.dart';
 import '../widgets/select_project_stack_sheet.dart';
 import '../widgets/select_project_type_sheet.dart';
 import '../widgets/subtask_preview_tree.dart';
-import 'person_detail_page.dart';
+import 'project_entry_detail_page.dart';
 import 'task_detail_page.dart';
 
 class _TaskSectionDragPayload {
@@ -2237,7 +2237,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
                 ListTile(
                   leading: const Icon(Icons.menu_book_outlined),
                   title: Text(
-                    projectRules.isPeopleContainer
+                    projectRules.isEntryContainer
                         ? projectType.childJournalEntryLabel
                         : 'Diary entry',
                   ),
@@ -2287,13 +2287,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         context: context,
         isScrollControlled: true,
         builder: (_) => AddJournalEntrySheet(
-          title: projectRules.isPeopleContainer
+          title: projectRules.isEntryContainer
               ? 'New ${projectType.childJournalEntryLabel}'
               : 'New Diary Entry',
-          hintText: projectRules.isPeopleContainer
+          hintText: projectRules.isEntryContainer
               ? 'Capture the interaction, context, and anything to follow up.'
               : 'Write what happened, what you noticed, or what you want to keep.',
-          saveLabel: projectRules.isPeopleContainer
+          saveLabel: projectRules.isEntryContainer
               ? 'Save ${projectType.childJournalEntryLabel}'
               : 'Save Entry',
         ),
@@ -2370,7 +2370,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
   Future<void> _addPerson() async {
     final ProjectItem? project = _findProject();
     if (project == null ||
-        !_projectRulesFor(project).isPeopleContainer ||
+        !_projectRulesFor(project).isEntryContainer ||
         project.isArchived) {
       return;
     }
@@ -2404,7 +2404,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final ProjectItem project = _projects[projectIndex];
     await Navigator.of(context).push<void>(
       MaterialPageRoute<void>(
-        builder: (_) => PersonDetailPage(
+        builder: (_) => ProjectEntryDetailPage(
           personId: personId,
           initialPeople: project.people,
           projectType: _projectTypeFor(project),
@@ -3511,7 +3511,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
     final bool isLlmProject = projectType.id == ProjectTypeDefaults.llmId;
     final bool isKnowledgeProject =
         projectType.id == ProjectTypeDefaults.knowledgeId;
-    final bool isPeopleProject = projectRules.isPeopleContainer;
+    final bool isEntryProject = projectRules.isEntryContainer;
     final IconData? projectIconData =
         iconDataForKey(project.iconKey) ?? iconDataForKey(projectType.iconKey);
     final bool showProjectTypeLabel =
@@ -3569,7 +3569,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           ),
         ],
       ),
-      body: isPeopleProject
+      body: isEntryProject
           ? _buildPeopleProjectBody(project)
           : ListView(
               padding: EdgeInsets.fromLTRB(
@@ -3652,7 +3652,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
             ),
       floatingActionButton: project.isArchived
           ? null
-          : isPeopleProject
+          : isEntryProject
               ? FloatingActionButton(
                   onPressed: _addPerson,
                   tooltip: 'Add ${_peopleItemLabel(project).toLowerCase()}',

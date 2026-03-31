@@ -629,7 +629,7 @@ class ProjectTypeDefaults {
 enum ProjectLayoutKind {
   standard,
   journalOnly,
-  peopleContainer;
+  entryContainer;
 
   static ProjectLayoutKind fromJsonValue(Object? rawValue) {
     if (rawValue is! String) {
@@ -641,10 +641,14 @@ enum ProjectLayoutKind {
       'journal_only' ||
       'journal-only' =>
         ProjectLayoutKind.journalOnly,
+      'entrycontainer' ||
+      'entry_container' ||
+      'entry-container' =>
+        ProjectLayoutKind.entryContainer,
       'peoplecontainer' ||
       'people_container' ||
       'people-container' =>
-        ProjectLayoutKind.peopleContainer,
+        ProjectLayoutKind.entryContainer,
       _ => ProjectLayoutKind.standard,
     };
   }
@@ -777,7 +781,7 @@ class ProjectTypeConfig {
   static ProjectLayoutKind defaultLayoutKindForId(String? id) {
     return switch (id) {
       ProjectTypeDefaults.diaryId => ProjectLayoutKind.journalOnly,
-      ProjectTypeDefaults.peopleId => ProjectLayoutKind.peopleContainer,
+      ProjectTypeDefaults.peopleId => ProjectLayoutKind.entryContainer,
       _ => ProjectLayoutKind.standard,
     };
   }
@@ -852,7 +856,7 @@ class ProjectTypeConfig {
         id: ProjectTypeDefaults.peopleId,
         name: 'People',
         iconKey: 'heart',
-        layoutKind: ProjectLayoutKind.peopleContainer,
+        layoutKind: ProjectLayoutKind.entryContainer,
         showsJournalEntries: true,
         showsPlanningTasks: false,
         showsIdeas: true,
@@ -903,17 +907,19 @@ class ProjectRules {
     );
   }
 
-  bool get isPeopleContainer =>
-      projectType.layoutKind == ProjectLayoutKind.peopleContainer;
+  bool get isEntryContainer =>
+      projectType.layoutKind == ProjectLayoutKind.entryContainer;
+
+  bool get isPeopleContainer => isEntryContainer;
 
   bool get isJournalOnly =>
       projectType.layoutKind == ProjectLayoutKind.journalOnly;
 
   bool get acceptsRootTasks =>
-      !isPeopleContainer && projectType.supportsAnyEntries;
+      !isEntryContainer && projectType.supportsAnyEntries;
 
   bool get canMoveBetweenTaskSections =>
-      !isPeopleContainer &&
+      !isEntryContainer &&
       projectType.showsIdeas &&
       projectType.showsPlanningTasks;
 

@@ -154,7 +154,7 @@ class _ProjectListViewState extends State<ProjectListView> {
     if (ProjectRules.forProject(
       project: project,
       projectTypes: widget.projectTypes,
-    ).isPeopleContainer) {
+    ).isEntryContainer) {
       return project.people
           .where((PersonItem person) => !person.isArchived)
           .length;
@@ -308,15 +308,17 @@ class _ProjectListViewState extends State<ProjectListView> {
     ProjectItem project, {
     bool showStackLabel = false,
   }) {
-    final bool isPeopleProject = ProjectRules.forProject(
+    final ProjectTypeConfig projectType = ProjectRules.forProject(
       project: project,
       projectTypes: widget.projectTypes,
-    ).isPeopleContainer;
+    ).projectType;
+    final bool isEntryProject =
+        projectType.layoutKind == ProjectLayoutKind.entryContainer;
     final int taskCount = project.isArchived
-        ? (isPeopleProject ? project.people.length : project.tasks.length)
+        ? (isEntryProject ? project.people.length : project.tasks.length)
         : _visibleTaskCount(project);
-    final String taskCountLabel = isPeopleProject
-        ? '$taskCount person${taskCount == 1 ? '' : 's'}'
+    final String taskCountLabel = isEntryProject
+        ? '$taskCount ${taskCount == 1 ? projectType.childItemLabel.toLowerCase() : projectType.childItemsLabel.toLowerCase()}'
         : '$taskCount task${taskCount == 1 ? '' : 's'}';
     final String? stackName =
         showStackLabel ? _stackNameForProject(project) : null;
