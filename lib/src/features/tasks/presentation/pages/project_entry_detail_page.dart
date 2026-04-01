@@ -9,6 +9,7 @@ import '../widgets/edit_project_entry_sheet.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
+import '../widgets/task_image_gallery.dart';
 import 'task_detail_page.dart';
 
 enum _PersonEntryKind { journal, idea }
@@ -647,6 +648,7 @@ class _ProjectEntryDetailPageState extends State<ProjectEntryDetailPage> {
         initialTitle: task.title,
         initialBody: task.body,
         initialFlashcardPrompt: task.flashcardPrompt,
+        initialImagePaths: task.imagePaths,
         showFlashcardField: true,
       ),
     );
@@ -661,6 +663,7 @@ class _ProjectEntryDetailPageState extends State<ProjectEntryDetailPage> {
       title: result.title,
       body: result.body,
       flashcardPrompt: result.flashcardPrompt,
+      imagePaths: result.imagePaths,
     );
     setState(() {
       _people[personIndex] = person.copyWith(tasks: tasks);
@@ -803,7 +806,17 @@ class _ProjectEntryDetailPageState extends State<ProjectEntryDetailPage> {
         contentPadding: _layout.contentPadding,
         leading: Icon(iconDataForKey(task.iconKey) ?? Icons.menu_book_outlined),
         title: Text(_journalTimestampLabel(task), maxLines: null),
-        subtitle: Text(task.body.trim().isEmpty ? task.title : task.body),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            Text(task.body.trim().isEmpty ? task.title : task.body),
+            if (task.imagePaths.isNotEmpty) ...<Widget>[
+              const SizedBox(height: 8),
+              TaskImageGallery(imagePaths: task.imagePaths, height: 80),
+            ],
+          ],
+        ),
+        isThreeLine: task.imagePaths.isNotEmpty,
         trailing: IconButton(
           onPressed: () => _openTaskMenu(task.id),
           tooltip: 'Task options',
@@ -822,7 +835,19 @@ class _ProjectEntryDetailPageState extends State<ProjectEntryDetailPage> {
         contentPadding: _layout.contentPadding,
         leading: Icon(iconDataForKey(task.iconKey) ?? Icons.lightbulb_outline),
         title: Text(task.title, maxLines: null),
-        subtitle: task.body.trim().isEmpty ? null : Text(task.body),
+        subtitle: task.body.trim().isEmpty && task.imagePaths.isEmpty
+            ? null
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  if (task.body.trim().isNotEmpty) Text(task.body),
+                  if (task.imagePaths.isNotEmpty) ...<Widget>[
+                    if (task.body.trim().isNotEmpty) const SizedBox(height: 8),
+                    TaskImageGallery(imagePaths: task.imagePaths, height: 80),
+                  ],
+                ],
+              ),
+        isThreeLine: task.imagePaths.isNotEmpty,
         trailing: IconButton(
           onPressed: () => _openTaskMenu(task.id),
           tooltip: 'Task options',

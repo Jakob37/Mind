@@ -20,6 +20,7 @@ import '../widgets/quick_capture_sheet.dart';
 import '../widgets/select_project_stack_sheet.dart';
 import '../widgets/select_project_type_sheet.dart';
 import '../widgets/subtask_preview_tree.dart';
+import '../widgets/task_image_gallery.dart';
 import 'project_entry_detail_page.dart';
 import 'task_detail_page.dart';
 
@@ -1246,6 +1247,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         initialBody: task.body,
         initialPrompt: task.prompt,
         initialFlashcardPrompt: task.flashcardPrompt,
+        initialImagePaths: task.imagePaths,
         showPromptField: _isLlmProject(project),
         showFlashcardField: true,
       ),
@@ -1261,6 +1263,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
         body: result.body,
         prompt: result.prompt,
         flashcardPrompt: result.flashcardPrompt,
+        imagePaths: result.imagePaths,
       );
     });
     _notifyProjectDataChanged();
@@ -2345,6 +2348,7 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
       body: createdTask.task.body,
       prompt: createdTask.task.prompt,
       flashcardPrompt: createdTask.task.flashcardPrompt,
+      imagePaths: createdTask.task.imagePaths,
       createdAtMicros: createdTask.task.createdAtMicros,
       colorValue: createdTask.task.colorValue,
       type: selectedKind == _ProjectEntryKind.planning
@@ -2946,6 +2950,13 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
           message: 'Has prompt',
           child: Icon(Icons.memory_outlined, size: 18),
         ),
+      if (task.imagePaths.isNotEmpty)
+        Tooltip(
+          message: task.imagePaths.length == 1
+              ? '1 attached image'
+              : '${task.imagePaths.length} attached images',
+          child: const Icon(Icons.image_outlined, size: 18),
+        ),
       if (showOptionsButton)
         IconButton(
           onPressed: () => _openTaskQuickMenu(task.id),
@@ -3052,6 +3063,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
               ),
               const SizedBox(height: 8),
               Text(bodyText, style: Theme.of(context).textTheme.bodyLarge),
+              if (task.imagePaths.isNotEmpty) ...<Widget>[
+                const SizedBox(height: 12),
+                TaskImageGallery(imagePaths: task.imagePaths, height: 96),
+              ],
             ],
           ),
         ),

@@ -1053,6 +1053,13 @@ class TaskStorage {
       task['flashcardPrompt'] = task['flashcardPrompt'] is String
           ? (task['flashcardPrompt'] as String).trim()
           : '';
+      task['imagePaths'] = task['imagePaths'] is List<dynamic>
+          ? (task['imagePaths'] as List<dynamic>)
+              .whereType<String>()
+              .map((String path) => path.trim())
+              .where((String path) => path.isNotEmpty)
+              .toList()
+          : <String>[];
       task['createdAtMicros'] =
           task['createdAtMicros'] is int ? task['createdAtMicros'] : null;
       task['color'] = task['color'] is int ? task['color'] : null;

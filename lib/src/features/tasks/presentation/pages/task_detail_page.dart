@@ -5,6 +5,7 @@ import '../widgets/card_layout.dart';
 import '../widgets/edit_task_sheet.dart';
 import '../widgets/item_color_picker_sheet.dart';
 import '../widgets/item_icon_picker_sheet.dart';
+import '../widgets/task_image_gallery.dart';
 import '../task_text_clipboard.dart';
 
 enum TaskDetailAction {
@@ -1028,6 +1029,7 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
   @override
   Widget build(BuildContext context) {
     final bool hasBody = _task.body.trim().isNotEmpty;
+    final bool hasImages = _task.imagePaths.isNotEmpty;
     final bool hasPrompt = _task.prompt.trim().isNotEmpty;
     final String sectionLabel = _usesChecklistStyle ? 'Checklist' : 'Ideas';
 
@@ -1052,6 +1054,15 @@ class _TaskDetailPageState extends State<TaskDetailPage> {
               _task.body,
               style: Theme.of(context).textTheme.bodyLarge,
             ),
+          if (hasImages) ...<Widget>[
+            if (hasBody) const SizedBox(height: 16),
+            Text(
+              _task.imagePaths.length == 1 ? 'Image' : 'Images',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            const SizedBox(height: 8),
+            TaskImageGallery(imagePaths: _task.imagePaths, height: 160),
+          ],
           if (hasPrompt) ...<Widget>[
             const SizedBox(height: 16),
             Text(

@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 
+import 'task_image_field.dart';
+
 class TaskEditResult {
   const TaskEditResult({
     required this.title,
     required this.body,
     required this.prompt,
     required this.flashcardPrompt,
+    required this.imagePaths,
   });
 
   final String title;
   final String body;
   final String prompt;
   final String flashcardPrompt;
+  final List<String> imagePaths;
 }
 
 class EditTaskSheet extends StatefulWidget {
@@ -21,6 +25,7 @@ class EditTaskSheet extends StatefulWidget {
     required this.initialBody,
     this.initialPrompt = '',
     this.initialFlashcardPrompt = '',
+    this.initialImagePaths = const <String>[],
     this.showPromptField = false,
     this.showFlashcardField = false,
   });
@@ -29,6 +34,7 @@ class EditTaskSheet extends StatefulWidget {
   final String initialBody;
   final String initialPrompt;
   final String initialFlashcardPrompt;
+  final List<String> initialImagePaths;
   final bool showPromptField;
   final bool showFlashcardField;
 
@@ -41,6 +47,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
   late final TextEditingController _bodyController;
   late final TextEditingController _promptController;
   late final TextEditingController _flashcardPromptController;
+  late final List<String> _imagePaths;
 
   @override
   void initState() {
@@ -51,6 +58,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
     _flashcardPromptController = TextEditingController(
       text: widget.initialFlashcardPrompt,
     );
+    _imagePaths = List<String>.from(widget.initialImagePaths);
   }
 
   @override
@@ -73,8 +81,25 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
         body: _bodyController.text.trim(),
         prompt: _promptController.text.trim(),
         flashcardPrompt: _flashcardPromptController.text.trim(),
+        imagePaths: List<String>.from(_imagePaths),
       ),
     );
+  }
+
+  Future<void> _addImages() async {
+    final List<String> importedPaths = await pickAndImportTaskImages();
+    if (!mounted || importedPaths.isEmpty) {
+      return;
+    }
+    setState(() {
+      _imagePaths.addAll(importedPaths);
+    });
+  }
+
+  void _removeImage(String imagePath) {
+    setState(() {
+      _imagePaths.remove(imagePath);
+    });
   }
 
   @override
@@ -111,6 +136,12 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
               labelText: 'Body',
               alignLabelWithHint: true,
             ),
+          ),
+          const SizedBox(height: 12),
+          TaskImageField(
+            imagePaths: _imagePaths,
+            onAddImages: _addImages,
+            onRemoveImage: _removeImage,
           ),
           if (widget.showPromptField) ...<Widget>[
             const SizedBox(height: 12),

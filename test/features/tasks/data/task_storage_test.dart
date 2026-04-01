@@ -179,6 +179,7 @@ void main() {
           id: 'task-1',
           title: 'Planned',
           type: TaskItemType.planning,
+          imagePaths: const <String>['/tmp/task-image-1.png'],
           subtasks: <SubTaskItem>[
             SubTaskItem(id: 'subtask-1', title: 'Child card', body: 'Details'),
           ],
@@ -210,6 +211,7 @@ void main() {
     expect(firstIncoming['pinned'], isFalse);
     expect(firstIncoming['prompt'], '');
     expect(firstIncoming['flashcardPrompt'], '');
+    expect(firstIncoming['imagePaths'], <String>['/tmp/task-image-1.png']);
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));
     final Map<String, dynamic> firstSubtask =
@@ -247,6 +249,7 @@ void main() {
               id: 'task-2',
               title: 'Imported project task',
               prompt: 'Task level prompt',
+              imagePaths: const <String>['/tmp/imported-image.png'],
               type: TaskItemType.thinking,
               entryType: TaskEntryType.journal,
               createdAtMicros: 987654321,
@@ -309,6 +312,10 @@ void main() {
     expect(imported.projects.single.tasks.single.isPinned, isTrue);
     expect(imported.projects.single.tasks.single.prompt, 'Task level prompt');
     expect(imported.projects.single.tasks.single.flashcardPrompt, '');
+    expect(
+      imported.projects.single.tasks.single.imagePaths,
+      <String>['/tmp/imported-image.png'],
+    );
     expect(
       imported.projects.single.tasks.single.entryType,
       TaskEntryType.journal,

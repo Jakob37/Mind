@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.9
+
+- Added image attachments for task entries, including Android file selection, persistent local copies, and attachment display in task detail and journal/idea views.
+
 ## v0.3.8
 
 - Removed the obsolete people-specific entry sheet files after the generic project-entry form rename.

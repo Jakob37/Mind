@@ -1052,6 +1052,7 @@ class _TaskPageState extends State<TaskPage>
         initialBody: existingTask.body,
         initialPrompt: existingTask.prompt,
         initialFlashcardPrompt: existingTask.flashcardPrompt,
+        initialImagePaths: existingTask.imagePaths,
         showFlashcardField: true,
       ),
     );
@@ -1066,6 +1067,7 @@ class _TaskPageState extends State<TaskPage>
         body: result.body,
         prompt: result.prompt,
         flashcardPrompt: result.flashcardPrompt,
+        imagePaths: result.imagePaths,
       );
     });
     _persistState();

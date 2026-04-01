@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../domain/task_models.dart';
 import 'item_color_picker_sheet.dart';
 import 'item_icon_picker_sheet.dart';
+import 'task_image_field.dart';
 
 class AddTaskResult {
   const AddTaskResult({
@@ -44,6 +45,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   int? _colorValue;
   String? _iconKey;
   String? _targetProjectId;
+  final List<String> _imagePaths = <String>[];
 
   @override
   void initState() {
@@ -66,6 +68,22 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
     super.dispose();
   }
 
+  Future<void> _addImages() async {
+    final List<String> importedPaths = await pickAndImportTaskImages();
+    if (!mounted || importedPaths.isEmpty) {
+      return;
+    }
+    setState(() {
+      _imagePaths.addAll(importedPaths);
+    });
+  }
+
+  void _removeImage(String imagePath) {
+    setState(() {
+      _imagePaths.remove(imagePath);
+    });
+  }
+
   Future<void> _pickIcon() async {
     final String? iconKey = await showModalBottomSheet<String?>(
       context: context,
@@ -82,9 +100,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   Future<void> _pickColor() async {
     final ColorSelection? selection =
         await showModalBottomSheet<ColorSelection>(
-          context: context,
-          builder: (_) => ItemColorPickerSheet(currentColorValue: _colorValue),
-        );
+      context: context,
+      builder: (_) => ItemColorPickerSheet(currentColorValue: _colorValue),
+    );
     if (selection == null || !mounted) {
       return;
     }
@@ -154,6 +172,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           body: _bodyController.text.trim(),
           prompt: _promptController.text.trim(),
           flashcardPrompt: _flashcardPromptController.text.trim(),
+          imagePaths: List<String>.from(_imagePaths),
           colorValue: _colorValue,
           iconKey: _iconKey,
         ),
@@ -220,6 +239,12 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
                 ),
               ),
             ],
+          ),
+          const SizedBox(height: 8),
+          TaskImageField(
+            imagePaths: _imagePaths,
+            onAddImages: _addImages,
+            onRemoveImage: _removeImage,
           ),
           const SizedBox(height: 8),
           Align(

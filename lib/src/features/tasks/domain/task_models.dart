@@ -179,6 +179,7 @@ class TaskItem {
     String? body,
     String? prompt,
     String? flashcardPrompt,
+    List<String>? imagePaths,
     this.createdAtMicros,
     this.colorValue,
     TaskItemType? type,
@@ -191,6 +192,7 @@ class TaskItem {
         body = body ?? '',
         prompt = prompt ?? '',
         flashcardPrompt = flashcardPrompt ?? '',
+        imagePaths = imagePaths ?? <String>[],
         type = type ?? TaskItemType.planning,
         entryType = entryType ?? TaskEntryType.note,
         subtasks = subtasks ?? <SubTaskItem>[];
@@ -200,6 +202,7 @@ class TaskItem {
   final String body;
   final String prompt;
   final String flashcardPrompt;
+  final List<String> imagePaths;
   final int? createdAtMicros;
   final int? colorValue;
   final TaskItemType type;
@@ -220,6 +223,7 @@ class TaskItem {
       body: body,
       prompt: prompt,
       flashcardPrompt: flashcardPrompt,
+      imagePaths: List<String>.from(imagePaths),
       createdAtMicros: createdAtMicros,
       colorValue: colorValue,
       type: type,
@@ -237,6 +241,7 @@ class TaskItem {
     String? body,
     String? prompt,
     String? flashcardPrompt,
+    List<String>? imagePaths,
     int? createdAtMicros,
     bool clearCreatedAt = false,
     int? colorValue,
@@ -255,6 +260,7 @@ class TaskItem {
       body: body ?? this.body,
       prompt: prompt ?? this.prompt,
       flashcardPrompt: flashcardPrompt ?? this.flashcardPrompt,
+      imagePaths: imagePaths ?? List<String>.from(this.imagePaths),
       createdAtMicros:
           clearCreatedAt ? null : (createdAtMicros ?? this.createdAtMicros),
       colorValue: clearColor ? null : (colorValue ?? this.colorValue),
@@ -275,6 +281,7 @@ class TaskItem {
       'body': body,
       'prompt': prompt,
       'flashcardPrompt': flashcardPrompt,
+      'imagePaths': imagePaths,
       'createdAtMicros': createdAtMicros,
       'color': colorValue,
       'type': type.name,
@@ -295,6 +302,7 @@ class TaskItem {
       json,
       'flashcardPrompt',
     );
+    final List<dynamic> imagePathJson = _readOptionalList(json, 'imagePaths');
     final int? createdAtMicros = _readOptionalInt(json, 'createdAtMicros');
     final int? colorValue = _readOptionalInt(json, 'color');
     final TaskItemType type = TaskItemType.fromJsonValue(json['type']);
@@ -312,6 +320,11 @@ class TaskItem {
       body: body ?? '',
       prompt: prompt ?? '',
       flashcardPrompt: flashcardPrompt ?? '',
+      imagePaths: imagePathJson
+          .whereType<String>()
+          .map((String path) => path.trim())
+          .where((String path) => path.isNotEmpty)
+          .toList(),
       createdAtMicros: createdAtMicros,
       colorValue: colorValue,
       type: type,
