@@ -3,19 +3,27 @@ part of 'task_page.dart';
 class _FlashcardsTabView extends StatelessWidget {
   const _FlashcardsTabView({
     required this.flashcards,
+    required this.dueCount,
     required this.activeIndex,
     required this.isAnswerVisible,
     required this.onRevealAnswer,
     required this.onShowPrevious,
     required this.onShowNext,
+    required this.onReviewFailed,
+    required this.onReviewHard,
+    required this.onReviewCorrect,
   });
 
   final List<_FlashcardEntry> flashcards;
+  final int dueCount;
   final int activeIndex;
   final bool isAnswerVisible;
   final VoidCallback onRevealAnswer;
   final VoidCallback onShowPrevious;
   final VoidCallback onShowNext;
+  final VoidCallback onReviewFailed;
+  final VoidCallback onReviewHard;
+  final VoidCallback onReviewCorrect;
 
   @override
   Widget build(BuildContext context) {
@@ -34,6 +42,16 @@ class _FlashcardsTabView extends StatelessWidget {
 
     final _FlashcardEntry flashcard = flashcards[activeIndex];
     final IconData? iconData = iconDataForKey(flashcard.iconKey);
+    final DateTime? dueAt = flashcard.dueAt;
+    final bool isDue = dueAt == null || !dueAt.isAfter(DateTime.now());
+    final MaterialLocalizations localizations = MaterialLocalizations.of(
+      context,
+    );
+    final String scheduleLabel = dueAt == null
+        ? 'Due now'
+        : isDue
+            ? 'Due now'
+            : 'Next review ${localizations.formatShortDate(dueAt)}';
 
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -42,6 +60,11 @@ class _FlashcardsTabView extends StatelessWidget {
         const SizedBox(height: 8),
         Text(
           'Card ${activeIndex + 1} of ${flashcards.length}',
+          style: Theme.of(context).textTheme.bodyMedium,
+        ),
+        const SizedBox(height: 4),
+        Text(
+          dueCount <= 0 ? 'No cards due right now' : '$dueCount cards due',
           style: Theme.of(context).textTheme.bodyMedium,
         ),
         const SizedBox(height: 16),
@@ -59,6 +82,16 @@ class _FlashcardsTabView extends StatelessWidget {
                 Text(
                   flashcard.prompt,
                   style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  'Interval: ${flashcard.intervalDays} day${flashcard.intervalDays == 1 ? '' : 's'}',
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  scheduleLabel,
+                  style: Theme.of(context).textTheme.bodyMedium,
                 ),
                 const SizedBox(height: 20),
                 if (isAnswerVisible) ...<Widget>[
@@ -96,6 +129,25 @@ class _FlashcardsTabView extends StatelessWidget {
                             ],
                           ],
                         ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: <Widget>[
+                      OutlinedButton(
+                        onPressed: onReviewFailed,
+                        child: const Text('Failed'),
+                      ),
+                      OutlinedButton(
+                        onPressed: onReviewHard,
+                        child: const Text('Hard'),
+                      ),
+                      FilledButton(
+                        onPressed: onReviewCorrect,
+                        child: const Text('Correct'),
                       ),
                     ],
                   ),

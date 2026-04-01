@@ -56,20 +56,45 @@ enum _IncomingTaskMenuAction {
 
 enum _ProjectStackMenuAction { rename, setColor, createProject }
 
+enum _FlashcardReviewOutcome { failed, hard, correct }
+
+enum _FlashcardSourceKind { incoming, project }
+
+class _FlashcardTaskRef {
+  const _FlashcardTaskRef.incoming({required this.taskId})
+      : sourceKind = _FlashcardSourceKind.incoming,
+        projectId = null;
+
+  const _FlashcardTaskRef.project({
+    required this.projectId,
+    required this.taskId,
+  }) : sourceKind = _FlashcardSourceKind.project;
+
+  final _FlashcardSourceKind sourceKind;
+  final String taskId;
+  final String? projectId;
+}
+
 class _FlashcardEntry {
   const _FlashcardEntry({
+    required this.taskRef,
     required this.prompt,
     required this.answerTitle,
     required this.answerBody,
     required this.sourceLabel,
+    required this.intervalDays,
+    this.dueAt,
     this.colorValue,
     this.iconKey,
   });
 
+  final _FlashcardTaskRef taskRef;
   final String prompt;
   final String answerTitle;
   final String answerBody;
   final String sourceLabel;
+  final DateTime? dueAt;
+  final int intervalDays;
   final int? colorValue;
   final String? iconKey;
 }
@@ -549,19 +574,32 @@ class _TaskPageState extends State<TaskPage>
         task.flashcardPrompt.trim().isNotEmpty;
   }
 
+  bool _isFlashcardDue(TaskItem task, DateTime now) {
+    if (!_hasFlashcard(task)) {
+      return false;
+    }
+    final DateTime? dueAt = task.flashcardReviewDueAt;
+    return dueAt == null || !dueAt.isAfter(now);
+  }
+
   List<_FlashcardEntry> _flashcardEntries() {
-    final List<_FlashcardEntry> flashcards = <_FlashcardEntry>[
+    final DateTime now = DateTime.now();
+    final List<_FlashcardEntry> dueFlashcards = <_FlashcardEntry>[
       for (final TaskItem task in _incomingTasks)
-        if (_hasFlashcard(task))
+        if (_isFlashcardDue(task, now))
           _FlashcardEntry(
+            taskRef: _FlashcardTaskRef.incoming(taskId: task.id),
             prompt: task.flashcardPrompt.trim(),
             answerTitle: task.title,
             answerBody: task.body,
             sourceLabel: 'Incoming',
+            dueAt: task.flashcardReviewDueAt,
+            intervalDays: task.flashcardReviewIntervalDays,
             colorValue: task.colorValue,
             iconKey: task.iconKey,
           ),
     ];
+    final List<_FlashcardEntry> upcomingFlashcards = <_FlashcardEntry>[];
 
     for (final ProjectItem project in _projects) {
       if (project.isArchived) {
@@ -571,20 +609,52 @@ class _TaskPageState extends State<TaskPage>
         if (!_hasFlashcard(task)) {
           continue;
         }
-        flashcards.add(
-          _FlashcardEntry(
-            prompt: task.flashcardPrompt.trim(),
-            answerTitle: task.title,
-            answerBody: task.body,
-            sourceLabel: project.name,
-            colorValue: task.colorValue,
-            iconKey: task.iconKey,
-          ),
+        final _FlashcardEntry entry = _FlashcardEntry(
+          taskRef:
+              _FlashcardTaskRef.project(projectId: project.id, taskId: task.id),
+          prompt: task.flashcardPrompt.trim(),
+          answerTitle: task.title,
+          answerBody: task.body,
+          sourceLabel: project.name,
+          dueAt: task.flashcardReviewDueAt,
+          intervalDays: task.flashcardReviewIntervalDays,
+          colorValue: task.colorValue,
+          iconKey: task.iconKey,
         );
+        if (_isFlashcardDue(task, now)) {
+          dueFlashcards.add(entry);
+        } else {
+          upcomingFlashcards.add(entry);
+        }
       }
     }
 
-    return flashcards;
+    dueFlashcards.sort(_compareFlashcardsByDueAt);
+    upcomingFlashcards.sort(_compareFlashcardsByDueAt);
+    return <_FlashcardEntry>[...dueFlashcards, ...upcomingFlashcards];
+  }
+
+  int _compareFlashcardsByDueAt(_FlashcardEntry a, _FlashcardEntry b) {
+    final DateTime? aDueAt = a.dueAt;
+    final DateTime? bDueAt = b.dueAt;
+    if (aDueAt == null && bDueAt == null) {
+      return 0;
+    }
+    if (aDueAt == null) {
+      return -1;
+    }
+    if (bDueAt == null) {
+      return 1;
+    }
+    return aDueAt.compareTo(bDueAt);
+  }
+
+  int _dueFlashcardCount(List<_FlashcardEntry> flashcards) {
+    final DateTime now = DateTime.now();
+    return flashcards.where((_FlashcardEntry flashcard) {
+      final DateTime? dueAt = flashcard.dueAt;
+      return dueAt == null || !dueAt.isAfter(now);
+    }).length;
   }
 
   int _flashcardIndexForLength(int flashcardCount) {
@@ -625,10 +695,97 @@ class _TaskPageState extends State<TaskPage>
     });
   }
 
+  void _applyFlashcardReview(_FlashcardReviewOutcome outcome) {
+    final List<_FlashcardEntry> flashcards = _flashcardEntries();
+    if (flashcards.isEmpty) {
+      return;
+    }
+
+    final int activeIndex = _flashcardIndexForLength(flashcards.length);
+    final _FlashcardEntry flashcard = flashcards[activeIndex];
+    final int currentIntervalDays =
+        flashcard.intervalDays < 1 ? 1 : flashcard.intervalDays;
+    final int nextIntervalDays = switch (outcome) {
+      _FlashcardReviewOutcome.correct => currentIntervalDays * 2,
+      _FlashcardReviewOutcome.hard => currentIntervalDays,
+      _FlashcardReviewOutcome.failed => 1,
+    };
+    final DateTime nextDueAt = DateTime.now().add(
+      Duration(days: nextIntervalDays),
+    );
+
+    final bool updated = switch (flashcard.taskRef.sourceKind) {
+      _FlashcardSourceKind.incoming => _updateIncomingFlashcardTask(
+          taskId: flashcard.taskRef.taskId,
+          nextDueAtMicros: nextDueAt.microsecondsSinceEpoch,
+          nextIntervalDays: nextIntervalDays,
+        ),
+      _FlashcardSourceKind.project => _updateProjectFlashcardTask(
+          projectId: flashcard.taskRef.projectId!,
+          taskId: flashcard.taskRef.taskId,
+          nextDueAtMicros: nextDueAt.microsecondsSinceEpoch,
+          nextIntervalDays: nextIntervalDays,
+        ),
+    };
+
+    if (!updated) {
+      return;
+    }
+
+    setState(() {
+      _isFlashcardAnswerVisible = false;
+      _selectedFlashcardIndex = activeIndex;
+    });
+    _persistState();
+  }
+
+  bool _updateIncomingFlashcardTask({
+    required String taskId,
+    required int nextDueAtMicros,
+    required int nextIntervalDays,
+  }) {
+    final int taskIndex = _indexOfTaskById(_incomingTasks, taskId);
+    if (taskIndex < 0) {
+      return false;
+    }
+    final TaskItem task = _incomingTasks[taskIndex];
+    _incomingTasks[taskIndex] = task.copyWith(
+      flashcardReviewDueAtMicros: nextDueAtMicros,
+      flashcardReviewIntervalDays: nextIntervalDays,
+    );
+    return true;
+  }
+
+  bool _updateProjectFlashcardTask({
+    required String projectId,
+    required String taskId,
+    required int nextDueAtMicros,
+    required int nextIntervalDays,
+  }) {
+    final int projectIndex = _indexOfProjectById(projectId);
+    if (projectIndex < 0) {
+      return false;
+    }
+    final ProjectItem project = _projects[projectIndex];
+    final int taskIndex = _indexOfTaskById(project.tasks, taskId);
+    if (taskIndex < 0) {
+      return false;
+    }
+    final List<TaskItem> updatedTasks =
+        project.tasks.map((TaskItem task) => task.clone()).toList();
+    updatedTasks[taskIndex] = updatedTasks[taskIndex].copyWith(
+      flashcardReviewDueAtMicros: nextDueAtMicros,
+      flashcardReviewIntervalDays: nextIntervalDays,
+    );
+    _projects[projectIndex] = project.copyWith(tasks: updatedTasks);
+    return true;
+  }
+
   Widget _buildFlashcardsTab() {
     final List<_FlashcardEntry> flashcards = _flashcardEntries();
     return _FlashcardsTabView(
       flashcards: flashcards,
+      dueCount: _dueFlashcardCount(flashcards),
       activeIndex: _flashcardIndexForLength(flashcards.length),
       isAnswerVisible: _isFlashcardAnswerVisible,
       onRevealAnswer: () {
@@ -638,6 +795,11 @@ class _TaskPageState extends State<TaskPage>
       },
       onShowPrevious: () => _showPreviousFlashcard(flashcards.length),
       onShowNext: () => _showNextFlashcard(flashcards.length),
+      onReviewFailed: () =>
+          _applyFlashcardReview(_FlashcardReviewOutcome.failed),
+      onReviewHard: () => _applyFlashcardReview(_FlashcardReviewOutcome.hard),
+      onReviewCorrect: () =>
+          _applyFlashcardReview(_FlashcardReviewOutcome.correct),
     );
   }
 

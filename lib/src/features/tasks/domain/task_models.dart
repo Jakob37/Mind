@@ -179,6 +179,8 @@ class TaskItem {
     String? body,
     String? prompt,
     String? flashcardPrompt,
+    this.flashcardReviewDueAtMicros,
+    int? flashcardReviewIntervalDays,
     List<String>? imagePaths,
     this.createdAtMicros,
     this.colorValue,
@@ -192,6 +194,7 @@ class TaskItem {
         body = body ?? '',
         prompt = prompt ?? '',
         flashcardPrompt = flashcardPrompt ?? '',
+        flashcardReviewIntervalDays = flashcardReviewIntervalDays ?? 1,
         imagePaths = imagePaths ?? <String>[],
         type = type ?? TaskItemType.planning,
         entryType = entryType ?? TaskEntryType.note,
@@ -202,6 +205,8 @@ class TaskItem {
   final String body;
   final String prompt;
   final String flashcardPrompt;
+  final int? flashcardReviewDueAtMicros;
+  final int flashcardReviewIntervalDays;
   final List<String> imagePaths;
   final int? createdAtMicros;
   final int? colorValue;
@@ -216,6 +221,10 @@ class TaskItem {
       ? null
       : DateTime.fromMicrosecondsSinceEpoch(createdAtMicros!);
 
+  DateTime? get flashcardReviewDueAt => flashcardReviewDueAtMicros == null
+      ? null
+      : DateTime.fromMicrosecondsSinceEpoch(flashcardReviewDueAtMicros!);
+
   TaskItem clone() {
     return TaskItem(
       id: id,
@@ -223,6 +232,8 @@ class TaskItem {
       body: body,
       prompt: prompt,
       flashcardPrompt: flashcardPrompt,
+      flashcardReviewDueAtMicros: flashcardReviewDueAtMicros,
+      flashcardReviewIntervalDays: flashcardReviewIntervalDays,
       imagePaths: List<String>.from(imagePaths),
       createdAtMicros: createdAtMicros,
       colorValue: colorValue,
@@ -241,6 +252,9 @@ class TaskItem {
     String? body,
     String? prompt,
     String? flashcardPrompt,
+    int? flashcardReviewDueAtMicros,
+    bool clearFlashcardReviewDueAt = false,
+    int? flashcardReviewIntervalDays,
     List<String>? imagePaths,
     int? createdAtMicros,
     bool clearCreatedAt = false,
@@ -260,6 +274,11 @@ class TaskItem {
       body: body ?? this.body,
       prompt: prompt ?? this.prompt,
       flashcardPrompt: flashcardPrompt ?? this.flashcardPrompt,
+      flashcardReviewDueAtMicros: clearFlashcardReviewDueAt
+          ? null
+          : (flashcardReviewDueAtMicros ?? this.flashcardReviewDueAtMicros),
+      flashcardReviewIntervalDays:
+          flashcardReviewIntervalDays ?? this.flashcardReviewIntervalDays,
       imagePaths: imagePaths ?? List<String>.from(this.imagePaths),
       createdAtMicros:
           clearCreatedAt ? null : (createdAtMicros ?? this.createdAtMicros),
@@ -281,6 +300,8 @@ class TaskItem {
       'body': body,
       'prompt': prompt,
       'flashcardPrompt': flashcardPrompt,
+      'flashcardReviewDueAtMicros': flashcardReviewDueAtMicros,
+      'flashcardReviewIntervalDays': flashcardReviewIntervalDays,
       'imagePaths': imagePaths,
       'createdAtMicros': createdAtMicros,
       'color': colorValue,
@@ -302,6 +323,14 @@ class TaskItem {
       json,
       'flashcardPrompt',
     );
+    final int? flashcardReviewDueAtMicros = _readOptionalInt(
+      json,
+      'flashcardReviewDueAtMicros',
+    );
+    final int? flashcardReviewIntervalDays = _readOptionalInt(
+      json,
+      'flashcardReviewIntervalDays',
+    );
     final List<dynamic> imagePathJson = _readOptionalList(json, 'imagePaths');
     final int? createdAtMicros = _readOptionalInt(json, 'createdAtMicros');
     final int? colorValue = _readOptionalInt(json, 'color');
@@ -320,6 +349,11 @@ class TaskItem {
       body: body ?? '',
       prompt: prompt ?? '',
       flashcardPrompt: flashcardPrompt ?? '',
+      flashcardReviewDueAtMicros: flashcardReviewDueAtMicros,
+      flashcardReviewIntervalDays:
+          flashcardReviewIntervalDays == null || flashcardReviewIntervalDays < 1
+              ? 1
+              : flashcardReviewIntervalDays,
       imagePaths: imagePathJson
           .whereType<String>()
           .map((String path) => path.trim())

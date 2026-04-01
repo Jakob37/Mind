@@ -160,7 +160,7 @@ void main() {
 
     final Map<String, dynamic> decoded =
         jsonDecode(persisted!) as Map<String, dynamic>;
-    expect(decoded['version'], 23);
+    expect(decoded['version'], 24);
 
     final List<dynamic> incoming = (decoded['data']
         as Map<String, dynamic>)['incomingTasks'] as List<dynamic>;
@@ -201,8 +201,8 @@ void main() {
     final Map<String, dynamic> firstIncoming =
         incoming.first as Map<String, dynamic>;
 
-    expect(exported.contains('\n  "version": 23,'), isTrue);
-    expect(decoded['version'], 23);
+    expect(exported.contains('\n  "version": 24,'), isTrue);
+    expect(decoded['version'], 24);
     expect(data.containsKey('favoriteTasks'), isFalse);
     expect(firstIncoming['type'], 'planning');
     expect(firstIncoming['entryType'], 'note');
@@ -211,6 +211,8 @@ void main() {
     expect(firstIncoming['pinned'], isFalse);
     expect(firstIncoming['prompt'], '');
     expect(firstIncoming['flashcardPrompt'], '');
+    expect(firstIncoming['flashcardReviewDueAtMicros'], isNull);
+    expect(firstIncoming['flashcardReviewIntervalDays'], 1);
     expect(firstIncoming['imagePaths'], <String>['/tmp/task-image-1.png']);
     final List<dynamic> subtasks = firstIncoming['subtasks'] as List<dynamic>;
     expect(subtasks, hasLength(1));
@@ -312,6 +314,10 @@ void main() {
     expect(imported.projects.single.tasks.single.isPinned, isTrue);
     expect(imported.projects.single.tasks.single.prompt, 'Task level prompt');
     expect(imported.projects.single.tasks.single.flashcardPrompt, '');
+    expect(imported.projects.single.tasks.single.flashcardReviewDueAtMicros,
+        isNull);
+    expect(
+        imported.projects.single.tasks.single.flashcardReviewIntervalDays, 1);
     expect(
       imported.projects.single.tasks.single.imagePaths,
       <String>['/tmp/imported-image.png'],
@@ -430,7 +436,12 @@ void main() {
     expect(result.isSuccess, isTrue);
     final TaskBoardState state = result.state!;
     expect(state.incomingTasks.single.flashcardPrompt, '');
+    expect(state.incomingTasks.single.flashcardReviewDueAtMicros, isNull);
+    expect(state.incomingTasks.single.flashcardReviewIntervalDays, 1);
     expect(state.projects.single.tasks.single.flashcardPrompt, '');
+    expect(
+        state.projects.single.tasks.single.flashcardReviewDueAtMicros, isNull);
+    expect(state.projects.single.tasks.single.flashcardReviewIntervalDays, 1);
   });
 
   test(

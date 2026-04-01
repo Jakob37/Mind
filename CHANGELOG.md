@@ -2,6 +2,11 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.11
+
+- Added flashcard review outcomes for `Failed`, `Hard`, and `Correct` with persisted rescheduling between reviews.
+- Flashcards now track due dates and review intervals so correct answers extend the interval, hard answers keep it, and failed answers reset it.
+
 ## v0.3.10
 
 - Added selectable image import sizes so Android attachments can be downsized before being stored locally.

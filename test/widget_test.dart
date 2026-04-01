@@ -223,7 +223,7 @@ void main() {
   ) async {
     SharedPreferences.setMockInitialValues(<String, Object>{
       'task_board_state': jsonEncode(<String, dynamic>{
-        'version': 23,
+        'version': 24,
         'data': <String, dynamic>{
           'incomingTasks': <Map<String, dynamic>>[],
           'projects': <Map<String, dynamic>>[
@@ -268,6 +268,7 @@ void main() {
 
     expect(find.text('What is box breathing?'), findsOneWidget);
     expect(find.text('Reveal answer'), findsOneWidget);
+    expect(find.text('1 cards due'), findsOneWidget);
 
     await tester.tap(find.text('Reveal answer'));
     await tester.pumpAndSettle();
@@ -275,6 +276,15 @@ void main() {
     expect(find.text('Name the breathing pattern'), findsOneWidget);
     expect(find.text('Box breathing uses equal counts.'), findsOneWidget);
     expect(find.text('Source: Morning Routine'), findsOneWidget);
+    expect(find.text('Failed'), findsOneWidget);
+    expect(find.text('Hard'), findsOneWidget);
+    expect(find.text('Correct'), findsOneWidget);
+
+    await tester.tap(find.text('Correct'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Reveal answer'), findsOneWidget);
+    expect(find.text('No cards due right now'), findsOneWidget);
   });
 
   testWidgets('loads unversioned state from the previous storage key', (
@@ -1396,7 +1406,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('23'), findsWidgets);
+    expect(find.textContaining('24'), findsWidgets);
     expect(find.textContaining('"id"'), findsWidgets);
   });
 
@@ -1446,7 +1456,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.textContaining('"version"'), findsWidgets);
-    expect(find.textContaining('23'), findsWidgets);
+    expect(find.textContaining('24'), findsWidgets);
     expect(find.textContaining('"body": ""'), findsWidgets);
     expect(find.textContaining('"color": null'), findsWidgets);
   });
