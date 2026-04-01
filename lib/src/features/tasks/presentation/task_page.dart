@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../data/task_backup_preferences.dart';
 import '../data/task_backup_service.dart';
+import '../data/task_image_attachment_service.dart';
 import '../data/task_storage.dart';
 import '../data/task_sync_service.dart';
 import '../domain/list_reorder.dart';
@@ -89,6 +90,8 @@ class _TaskPageState extends State<TaskPage>
   final TaskBackupService _taskBackupService = const TaskBackupService();
   final TaskBackupPreferences _taskBackupPreferences =
       const TaskBackupPreferences();
+  final TaskImageAttachmentService _taskImageAttachmentService =
+      const TaskImageAttachmentService();
   final TaskSyncService _taskSyncService = TaskSyncService();
   final TaskBoardState _defaultState = TaskBoardState.defaults();
 
@@ -2095,6 +2098,7 @@ class _TaskPageState extends State<TaskPage>
     try {
       await _taskStorage.save(snapshot);
       await _createAutomaticBackupIfEnabled(snapshot);
+      await _taskImageAttachmentService.pruneUnusedImages(snapshot);
     } catch (error, stackTrace) {
       _isPersistencePaused = true;
       _reportPersistenceError(
@@ -2216,7 +2220,9 @@ class _TaskPageState extends State<TaskPage>
         _hideCompletedProjectItems = importedState.hideCompletedProjectItems;
         _cardLayoutPreset = importedState.cardLayoutPreset;
       });
-      await _taskStorage.save(_createSnapshot());
+      final TaskBoardState snapshot = _createSnapshot();
+      await _taskStorage.save(snapshot);
+      await _taskImageAttachmentService.pruneUnusedImages(snapshot);
       return null;
     } catch (error) {
       return 'Import failed: $error';

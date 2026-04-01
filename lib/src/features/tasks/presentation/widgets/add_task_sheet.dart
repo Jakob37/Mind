@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/task_image_attachment_service.dart';
 import '../../domain/task_models.dart';
 import 'item_color_picker_sheet.dart';
 import 'item_icon_picker_sheet.dart';
@@ -46,6 +47,7 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   String? _iconKey;
   String? _targetProjectId;
   final List<String> _imagePaths = <String>[];
+  TaskImageResizeOption _imageResizeOption = TaskImageResizeOption.large;
 
   @override
   void initState() {
@@ -69,7 +71,9 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
   }
 
   Future<void> _addImages() async {
-    final List<String> importedPaths = await pickAndImportTaskImages();
+    final List<String> importedPaths = await pickAndImportTaskImages(
+      resizeOption: _imageResizeOption,
+    );
     if (!mounted || importedPaths.isEmpty) {
       return;
     }
@@ -243,8 +247,14 @@ class _AddTaskSheetState extends State<AddTaskSheet> {
           const SizedBox(height: 8),
           TaskImageField(
             imagePaths: _imagePaths,
+            resizeOption: _imageResizeOption,
             onAddImages: _addImages,
             onRemoveImage: _removeImage,
+            onResizeOptionChanged: (TaskImageResizeOption value) {
+              setState(() {
+                _imageResizeOption = value;
+              });
+            },
           ),
           const SizedBox(height: 8),
           Align(

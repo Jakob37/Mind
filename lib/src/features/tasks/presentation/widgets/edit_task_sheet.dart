@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../data/task_image_attachment_service.dart';
 import 'task_image_field.dart';
 
 class TaskEditResult {
@@ -48,6 +49,7 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
   late final TextEditingController _promptController;
   late final TextEditingController _flashcardPromptController;
   late final List<String> _imagePaths;
+  TaskImageResizeOption _imageResizeOption = TaskImageResizeOption.large;
 
   @override
   void initState() {
@@ -87,7 +89,9 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
   }
 
   Future<void> _addImages() async {
-    final List<String> importedPaths = await pickAndImportTaskImages();
+    final List<String> importedPaths = await pickAndImportTaskImages(
+      resizeOption: _imageResizeOption,
+    );
     if (!mounted || importedPaths.isEmpty) {
       return;
     }
@@ -140,8 +144,14 @@ class _EditTaskSheetState extends State<EditTaskSheet> {
           const SizedBox(height: 12),
           TaskImageField(
             imagePaths: _imagePaths,
+            resizeOption: _imageResizeOption,
             onAddImages: _addImages,
             onRemoveImage: _removeImage,
+            onResizeOptionChanged: (TaskImageResizeOption value) {
+              setState(() {
+                _imageResizeOption = value;
+              });
+            },
           ),
           if (widget.showPromptField) ...<Widget>[
             const SizedBox(height: 12),

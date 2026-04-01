@@ -2,6 +2,11 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.10
+
+- Added selectable image import sizes so Android attachments can be downsized before being stored locally.
+- Added automatic cleanup for unused copied attachment files after saves and imports.
+
 ## v0.3.9
 
 - Added image attachments for task entries, including Android file selection, persistent local copies, and attachment display in task detail and journal/idea views.
