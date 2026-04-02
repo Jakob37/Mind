@@ -2,6 +2,11 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.13
+
+- Improved the Incoming task move sheet with a taller searchable layout so matching projects stay visible while typing.
+- Added stack context to move-sheet results and expandable stack rows so searching by stack name can reveal all projects in that stack.
+
 ## v0.3.12
 
 - New projects now default to the standard `Project` type instead of `Blank`, so they immediately show task actions and can be selected from Incoming task moves.

@@ -1309,8 +1309,10 @@ class _TaskPageState extends State<TaskPage>
     );
     final String? targetProjectId = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       builder: (_) => MoveProjectTaskSheet(
         projects: targetProjects,
+        projectStacks: _projectStacks,
         projectTypes: _projectTypes,
         currentProjectId: '',
       ),

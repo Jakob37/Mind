@@ -2171,8 +2171,10 @@ class _ProjectDetailPageState extends State<ProjectDetailPage> {
 
     final String? targetProjectId = await showModalBottomSheet<String>(
       context: context,
+      isScrollControlled: true,
       builder: (_) => MoveProjectTaskSheet(
         projects: targetProjects,
+        projectStacks: _projectStacks,
         projectTypes: widget.projectTypes,
         currentProjectId: widget.projectId,
       ),

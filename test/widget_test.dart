@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sorted_out/src/app.dart';
 import 'package:sorted_out/src/features/tasks/domain/task_models.dart';
 import 'package:sorted_out/src/features/tasks/presentation/widgets/add_task_sheet.dart';
+import 'package:sorted_out/src/features/tasks/presentation/widgets/move_project_task_sheet.dart';
 
 void main() {
   setUp(() {
@@ -245,6 +246,63 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Default Project'), findsOneWidget);
+  });
+
+  testWidgets('move task sheet shows stack hits and expands stack contents', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: MoveProjectTaskSheet(
+            projects: <ProjectItem>[
+              ProjectItem(
+                id: 'project-1',
+                name: 'Alpha',
+                stackId: 'stack-1',
+                projectTypeId: ProjectTypeDefaults.projectId,
+              ),
+              ProjectItem(
+                id: 'project-2',
+                name: 'Beta',
+                stackId: 'stack-1',
+                projectTypeId: ProjectTypeDefaults.projectId,
+              ),
+              ProjectItem(
+                id: 'project-3',
+                name: 'Solo',
+                projectTypeId: ProjectTypeDefaults.projectId,
+              ),
+            ],
+            projectStacks: <ProjectStack>[
+              ProjectStack(id: 'stack-1', name: 'Focus Stack'),
+            ],
+            projectTypes: ProjectTypeConfig.defaults(),
+            currentProjectId: '',
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField), 'beta');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Beta'), findsOneWidget);
+    expect(find.textContaining('Stack: Focus Stack'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), 'focus');
+    await tester.pumpAndSettle();
+
+    expect(find.text('Focus Stack'), findsOneWidget);
+    expect(find.text('Beta'), findsOneWidget);
+
+    await tester.tap(find.text('Focus Stack'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Alpha'), findsWidgets);
+    expect(find.text('Beta'), findsWidgets);
   });
 
   testWidgets('flashcards tab shows active idea flashcards', (
