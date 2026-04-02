@@ -50,7 +50,7 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Breathwork');
-    await tester.tap(find.text('Type: Blank'));
+    await tester.tap(find.text('Type: Project'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Project'));
     await tester.pumpAndSettle();
@@ -216,6 +216,35 @@ void main() {
     expect(find.text('Big project'), findsOneWidget);
     expect(find.text('Reading list'), findsNothing);
     expect(find.text('Morning Routine'), findsNothing);
+  });
+
+  testWidgets('new default projects can receive incoming tasks', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MindApp());
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Projects'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField), 'Default Project');
+    expect(find.text('Type: Project'), findsOneWidget);
+    await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('Incoming'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.widgetWithText(ListTile, 'Do a 3-minute breathing check-in'),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Task options'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Move to project'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Default Project'), findsOneWidget);
   });
 
   testWidgets('flashcards tab shows active idea flashcards', (
@@ -1093,6 +1122,10 @@ void main() {
       await tester.tap(find.byType(FloatingActionButton));
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'Reference');
+      await tester.tap(find.text('Type: Project'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Blank'));
+      await tester.pumpAndSettle();
       await tester.tap(find.widgetWithText(FilledButton, 'Create Project'));
       await tester.pumpAndSettle();
 
@@ -1116,7 +1149,7 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Knowledge Hub');
-    await tester.tap(find.text('Type: Blank'));
+    await tester.tap(find.text('Type: Project'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Knowledge'));
     await tester.pumpAndSettle();
@@ -1175,7 +1208,7 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Daily Notes');
-    await tester.tap(find.text('Type: Blank'));
+    await tester.tap(find.text('Type: Project'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.text('Diary'),
@@ -1222,7 +1255,7 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Contacts');
-    await tester.tap(find.text('Type: Blank'));
+    await tester.tap(find.text('Type: Project'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.widgetWithText(ListTile, 'People'),
@@ -1314,7 +1347,7 @@ void main() {
     await tester.tap(find.byType(FloatingActionButton));
     await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextField), 'Training');
-    await tester.tap(find.text('Type: Blank'));
+    await tester.tap(find.text('Type: Project'));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
       find.widgetWithText(ListTile, 'Exercise'),

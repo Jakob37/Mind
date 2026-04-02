@@ -2,6 +2,10 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.3.12
+
+- New projects now default to the standard `Project` type instead of `Blank`, so they immediately show task actions and can be selected from Incoming task moves.
+
 ## v0.3.11
 
 - Added flashcard review outcomes for `Failed`, `Hard`, and `Correct` with persisted rescheduling between reviews.

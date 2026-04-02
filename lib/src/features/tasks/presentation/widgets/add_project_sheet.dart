@@ -36,7 +36,7 @@ class AddProjectSheet extends StatefulWidget {
 class _AddProjectSheetState extends State<AddProjectSheet> {
   final TextEditingController _projectNameController = TextEditingController();
   late ProjectStackSelection _stackSelection;
-  String _projectTypeId = ProjectTypeDefaults.blankId;
+  String _projectTypeId = ProjectTypeDefaults.projectId;
 
   @override
   void initState() {
