@@ -1994,11 +1994,19 @@ class _TaskPageState extends State<TaskPage>
       if (!mounted) {
         return;
       }
-      _openAddTaskWidget();
+      _openAddTaskWidget(closeAfterCompletion: true);
     });
   }
 
-  Future<void> _openAddTaskWidget() async {
+  Future<void> _refreshIncomingWidget() async {
+    try {
+      await _widgetChannel.invokeMethod<void>('refreshIncomingWidget');
+    } on MissingPluginException {
+      // Platforms without widget integration.
+    }
+  }
+
+  Future<void> _openAddTaskWidget({bool closeAfterCompletion = false}) async {
     if (_isAddTaskSheetOpen) {
       return;
     }
@@ -2015,6 +2023,9 @@ class _TaskPageState extends State<TaskPage>
     _isAddTaskSheetOpen = false;
 
     if (result == null) {
+      if (closeAfterCompletion) {
+        await SystemNavigator.pop();
+      }
       return;
     }
 
@@ -2034,6 +2045,12 @@ class _TaskPageState extends State<TaskPage>
         _incomingTasks.add(result.task);
       }
     });
+    if (closeAfterCompletion) {
+      final TaskBoardState snapshot = _createSnapshot();
+      await _persistSnapshot(snapshot);
+      await SystemNavigator.pop();
+      return;
+    }
     _persistState();
   }
 
@@ -2263,6 +2280,7 @@ class _TaskPageState extends State<TaskPage>
       await _taskStorage.save(snapshot);
       await _createAutomaticBackupIfEnabled(snapshot);
       await _taskImageAttachmentService.pruneUnusedImages(snapshot);
+      await _refreshIncomingWidget();
     } catch (error, stackTrace) {
       _isPersistencePaused = true;
       _reportPersistenceError(

@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="widget_add_entry">Add start entry</string>
-    <string name="widget_add_entry_description">Quickly add a new start-page entry</string>
+    <string name="widget_add_entry_description">Quickly view incoming entries and add a new one</string>
+    <string name="widget_incoming_title">Incoming</string>
+    <string name="widget_incoming_empty">No incoming entries</string>
+    <string name="widget_add_entry_symbol">+</string>
 </resources>

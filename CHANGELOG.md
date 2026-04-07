@@ -2,6 +2,11 @@
 
 All notable user-facing changes to this project should be recorded here.
 
+## v0.4.0
+
+- Added an Android home-screen Incoming widget that shows a compact list of current incoming entries together with a `+` button.
+- Widget-launched entry creation now opens the same add-entry sheet and returns to the launcher after save or cancel instead of leaving the full app open.
+
 ## v0.3.13
 
 - Improved the Incoming task move sheet with a taller searchable layout so matching projects stay visible while typing.

@@ -49,6 +49,10 @@ class MainActivity : FlutterActivity() {
                     result.success(pendingAddEntryRequest)
                     pendingAddEntryRequest = false
                 }
+                "refreshIncomingWidget" -> {
+                    AddEntryWidgetProvider.refreshAll(this)
+                    result.success(true)
+                }
                 else -> result.notImplemented()
             }
         }
